@@ -100,11 +100,11 @@ export const generateStudents = () => {
 
     const missedQuizzes = (i % 7) === 0 ? 3 : (i % 4) === 0 ? 1 : 0;
     
-    // Weekly emotional index
-    const frustration = 5 + (i * 3) % 20;
-    const stressed = 10 + (i * 7) % 35;
-    const happy = 40 + (i * 11) % 35;
-    const focused = 100 - (frustration + stressed + happy);
+ // Weekly emotional index
+const frustrated = 5 + (i * 3) % 20;
+const stressed = 10 + (i * 7) % 35;
+const happy = 40 + (i * 11) % 35;
+const focused = 100 - (frustrated + stressed + happy);
 
     const activityHistory = [
       { event: "Completed Quiz: Functions & Pointers", date: "2026-06-05", xp: 80 },
