@@ -15,11 +15,13 @@ import {
 } from 'lucide-react';
 import Header from './Header';
 import { useStudent } from '../context/StudentContext';
+import { useAuth } from '../context/AuthContext';
 import { COLLEGE_THEMES } from '../data/academicData';
 
 const TeacherLayout = () => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const { profile, institution } = useStudent();
+  const { logout } = useAuth();
   const navigate = useNavigate();
 
   const menuItems = [
@@ -32,7 +34,7 @@ const TeacherLayout = () => {
   ];
 
   const handleLogout = () => {
-    navigate('/select-role');
+    logout();
   };
 
   const currentTheme = COLLEGE_THEMES[institution] || COLLEGE_THEMES.coep;
@@ -129,7 +131,7 @@ const TeacherLayout = () => {
               animate={{ opacity: 1 }}
               className="text-xs font-semibold"
             >
-              Change Portal Role
+              Log Out Faculty
             </motion.span>
           )}
         </div>
