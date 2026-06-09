@@ -18,10 +18,12 @@ import {
   LogOut
 } from 'lucide-react';
 import { useStudent } from '../context/StudentContext';
+import { useAuth } from '../context/AuthContext';
 
 const Sidebar = () => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const { profile } = useStudent();
+  const { logout } = useAuth();
   const navigate = useNavigate();
 
   const menuItems = [
@@ -118,14 +120,21 @@ const Sidebar = () => {
 
       {/* User Footer Profile & Change Role Trigger */}
       <div 
-        onClick={() => navigate('/select-role')}
+        onClick={() => navigate('/profile')}
         className="p-4 border-t border-slate-800 bg-slate-950/40 flex items-center gap-3 cursor-pointer hover:bg-slate-850 transition-colors group"
       >
         <div className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center text-lg shrink-0 border border-slate-700 relative">
           {profile.avatar}
-          <div className="absolute -bottom-1 -right-1 bg-red-500 rounded-full p-0.5 text-white opacity-0 group-hover:opacity-100 transition-opacity">
+          <button 
+            onClick={(e) => {
+              e.stopPropagation();
+              logout();
+            }}
+            className="absolute -bottom-1 -right-1 bg-red-500 hover:bg-red-650 rounded-full p-1 text-white opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer border border-slate-900"
+            title="Log Out"
+          >
             <LogOut size={8} />
-          </div>
+          </button>
         </div>
         {!isCollapsed && (
           <motion.div
@@ -133,8 +142,8 @@ const Sidebar = () => {
             animate={{ opacity: 1 }}
             className="flex-1 min-w-0"
           >
-            <p className="text-sm font-semibold text-white truncate group-hover:text-red-400 transition-colors">{profile.name}</p>
-            <p className="text-xs text-slate-400 truncate group-hover:text-slate-200 transition-colors">Change Portal Role</p>
+            <p className="text-sm font-semibold text-white truncate group-hover:text-indigo-400 transition-colors">{profile.name}</p>
+            <p className="text-xs text-slate-400 truncate group-hover:text-slate-200 transition-colors">View Profile & Settings</p>
           </motion.div>
         )}
       </div>

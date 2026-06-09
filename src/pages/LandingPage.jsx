@@ -88,7 +88,7 @@ const LandingPage = () => {
           <a href="#testimonials" className="hover:text-white transition-colors">Testimonials</a>
         </div>
         <button 
-          onClick={() => navigate('/select-role')}
+          onClick={() => navigate('/login')}
           className="bg-indigo-600 hover:bg-indigo-500 hover:shadow-lg hover:shadow-indigo-600/30 text-white font-bold px-5 py-2.5 rounded-xl border border-indigo-500/30 transition-all text-sm cursor-pointer"
         >
           Sign In
@@ -120,7 +120,7 @@ const LandingPage = () => {
             </p>
             <div className="mt-10 flex flex-wrap gap-4">
               <button 
-                onClick={() => navigate('/select-role')}
+                onClick={() => navigate('/login')}
                 className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold px-8 py-4 rounded-xl text-base shadow-xl shadow-indigo-600/20 flex items-center gap-2 group transition-all cursor-pointer"
               >
                 Go to Student Portal
@@ -251,7 +251,7 @@ const LandingPage = () => {
             Join thousands of B.Tech / BE engineering students today and build verification analytics professors can rely on.
           </p>
           <button 
-            onClick={() => navigate('/select-role')}
+            onClick={() => navigate('/login')}
             className="mt-8 bg-white hover:bg-slate-100 text-slate-950 font-extrabold px-8 py-4 rounded-xl shadow-lg transition-all transform hover:scale-105 cursor-pointer text-sm"
           >
             Launch Student Portal

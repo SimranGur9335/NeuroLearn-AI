@@ -1,13 +1,18 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider } from './context/AuthContext';
 import { StudentProvider } from './context/StudentContext';
 import PlatformLayout from './components/PlatformLayout';
 import TeacherLayout from './components/TeacherLayout';
 import AdminLayout from './components/AdminLayout';
+import ProtectedRoute from './components/ProtectedRoute';
 
 // Public & Selection Pages
 import LandingPage from './pages/LandingPage';
 import RoleSelection from './pages/RoleSelection';
+import Login from './pages/Login';
+import Register from './pages/Register';
+import Profile from './pages/Profile';
 
 // Student Portal Pages
 import Dashboard from './pages/Dashboard';
@@ -40,58 +45,77 @@ import SystemMonitoring from './pages/admin/SystemMonitoring';
 
 function App() {
   return (
-    <StudentProvider>
-      <Router>
-        <Routes>
-          {/* Public Landing Page */}
-          <Route path="/" element={<LandingPage />} />
-          
-          {/* Role Selection Screen */}
-          <Route path="/select-role" element={<RoleSelection />} />
-
-          {/* Student Portal Layout & Routes */}
-          <Route element={<PlatformLayout />}>
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/domains" element={<LearningDomains />} />
-            <Route path="/roadmap" element={<Roadmap />} />
-            <Route path="/quiz" element={<Quiz />} />
-            <Route path="/analytics" element={<Analytics />} />
-            <Route path="/career" element={<CareerGuidance />} />
-            <Route path="/leaderboard" element={<Leaderboard />} />
+    <AuthProvider>
+      <StudentProvider>
+        <Router>
+          <Routes>
+            {/* Public Landing Page */}
+            <Route path="/" element={<LandingPage />} />
             
-            {/* AI Module nested routes */}
-            <Route path="/ai/chat" element={<AiMentorChat />} />
-            <Route path="/ai/predictions" element={<PerformancePrediction />} />
-            <Route path="/ai/emotions" element={<EmotionAnalysis />} />
-            <Route path="/ai/recommendations" element={<RecommendationEngine />} />
-          </Route>
-
-          {/* Teacher Portal Layout & Routes */}
-          <Route element={<TeacherLayout />}>
-            <Route path="/teacher/dashboard" element={<TeacherDashboard />} />
-            <Route path="/teacher/performance" element={<StudentPerformance />} />
-            <Route path="/teacher/analytics" element={<TeacherAnalytics />} />
-            <Route path="/teacher/risk" element={<RiskPrediction />} />
-            <Route path="/teacher/attendance" element={<AttendanceTracking />} />
+            {/* Public Authentication Screens */}
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
             
-            {/* Reused AI chat for faculty support */}
-            <Route path="/teacher/ai-chat" element={<AiMentorChat />} />
-          </Route>
+            {/* Role Selection Screen */}
+            <Route path="/select-role" element={<RoleSelection />} />
 
-          {/* Admin Portal Layout & Routes */}
-          <Route element={<AdminLayout />}>
-            <Route path="/admin/dashboard" element={<AdminDashboard />} />
-            <Route path="/admin/users" element={<UserManagement />} />
-            <Route path="/admin/courses" element={<CourseManagement />} />
-            <Route path="/admin/reports" element={<AdminReports />} />
-            <Route path="/admin/system" element={<SystemMonitoring />} />
-          </Route>
+            {/* Student Portal Layout & Routes */}
+            <Route element={
+              <ProtectedRoute allowedRoles={['student']}>
+                <PlatformLayout />
+              </ProtectedRoute>
+            }>
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/domains" element={<LearningDomains />} />
+              <Route path="/roadmap" element={<Roadmap />} />
+              <Route path="/quiz" element={<Quiz />} />
+              <Route path="/analytics" element={<Analytics />} />
+              <Route path="/career" element={<CareerGuidance />} />
+              <Route path="/leaderboard" element={<Leaderboard />} />
+              <Route path="/profile" element={<Profile />} />
+              
+              {/* AI Module nested routes */}
+              <Route path="/ai/chat" element={<AiMentorChat />} />
+              <Route path="/ai/predictions" element={<PerformancePrediction />} />
+              <Route path="/ai/emotions" element={<EmotionAnalysis />} />
+              <Route path="/ai/recommendations" element={<RecommendationEngine />} />
+            </Route>
 
-          {/* Fallback route */}
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </Router>
-    </StudentProvider>
+            {/* Teacher Portal Layout & Routes */}
+            <Route element={
+              <ProtectedRoute allowedRoles={['teacher']}>
+                <TeacherLayout />
+              </ProtectedRoute>
+            }>
+              <Route path="/teacher/dashboard" element={<TeacherDashboard />} />
+              <Route path="/teacher/performance" element={<StudentPerformance />} />
+              <Route path="/teacher/analytics" element={<TeacherAnalytics />} />
+              <Route path="/teacher/risk" element={<RiskPrediction />} />
+              <Route path="/teacher/attendance" element={<AttendanceTracking />} />
+              
+              {/* Reused AI chat for faculty support */}
+              <Route path="/teacher/ai-chat" element={<AiMentorChat />} />
+            </Route>
+
+            {/* Admin Portal Layout & Routes */}
+            <Route element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <AdminLayout />
+              </ProtectedRoute>
+            }>
+              <Route path="/admin/dashboard" element={<AdminDashboard />} />
+              <Route path="/admin/users" element={<UserManagement />} />
+              <Route path="/admin/courses" element={<CourseManagement />} />
+              <Route path="/admin/reports" element={<AdminReports />} />
+              <Route path="/admin/system" element={<SystemMonitoring />} />
+            </Route>
+
+            {/* Fallback route */}
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </Router>
+      </StudentProvider>
+    </AuthProvider>
   );
 }
 

@@ -1,12 +1,15 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { BADGES as INITIAL_BADGES, DOMAINS } from '../data/data';
 import { generateStudents, TEACHERS, COURSES } from '../data/academicData';
+import { useAuth } from './AuthContext';
 
 const StudentContext = createContext();
 
 export const useStudent = () => useContext(StudentContext);
 
 export const StudentProvider = ({ children }) => {
+  const { role: authRole, user } = useAuth() || {};
+
   // --- Active Persona Role ---
   const [role, setRole] = useState(() => {
     const saved = localStorage.getItem('neurolearn_role');
@@ -40,10 +43,31 @@ export const StudentProvider = ({ children }) => {
     branch: "B.Tech Computer Science",
     year: "3rd Year",
     rollNumber: "2023CS8094",
-    college: "Apex Institute of Technology",
-    email: "aarav.singh@apex.edu",
+    college: "COEP Technological University",
+    email: "student@neurolearn.ai",
     avatar: "🚀"
   });
+
+  // Sync role and profile from AuthContext
+  useEffect(() => {
+    if (authRole) {
+      setRole(authRole);
+    }
+  }, [authRole]);
+
+  useEffect(() => {
+    if (user) {
+      setProfile({
+        name: user.name || "Aarav Singh",
+        branch: user.branch || (user.role === 'student' ? "B.Tech Computer Science" : "Computer Engineering"),
+        year: user.year || "3rd Year",
+        rollNumber: user.rollNumber || "2023CS8094",
+        college: user.college || "COEP Technological University",
+        email: user.email || "student@neurolearn.ai",
+        avatar: user.avatar || "🚀"
+      });
+    }
+  }, [user]);
 
   const [xp, setXp] = useState(() => {
     const saved = localStorage.getItem('neurolearn_xp');
