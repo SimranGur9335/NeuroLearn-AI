@@ -10,7 +10,8 @@ import {
   Sparkles,
   ChevronLeft,
   ChevronRight,
-  LogOut
+  LogOut,
+  ShieldAlert
 } from 'lucide-react';
 import Header from './Header';
 import { useStudent } from '../context/StudentContext';
@@ -24,11 +25,12 @@ const AdminLayout = () => {
   const navigate = useNavigate();
 
   const menuItems = [
-    { name: 'Admin Hub', path: '/admin/dashboard', icon: LayoutDashboard },
-    { name: 'User Directory', path: '/admin/users', icon: Users },
-    { name: 'Curriculum Master', path: '/admin/courses', icon: BookOpen },
-    { name: 'Dept Reports', path: '/admin/reports', icon: BarChart3 },
-    { name: 'System Hardware', path: '/admin/system', icon: Server },
+    {name: 'Admin Hub', path: '/admin/dashboard', icon: LayoutDashboard},
+    {name: 'User Directory', path: '/admin/users', icon: Users},
+    {name: 'Curriculum Master', path: '/admin/courses', icon: BookOpen},
+    {name: 'Dept Reports', path: '/admin/reports', icon: BarChart3},
+    {name: 'System Hardware', path: '/admin/system', icon: Server},
+    {name: 'Security Center', path: '/admin/security', icon: ShieldAlert},
   ];
 
   const handleLogout = () => {

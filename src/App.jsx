@@ -42,6 +42,7 @@ import UserManagement from './pages/admin/UserManagement';
 import CourseManagement from './pages/admin/CourseManagement';
 import AdminReports from './pages/admin/AdminReports';
 import SystemMonitoring from './pages/admin/SystemMonitoring';
+import SecurityCenter from './pages/admin/SecurityCenter';
 
 function App() {
   return (
@@ -108,6 +109,7 @@ function App() {
               <Route path="/admin/courses" element={<CourseManagement />} />
               <Route path="/admin/reports" element={<AdminReports />} />
               <Route path="/admin/system" element={<SystemMonitoring />} />
+              <Route path="/admin/security" element={<SecurityCenter />} />
             </Route>
 
             {/* Fallback route */}

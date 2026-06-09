@@ -1,4 +1,5 @@
 // Mock Authentication service simulating Node.js/Express JWT endpoints
+import { validateInstitutionalEmail } from '../utils/validation';
 
 const API_BASE_URL = "/api/v1/auth"; // Placeholder for future backend connection
 
@@ -55,6 +56,19 @@ const generateMockTokens = (user) => {
   return { accessToken, refreshToken };
 };
 
+const logSecurityAlert = (email, actionType) => {
+  const alerts = JSON.parse(localStorage.getItem("neurolearn_security_alerts") || "[]");
+  const newAlert = {
+    id: `alert_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+    email: email || "unknown",
+    timestamp: new Date().toISOString(),
+    actionType: actionType, // 'LOGIN' | 'REGISTER'
+    status: 'BLOCKED'
+  };
+  alerts.unshift(newAlert);
+  localStorage.setItem("neurolearn_security_alerts", JSON.stringify(alerts));
+};
+
 export const authService = {
   /**
    * Log in user using credentials.
@@ -63,6 +77,12 @@ export const authService = {
   login: async (email, password, role) => {
     console.log(`[authService] POST ${API_BASE_URL}/login - role: ${role}`);
     
+    // Enforcement check: Only official institutional emails allowed
+    if (!validateInstitutionalEmail(email)) {
+      logSecurityAlert(email, 'LOGIN');
+      throw new Error("Unauthorized email domain detected. Please contact the administrator.");
+    }
+
     // Simulate API network latency
     await new Promise(resolve => setTimeout(resolve, 800));
 
@@ -108,6 +128,12 @@ export const authService = {
     await new Promise(resolve => setTimeout(resolve, 1000));
 
     const { email, password, name, role } = userData;
+
+    // Enforcement check: Only official institutional emails allowed
+    if (!validateInstitutionalEmail(email)) {
+      logSecurityAlert(email, 'REGISTER');
+      throw new Error("Only official NeuroLearn institutional email addresses are allowed.");
+    }
 
     // Check if email already registered
     const demoEmails = Object.values(DEMO_ACCOUNTS).map(d => d.email);
