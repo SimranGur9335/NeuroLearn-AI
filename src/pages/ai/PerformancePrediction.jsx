@@ -1,22 +1,22 @@
-import React from 'react';
 import { motion } from 'framer-motion';
-import { 
-  ResponsiveContainer, 
-  LineChart, 
-  Line, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
+import { useState } from "react";
+import {
+  ResponsiveContainer,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
   Legend,
   AreaChart,
   Area
 } from 'recharts';
-import { 
-  Sparkles, 
-  TrendingUp, 
-  GraduationCap, 
-  Briefcase, 
+import {
+  Sparkles,
+  TrendingUp,
+  GraduationCap,
+  Briefcase,
   CheckCircle,
   HelpCircle,
   ShieldCheck,
@@ -45,9 +45,42 @@ const PerformancePrediction = () => {
     { category: "Core Attendance", score: 88, threshold: 75 },
     { category: "Certifications Index", score: 92, threshold: 60 }
   ];
+  const [predictedGrade, setPredictedGrade] = useState(null);
+
+  const [formData, setFormData] = useState({
+    age: 17,
+    studytime: 3,
+    failures: 0,
+    absences: 4,
+    G1: 15,
+    G2: 16,
+  });
+  const predictPerformance = async () => {
+    try {
+      const response = await fetch(
+        "http://127.0.0.1:8000/predict/student-performance",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(formData),
+        }
+      );
+
+      const data = await response.json();
+
+      setPredictedGrade(data.predicted_grade);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
 
   // Dynamically adapt values based on active student XP!
-  const predictedGPA = parseFloat((8.1 + (xp > 1450 ? 0.35 : 0.2)).toFixed(2));
+  const predictedGPA = predictedGrade
+    ? ((predictedGrade / 20) * 10).toFixed(2)
+    : "8.00";
   const placementReadinessPercent = xp > 1450 ? 88 : 74;
 
   return (
@@ -82,6 +115,12 @@ const PerformancePrediction = () => {
             <span className="text-slate-400 font-semibold uppercase">Confidence Index: 92.4%</span>
             <span className="text-emerald-500 font-bold uppercase tracking-wide">First Class Dist</span>
           </div>
+          <button
+            onClick={predictPerformance}
+            className="mt-3 bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm"
+          >
+            Predict Performance
+          </button>
         </div>
 
         {/* Placement Readiness */}
@@ -130,12 +169,12 @@ const PerformancePrediction = () => {
               <AreaChart data={cgpaHistory}>
                 <defs>
                   <linearGradient id="colorCgpa" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#6366f1" stopOpacity={0.2}/>
-                    <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
+                    <stop offset="5%" stopColor="#6366f1" stopOpacity={0.2} />
+                    <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
                   </linearGradient>
                   <linearGradient id="colorProject" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#06b6d4" stopOpacity={0.2}/>
-                    <stop offset="95%" stopColor="#06b6d4" stopOpacity={0}/>
+                    <stop offset="5%" stopColor="#06b6d4" stopOpacity={0.2} />
+                    <stop offset="95%" stopColor="#06b6d4" stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.15} />
@@ -166,9 +205,8 @@ const PerformancePrediction = () => {
                     <span className="font-bold text-slate-700 dark:text-slate-350 block">{met.category}</span>
                     <span className="text-[10px] text-slate-400">Req: &gt;={met.threshold}% • Act: {met.score}%</span>
                   </div>
-                  <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded ${
-                    isQualified ? 'bg-emerald-500/10 text-emerald-500' : 'bg-yellow-500/10 text-yellow-600 dark:text-yellow-400'
-                  }`}>
+                  <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded ${isQualified ? 'bg-emerald-500/10 text-emerald-500' : 'bg-yellow-500/10 text-yellow-600 dark:text-yellow-400'
+                    }`}>
                     {isQualified ? 'Pass' : 'Weakness'}
                   </span>
                 </div>

@@ -2,6 +2,7 @@ from fastapi import FastAPI
 import joblib
 from pathlib import Path
 from pydantic import BaseModel
+from fastapi.middleware.cors import CORSMiddleware
 
 class StudentPerformanceInput(BaseModel):
     age: int
@@ -12,6 +13,13 @@ class StudentPerformanceInput(BaseModel):
     G2: int
 
 app = FastAPI()
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 

@@ -203,33 +203,41 @@ const Register = () => {
               <div className="relative flex items-center bg-slate-950/60 border border-slate-850 focus-within:ring-2 focus-within:ring-indigo-500/50 rounded-xl px-2.5 py-2 transition-all">
                 <School size={15} className="text-slate-500 mr-2 shrink-0" />
                 <select
-                  value={college}
-                  onChange={(e) => setCollege(e.target.value)}
-                  className="bg-transparent border-none text-xs text-slate-200 focus:outline-none w-full"
-                >
-                  <option value="COEP Technological University">COEP Tech, Pune</option>
-                  <option value="MIT World Peace University">MIT-WPU, Pune</option>
-                  <option value="Pimpri Chinchwad College of Engineering">PCCOE, Pune</option>
-                  <option value="Vishwakarma Institute of Technology">VIT, Pune</option>
-                </select>
+  value={college}
+  onChange={(e) => setCollege(e.target.value)}
+  className="bg-transparent border-none text-xs text-slate-200 focus:outline-none w-full"
+>
+  <option className="bg-slate-900 text-white" value="COEP Technological University">
+    COEP Tech, Pune
+  </option>
+  <option className="bg-slate-900 text-white" value="MIT World Peace University">
+    MIT-WPU, Pune
+  </option>
+  <option className="bg-slate-900 text-white" value="Pimpri Chinchwad College of Engineering">
+    PCCOE, Pune
+  </option>
+  <option className="bg-slate-900 text-white" value="Vishwakarma Institute of Technology">
+    VIT, Pune
+  </option>
+</select>
               </div>
             </div>
 
             {/* Department select */}
             <div className="space-y-1">
               <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider pl-1">Department Branch</label>
-              <div className="bg-slate-950/60 border border-slate-850 focus-within:ring-2 focus-within:ring-indigo-500/50 rounded-xl px-2.5 py-2 transition-all">
-                <select
-                  value={dept}
-                  onChange={(e) => setDept(e.target.value)}
-                  className="bg-transparent border-none text-xs text-slate-200 focus:outline-none w-full"
-                >
-                  <option value="CS">Computer Science (CS)</option>
-                  <option value="IT">Information Technology (IT)</option>
-                  <option value="ECE">Electronics & Telecom (ECE)</option>
-                  <option value="EEE">Electrical Engineering (EEE)</option>
-                  <option value="ME">Mechanical Engineering (ME)</option>
-                </select>
+              <div className="bg-slate-950/60 border border-slate-800 focus-within:ring-2 focus-within:ring-indigo-500/50 rounded-xl px-2.5 py-2 transition-all">
+<select
+  value={dept}
+  onChange={(e) => setDept(e.target.value)}
+  className="bg-transparent border-none text-xs text-slate-200 focus:outline-none w-full"
+>
+  <option className="bg-slate-900 text-white" value="CS">Computer Science (CS)</option>
+  <option className="bg-slate-900 text-white" value="IT">Information Technology (IT)</option>
+  <option className="bg-slate-900 text-white" value="ECE">Electronics & Telecom (ECE)</option>
+  <option className="bg-slate-900 text-white" value="EEE">Electrical Engineering (EEE)</option>
+  <option className="bg-slate-900 text-white" value="ME">Mechanical Engineering (ME)</option>
+</select>
               </div>
             </div>
 
@@ -238,16 +246,16 @@ const Register = () => {
               <div className="space-y-1">
                 <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider pl-1">Academic Year</label>
                 <div className="bg-slate-950/60 border border-slate-850 focus-within:ring-2 focus-within:ring-indigo-500/50 rounded-xl px-2.5 py-2 transition-all">
-                  <select
-                    value={year}
-                    onChange={(e) => setYear(e.target.value)}
-                    className="bg-transparent border-none text-xs text-slate-200 focus:outline-none w-full"
-                  >
-                    <option value="1st Year">First Year (FE)</option>
-                    <option value="2nd Year">Second Year (SE)</option>
-                    <option value="3rd Year">Third Year (TE)</option>
-                    <option value="4th Year">Fourth Year (BE)</option>
-                  </select>
+  <select
+  value={year}
+  onChange={(e) => setYear(e.target.value)}
+  className="bg-transparent border-none text-xs text-slate-200 focus:outline-none w-full"
+>
+  <option className="bg-slate-900 text-white" value="1st Year">First Year (FE)</option>
+  <option className="bg-slate-900 text-white" value="2nd Year">Second Year (SE)</option>
+  <option className="bg-slate-900 text-white" value="3rd Year">Third Year (TE)</option>
+  <option className="bg-slate-900 text-white" value="4th Year">Fourth Year (BE)</option>
+</select>
                 </div>
               </div>
             ) : (

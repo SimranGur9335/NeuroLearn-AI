@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  LayoutDashboard, 
-  Map, 
-  GraduationCap, 
-  TrendingUp, 
-  Compass, 
-  Trophy, 
+import {
+  LayoutDashboard,
+  Map,
+  GraduationCap,
+  TrendingUp,
+  Compass,
+  Trophy,
   BookOpen,
   ChevronLeft,
   ChevronRight,
@@ -42,7 +42,7 @@ const Sidebar = () => {
 
   return (
     <motion.aside
-      className="hidden md:flex flex-col bg-slate-900 border-r border-slate-800 text-slate-350 relative h-screen sticky top-0"
+      className="hidden md:flex flex-col bg-slate-900 border-r border-slate-800 text-slate-300 relative h-screen sticky top-0"
       animate={{ width: isCollapsed ? '70px' : '260px' }}
       transition={{ duration: 0.3, ease: 'easeInOut' }}
     >
@@ -65,7 +65,7 @@ const Sidebar = () => {
             </motion.div>
           )}
         </AnimatePresence>
-        
+
         {isCollapsed && (
           <div className="bg-indigo-600 p-1.5 rounded-lg text-white mx-auto">
             <Sparkles size={20} />
@@ -81,11 +81,10 @@ const Sidebar = () => {
             <NavLink
               key={item.path}
               to={item.path}
-              className={({ isActive }) => 
-                `flex items-center gap-4 px-3 py-3 rounded-xl transition-all duration-200 group relative ${
-                  isActive 
-                    ? 'bg-indigo-600 text-white font-semibold shadow-lg shadow-indigo-600/30' 
-                    : 'hover:bg-slate-800 hover:text-white'
+              className={({ isActive }) =>
+                `flex items-center gap-4 px-3 py-3 rounded-xl transition-all duration-200 group relative ${isActive
+                  ? 'bg-indigo-600 text-white font-semibold shadow-lg shadow-indigo-600/30'
+                  : 'hover:bg-slate-800 hover:text-white'
                 }`
               }
             >
@@ -119,13 +118,13 @@ const Sidebar = () => {
       </button>
 
       {/* User Footer Profile & Change Role Trigger */}
-      <div 
+      <div
         onClick={() => navigate('/profile')}
         className="p-4 border-t border-slate-800 bg-slate-950/40 flex items-center gap-3 cursor-pointer hover:bg-slate-850 transition-colors group"
       >
         <div className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center text-lg shrink-0 border border-slate-700 relative">
           {profile.avatar}
-          <button 
+          <button
             onClick={(e) => {
               e.stopPropagation();
               logout();

@@ -43,7 +43,7 @@ const AdminLayout = () => {
     <div className="flex h-screen overflow-hidden bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-150">
       {/* Administrator Sidebar */}
       <motion.aside
-        className="hidden md:flex flex-col bg-slate-900 border-r border-slate-800 text-slate-350 relative h-screen sticky top-0"
+        className="hidden md:flex flex-col bg-slate-900 border-r border-slate-800 text-slate-300 relative h-screen sticky top-0"
         animate={{ width: isCollapsed ? '70px' : '260px' }}
         transition={{ duration: 0.3, ease: 'easeInOut' }}
       >
@@ -86,7 +86,7 @@ const AdminLayout = () => {
                   `flex items-center gap-4 px-3 py-3 rounded-xl transition-all duration-200 group relative ${
                     isActive 
                       ? 'bg-emerald-600 text-white font-semibold shadow-lg shadow-emerald-600/30' 
-                      : 'hover:bg-slate-800 hover:text-white'
+                      : 'text-slate-300 hover:bg-slate-800 hover:text-white'
                   }`
                 }
               >
@@ -114,7 +114,7 @@ const AdminLayout = () => {
         {/* Collapsible toggle */}
         <button
           onClick={() => setIsCollapsed(!isCollapsed)}
-          className="absolute bottom-20 -right-3 bg-emerald-600 hover:bg-emerald-500 text-white p-1 rounded-full border border-slate-900 shadow-md cursor-pointer z-50"
+          className="absolute bottom-20 -right-3 bg-emerald-600/90 hover:bg-emerald-500 text-white p-1 rounded-full border border-slate-900 shadow-md cursor-pointer z-50"
         >
           {isCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
         </button>
