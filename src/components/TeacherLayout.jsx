@@ -43,7 +43,7 @@ const TeacherLayout = () => {
     <div className="flex h-screen overflow-hidden bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-150">
       {/* Faculty Sidebar */}
       <motion.aside
-        className="hidden md:flex flex-col bg-slate-900 border-r border-slate-800 text-slate-350 relative h-screen sticky top-0"
+        className="hidden md:flex flex-col bg-slate-900 border-r border-slate-800 text-slate-300 relative h-screen sticky top-0"
         animate={{ width: isCollapsed ? '70px' : '260px' }}
         transition={{ duration: 0.3, ease: 'easeInOut' }}
       >

@@ -1,40 +1,59 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  ResponsiveContainer, 
-  AreaChart, 
-  Area, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip 
+import {
+  ResponsiveContainer,
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip
 } from 'recharts';
-import { 
-  Search, 
-  X, 
-  Sparkles, 
-  TrendingUp, 
-  ChevronRight, 
-  Award, 
+import {
+  Search,
+  X,
+  Sparkles,
+  TrendingUp,
+  ChevronRight,
+  Award,
   Calendar,
   Filter
 } from 'lucide-react';
-import { useStudent } from '../../context/StudentContext';
 
 const StudentPerformance = () => {
-  const { studentsList } = useStudent();
+  const [students, setStudents] = useState([]);
   const [searchTermLocal, setSearchTermLocal] = useState("");
   const [branchFilter, setBranchFilter] = useState("All");
   const [selectedStudent, setSelectedStudent] = useState(null);
 
   const branches = ["All", "CS", "IT", "ECE", "EEE", "ME"];
+  const selectedClass = JSON.parse(
+    localStorage.getItem("selectedClass") || "{}"
+  );
+  useEffect(() => {
+
+    fetch(
+  `http://127.0.0.1:8000/class/${selectedClass.class_id}/student-metrics`
+)
+      .then((res) => res.json())
+      .then((data) => setStudents(data))
+      .catch((err) => console.error(err));
+
+  }, []);
 
   // Filter students based on search query and branch filter
-  const filteredStudents = studentsList.filter(student => {
-    const matchesSearch = student.name.toLowerCase().includes(searchTermLocal.toLowerCase()) || 
-                          student.rollNumber.toLowerCase().includes(searchTermLocal.toLowerCase());
-    const matchesBranch = branchFilter === "All" || student.branch === branchFilter;
-    return matchesSearch && matchesBranch;
+  const filteredStudents = students.filter((student) => {
+
+    const matchesSearch =
+      student.full_name
+        .toLowerCase()
+        .includes(searchTermLocal.toLowerCase()) ||
+
+      student.roll_no
+        .toLowerCase()
+        .includes(searchTermLocal.toLowerCase());
+
+    return matchesSearch;
   });
 
   // Seeded XP growth timeline for detail drawer
@@ -82,9 +101,9 @@ const StudentPerformance = () => {
         {/* Search */}
         <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 px-3 py-2 rounded-xl w-full md:w-80 focus-within:ring-2 focus-within:ring-purple-500/50">
           <Search size={18} className="text-slate-400" />
-          <input 
-            type="text" 
-            placeholder="Search name or roll number..." 
+          <input
+            type="text"
+            placeholder="Search name or roll number..."
             value={searchTermLocal}
             onChange={(e) => setSearchTermLocal(e.target.value)}
             className="bg-transparent border-none text-slate-700 dark:text-slate-250 placeholder-slate-400 focus:outline-none w-full text-xs"
@@ -98,18 +117,19 @@ const StudentPerformance = () => {
             <button
               key={b}
               onClick={() => setBranchFilter(b)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                branchFilter === b 
-                  ? 'bg-purple-600 text-white' 
-                  : 'bg-slate-50 dark:bg-slate-950 border border-slate-250/60 dark:border-slate-850 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-850'
-              }`}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${branchFilter === b
+                ? 'bg-purple-600 text-white'
+                : 'bg-slate-50 dark:bg-slate-950 border border-slate-250/60 dark:border-slate-850 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-850'
+                }`}
             >
               {b}
             </button>
           ))}
         </div>
       </div>
-
+      <div className="text-red-500 font-bold">
+        Students Loaded: {students.length}
+      </div>
       {/* Students Table */}
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
@@ -129,24 +149,23 @@ const StudentPerformance = () => {
               {filteredStudents.slice(0, 50).map((student) => {
                 // limit lists rendering to 50 rows for performance
                 return (
-                  <tr 
+                  <tr
                     key={student.id}
                     onClick={() => setSelectedStudent(student)}
                     className="hover:bg-purple-500/5 transition-colors duration-150 cursor-pointer"
                   >
-                    <td className="py-3.5 pl-5 font-bold text-slate-800 dark:text-white">{student.name}</td>
-                    <td className="py-3.5 text-slate-500 dark:text-slate-400 font-mono">{student.rollNumber}</td>
-                    <td className="py-3.5 text-slate-500 dark:text-slate-400 font-semibold">{student.branch}</td>
+                    <td className="py-3.5 pl-5 font-bold text-slate-800 dark:text-white">{student.full_name}</td>
+                    <td className="py-3.5 text-slate-500 dark:text-slate-400 font-mono">{student.roll_no}</td>
+                    <td className="py-3.5 text-slate-500 dark:text-slate-400 font-semibold">{student.department}</td>
                     <td className="py-3.5 text-center font-bold text-slate-700 dark:text-slate-300">{student.attendance}%</td>
-                    <td className="py-3.5 text-center font-bold text-slate-700 dark:text-slate-300">{student.quizScore}%</td>
-                    <td className="py-3.5 text-center font-bold text-yellow-600 dark:text-yellow-450">{student.xp} XP</td>
+                    <td className="py-3.5 text-center font-bold text-slate-700 dark:text-slate-300">{student.quiz_score}%</td>
+                    <td className="py-3.5 text-center font-bold text-yellow-600 dark:text-yellow-450">{student.xp_points} XP</td>
                     <td className="py-3.5 text-right pr-5">
-                      <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded ${
-                        student.status === "Safe" ? "bg-emerald-500/10 text-emerald-500" :
-                        student.status === "Borderline" ? "bg-yellow-500/10 text-yellow-600 dark:text-yellow-500" :
-                        "bg-red-500/10 text-red-500"
-                      }`}>
-                        {student.status}
+                      <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded ${student.risk_level === "Low" ? "bg-emerald-500/10 text-emerald-500" :
+                        student.risk_level === "Medium" ? "bg-yellow-500/10 text-yellow-600 dark:text-yellow-500" :
+                          "bg-red-500/10 text-red-500"
+                        }`}>
+                        {student.risk_level}
                       </span>
                     </td>
                   </tr>
@@ -161,7 +180,7 @@ const StudentPerformance = () => {
       <AnimatePresence>
         {selectedStudent && (
           <div className="fixed inset-0 z-50 flex justify-end">
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
@@ -169,7 +188,7 @@ const StudentPerformance = () => {
               className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs"
             />
 
-            <motion.div 
+            <motion.div
               initial={{ x: '100%' }}
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
@@ -181,10 +200,10 @@ const StudentPerformance = () => {
                 <div>
                   <span className="text-[10px] text-purple-500 font-extrabold uppercase">Individual Analytics</span>
                   <h3 className="font-black text-base md:text-lg text-slate-800 dark:text-white mt-0.5 leading-tight">
-                    {selectedStudent.name}
+                    {selectedStudent.full_name}
                   </h3>
                 </div>
-                <button 
+                <button
                   onClick={() => setSelectedStudent(null)}
                   className="p-1.5 rounded-lg border border-slate-250 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-850 text-slate-505 cursor-pointer"
                 >
@@ -198,11 +217,11 @@ const StudentPerformance = () => {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-850 p-3.5 rounded-xl">
                     <span className="text-[9px] text-slate-400 font-bold block uppercase">Roll Number</span>
-                    <span className="font-extrabold text-slate-800 dark:text-white mt-1 block font-mono">{selectedStudent.rollNumber}</span>
+                    <span className="font-extrabold text-slate-800 dark:text-white mt-1 block font-mono">{selectedStudent.roll_no}</span>
                   </div>
                   <div className="bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-850 p-3.5 rounded-xl">
                     <span className="text-[9px] text-slate-400 font-bold block uppercase">Major Branch</span>
-                    <span className="font-extrabold text-slate-800 dark:text-white mt-1 block">{selectedStudent.branch} - {selectedStudent.year}</span>
+                    <span className="font-extrabold text-slate-800 dark:text-white mt-1 block">{selectedStudent.department} - {selectedStudent.division}</span>
                   </div>
                 </div>
 
@@ -248,7 +267,7 @@ const StudentPerformance = () => {
                   <div>
                     <h4 className="text-[10px] font-black uppercase text-slate-450 mb-2 tracking-wider">Strong Syllabus Nodes</h4>
                     <div className="flex flex-wrap gap-1.5">
-                      {getStudentStrengths(selectedStudent.branch).map((str, sIdx) => (
+                      {getStudentStrengths(selectedStudent.department).map((str, sIdx) => (
                         <span key={sIdx} className="bg-emerald-500/10 text-emerald-500 border border-emerald-500/10 text-[10px] font-bold px-2.5 py-1 rounded-lg">
                           {str}
                         </span>
@@ -259,7 +278,7 @@ const StudentPerformance = () => {
                   <div>
                     <h4 className="text-[10px] font-black uppercase text-slate-450 mb-2 tracking-wider">Weak Areas & Gaps</h4>
                     <div className="flex flex-wrap gap-1.5">
-                      {getStudentWeaknesses(selectedStudent.branch).map((weak, wIdx) => (
+                      {getStudentWeaknesses(selectedStudent.department).map((weak, wIdx) => (
                         <span key={wIdx} className="bg-yellow-500/10 text-yellow-600 dark:text-yellow-500 border border-yellow-500/10 text-[10px] font-bold px-2.5 py-1 rounded-lg">
                           {weak}
                         </span>
@@ -273,9 +292,9 @@ const StudentPerformance = () => {
               <div className="p-5 border-t border-slate-100 dark:border-slate-850 bg-slate-50 dark:bg-slate-950 flex flex-col gap-2">
                 <div className="flex justify-between items-center text-[10px] font-bold text-slate-400">
                   <span>AI Grade Outcome Projection:</span>
-                  <span className="text-purple-600 dark:text-purple-400 font-extrabold text-sm">{selectedStudent.predictedCgpa} CGPA</span>
+                  <span className="text-purple-600 dark:text-purple-400 font-extrabold text-sm">{selectedStudent.predicted_cgpa} CGPA</span>
                 </div>
-                <button 
+                <button
                   onClick={() => alert(`Warning summary successfully dispatched to ${selectedStudent.name}'s institutional mailbox.`)}
                   className="w-full py-2.5 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-xl text-xs shadow-md cursor-pointer"
                 >

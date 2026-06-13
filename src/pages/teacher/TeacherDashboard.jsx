@@ -1,40 +1,54 @@
-import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { 
-  ResponsiveContainer, 
-  LineChart, 
-  Line, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
+import React, { useEffect, useState } from 'react';
+import {
+  ResponsiveContainer,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
   Legend,
   BarChart,
   Bar
 } from 'recharts';
-import { 
-  Users, 
-  Calendar, 
-  GraduationCap, 
-  AlertTriangle, 
-  Activity, 
+import {
+  Users,
+  Calendar,
+  GraduationCap,
+  AlertTriangle,
+  Activity,
   ArrowRight,
   TrendingUp,
   Award
 } from 'lucide-react';
-import { useStudent } from '../../context/StudentContext';
 
 const TeacherDashboard = () => {
   const navigate = useNavigate();
-  const { studentsList, teachersList, coursesList } = useStudent();
+  const selectedClass = JSON.parse(localStorage.getItem("selectedClass") || "{}");
+  console.log(selectedClass);
+  const [dashboardData, setDashboardData] = useState(null);
 
-  // Calculate dynamic stats from studentsList context!
-  const totalStudents = studentsList.length;
-  const activeStudents = Math.round(totalStudents * 0.92); // mock 92% active ratio
-  const avgAttendance = (studentsList.reduce((sum, s) => sum + s.attendance, 0) / totalStudents).toFixed(1);
-  const avgQuizScore = (studentsList.reduce((sum, s) => sum + s.quizScore, 0) / totalStudents).toFixed(1);
-  const studentsAtRisk = studentsList.filter(s => s.status === "At Risk").length;
+  useEffect(() => {
+    const fetchDashboard = async () => {
+      try {
+        const res = await fetch(`http://localhost:8000/class/${selectedClass.class_id}/dashboard-summary`);
+
+        const data = await res.json();
+
+        setDashboardData(data);
+      } catch (err) {
+        console.error("Failed to fetch dashboard summary", err);
+      }
+    };
+
+    if (selectedClass.class_id) {
+      fetchDashboard();
+    }
+  }, [selectedClass.class_id]);
+
+
 
   const recentActivities = [
     { name: "Rohit Deshmukh", event: "completed Generative AI quiz with score 3/3", time: "10m ago", severity: "info" },
@@ -64,22 +78,28 @@ const TeacherDashboard = () => {
         <div className="absolute right-0 top-0 w-64 h-64 bg-radial-gradient(circle,rgba(168,85,247,0.15)_0%,transparent_70%) pointer-events-none" />
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 relative z-10">
           <div>
-            <span className="text-xs text-purple-400 font-bold uppercase tracking-wider bg-purple-500/10 px-3 py-1 rounded-full border border-purple-500/20">
-              Department of Computer Science
-            </span>
-            <h1 className="text-2xl md:text-3xl font-black mt-3">
-              Faculty Hub - Academic Intelligence
-            </h1>
+            <div>
+              <span className="text-xs text-emerald-400 font-bold uppercase tracking-wider bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20">
+                Current Workspace
+              </span>
+
+              <h1 className="text-3xl md:text-4xl font-black mt-3">
+                {selectedClass.subject_name}
+              </h1>
+
+              <p className="text-slate-300 mt-2">
+                {selectedClass.class_name} • {selectedClass.role}
+              </p>
+            </div>
             <p className="text-slate-300 text-sm mt-1 max-w-lg">
               Monitor course metrics, inspect students likely to fail, configure curriculum outlines, and launch remedial class notifications.
             </p>
           </div>
-          <button 
-            onClick={() => navigate('/teacher/performance')}
-            className="bg-white hover:bg-slate-100 text-purple-950 font-bold px-5 py-3 rounded-xl transition-all shadow-lg text-sm shrink-0 flex items-center gap-2 cursor-pointer self-start md:self-auto"
+          <button
+            onClick={() => navigate('/teacher/select-class')}
+            className="bg-white hover:bg-slate-100 text-purple-950 font-bold px-5 py-3 rounded-xl transition-all shadow-lg text-sm"
           >
-            Review Student Directory
-            <ArrowRight size={16} />
+            Switch Workspace
           </button>
         </div>
       </div>
@@ -92,16 +112,15 @@ const TeacherDashboard = () => {
             <span className="text-[10px] uppercase font-bold">Total Students</span>
             <Users size={16} />
           </div>
-          <span className="text-2xl font-black text-slate-800 dark:text-white">{totalStudents}</span>
+          <span className="text-2xl font-black text-slate-800 dark:text-white">{dashboardData?.total_students || 0}</span>
         </div>
-
         {/* Active Students */}
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 rounded-2xl shadow-sm">
           <div className="flex justify-between items-center text-slate-400 mb-2">
             <span className="text-[10px] uppercase font-bold">Active Users</span>
             <Activity size={16} className="text-emerald-500" />
           </div>
-          <span className="text-2xl font-black text-slate-800 dark:text-white">{activeStudents}</span>
+          <span className="text-2xl font-black text-slate-800 dark:text-white">{dashboardData?.active_students || 0}</span>
         </div>
 
         {/* Average Attendance */}
@@ -110,7 +129,7 @@ const TeacherDashboard = () => {
             <span className="text-[10px] uppercase font-bold">Avg Attendance</span>
             <Calendar size={16} />
           </div>
-          <span className="text-2xl font-black text-slate-800 dark:text-white">{avgAttendance}%</span>
+          <span className="text-2xl font-black text-slate-800 dark:text-white">{dashboardData?.average_attendance || 0}%</span>
         </div>
 
         {/* Average Quiz Score */}
@@ -119,7 +138,7 @@ const TeacherDashboard = () => {
             <span className="text-[10px] uppercase font-bold">Avg Grades</span>
             <GraduationCap size={16} />
           </div>
-          <span className="text-2xl font-black text-slate-800 dark:text-white">{avgQuizScore}%</span>
+          <span className="text-2xl font-black text-slate-800 dark:text-white">{dashboardData?.average_quiz_score || 0}%</span>
         </div>
 
         {/* Students At Risk */}
@@ -128,7 +147,7 @@ const TeacherDashboard = () => {
             <span className="text-[10px] uppercase font-bold">Students at Risk</span>
             <AlertTriangle size={16} className="text-red-500" />
           </div>
-          <span className="text-2xl font-black text-red-500">{studentsAtRisk}</span>
+          <span className="text-2xl font-black text-red-500">{dashboardData?.students_at_risk || 0}</span>
         </div>
       </div>
 
@@ -138,7 +157,7 @@ const TeacherDashboard = () => {
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-3xl shadow-sm lg:col-span-2">
           <h3 className="font-extrabold text-slate-800 dark:text-white text-sm md:text-base mb-4 flex items-center gap-2">
             <TrendingUp size={18} className="text-purple-500" />
-            Branch Performance Benchmarks
+            {selectedClass.subject_name} Performance Overview
           </h3>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
@@ -175,13 +194,14 @@ const TeacherDashboard = () => {
             ))}
           </div>
 
-          <button 
+          <button
             onClick={() => navigate('/teacher/performance')}
             className="w-full py-2.5 bg-slate-105 border border-slate-250 dark:border-slate-800 dark:bg-slate-950 hover:bg-slate-200 dark:hover:bg-slate-850 text-slate-800 dark:text-white rounded-xl text-xs font-bold transition-all cursor-pointer"
           >
             Audits Performance Logs
           </button>
         </div>
+
       </div>
     </motion.div>
   );

@@ -35,6 +35,7 @@ import StudentPerformance from './pages/teacher/StudentPerformance';
 import TeacherAnalytics from './pages/teacher/TeacherAnalytics';
 import RiskPrediction from './pages/teacher/RiskPrediction';
 import AttendanceTracking from './pages/teacher/AttendanceTracking';
+import ClassSelection from './pages/teacher/ClassSelection';
 
 // Admin Portal Pages
 import AdminDashboard from './pages/admin/AdminDashboard';
@@ -52,11 +53,11 @@ function App() {
           <Routes>
             {/* Public Landing Page */}
             <Route path="/" element={<LandingPage />} />
-            
+
             {/* Public Authentication Screens */}
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
-            
+
             {/* Role Selection Screen */}
             <Route path="/select-role" element={<RoleSelection />} />
 
@@ -74,13 +75,23 @@ function App() {
               <Route path="/career" element={<CareerGuidance />} />
               <Route path="/leaderboard" element={<Leaderboard />} />
               <Route path="/profile" element={<Profile />} />
-              
+
               {/* AI Module nested routes */}
               <Route path="/ai/chat" element={<AiMentorChat />} />
               <Route path="/ai/predictions" element={<PerformancePrediction />} />
               <Route path="/ai/emotions" element={<EmotionAnalysis />} />
               <Route path="/ai/recommendations" element={<RecommendationEngine />} />
             </Route>
+
+            {/* Class Selection Page */}
+            <Route
+              path="/teacher/select-class"
+              element={
+                <ProtectedRoute allowedRoles={['teacher']}>
+                  <ClassSelection />
+                </ProtectedRoute>
+              }
+            />
 
             {/* Teacher Portal Layout & Routes */}
             <Route element={
@@ -93,7 +104,7 @@ function App() {
               <Route path="/teacher/analytics" element={<TeacherAnalytics />} />
               <Route path="/teacher/risk" element={<RiskPrediction />} />
               <Route path="/teacher/attendance" element={<AttendanceTracking />} />
-              
+
               {/* Reused AI chat for faculty support */}
               <Route path="/teacher/ai-chat" element={<AiMentorChat />} />
             </Route>

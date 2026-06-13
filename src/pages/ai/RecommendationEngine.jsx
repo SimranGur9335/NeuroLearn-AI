@@ -145,7 +145,7 @@ const RecommendationEngine = () => {
                 <HeartHandshake size={16} className="text-indigo-400 animate-pulse" />
                 Smart Advisor Active
               </h4>
-              <p className="text-[11px] text-slate-350 leading-relaxed mt-2">
+              <p className="text-[11px] text-slate-300 leading-relaxed mt-2">
                 Our models analyze other engineering students in your campus major. Students who complete the **AWS Solutions Architect** certification secure tier-1 placement rates 32% faster.
               </p>
             </div>

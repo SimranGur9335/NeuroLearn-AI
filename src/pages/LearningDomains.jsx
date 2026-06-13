@@ -159,7 +159,7 @@ const LearningDomains = () => {
                 <div>
                   <div className="flex justify-between items-center text-[10px] mb-1.5 font-bold">
                     <span className="text-slate-400">Track Progress</span>
-                    <span className="text-slate-600 dark:text-slate-350">{progress}%</span>
+                    <span className="text-slate-600 dark:text-slate-300">{progress}%</span>
                   </div>
                   <div className="w-full bg-slate-100 dark:bg-slate-850 h-1.5 rounded-full overflow-hidden">
                     <div className="bg-indigo-600 h-full transition-all duration-300" style={{ width: `${progress}%` }} />
@@ -171,7 +171,7 @@ const LearningDomains = () => {
                   {!isActive && (
                     <button
                       onClick={() => handleSetDomain(domain)}
-                      className="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-850 font-bold text-slate-700 dark:text-slate-350 transition-colors cursor-pointer"
+                      className="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-850 font-bold text-slate-700 dark:text-slate-300 transition-colors cursor-pointer"
                     >
                       Set Active
                     </button>
