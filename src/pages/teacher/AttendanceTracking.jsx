@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { saveAs } from "file-saver";
 import { motion } from 'framer-motion';
 import {
   FileSpreadsheet,
@@ -96,6 +97,46 @@ const AttendanceTracking = () => {
 Records Count: ${filteredRegistry.length} Students`
     );
   };
+  const exportCSV = () => {
+
+  const headers = [
+    "Roll No",
+    "Student Name",
+    "Attendance %",
+    "Present",
+    "Absent",
+    "Late"
+  ];
+
+  const rows = registryData.map(student => [
+    student.roll_no,
+    student.full_name,
+    student.attendance_percentage,
+    student.present_count,
+    student.absent_count,
+    student.late_count
+  ]);
+
+  const csvContent = [
+    headers,
+    ...rows
+  ]
+    .map(row => row.join(","))
+    .join("\n");
+
+  const blob = new Blob(
+    [csvContent],
+    {
+      type: "text/csv;charset=utf-8;"
+    }
+  );
+
+  saveAs(
+    blob,
+    `attendance_registry_class_${selectedClass.class_id}.csv`
+  );
+
+};
 
   // Seeded mock monthly logs grid (P/A statuses for last 5 days)
   const filteredRegistry = registryData.filter(student =>
@@ -163,7 +204,7 @@ Records Count: ${filteredRegistry.length} Students`
         {/* Export Buttons */}
         <div className="flex gap-2 shrink-0">
           <button
-            onClick={() => handleExport("csv")}
+            onClick={exportCSV}
             className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-slate-250 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-50 text-xs font-bold text-slate-700 dark:text-slate-300 cursor-pointer"
           >
             <FileSpreadsheet size={14} className="text-emerald-500" />
