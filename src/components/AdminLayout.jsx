@@ -11,7 +11,15 @@ import {
   ChevronLeft,
   ChevronRight,
   LogOut,
-  ShieldAlert
+  ShieldAlert,
+  Landmark,
+  Layers,
+  UserCheck,
+  Megaphone,
+  Calendar,
+  FileText,
+  Settings,
+  Terminal
 } from 'lucide-react';
 import Header from './Header';
 import { useStudent } from '../context/StudentContext';
@@ -27,9 +35,19 @@ const AdminLayout = () => {
   const menuItems = [
     {name: 'Admin Hub', path: '/admin/dashboard', icon: LayoutDashboard},
     {name: 'User Directory', path: '/admin/users', icon: Users},
-    {name: 'Curriculum Master', path: '/admin/courses', icon: BookOpen},
-    {name: 'Dept Reports', path: '/admin/reports', icon: BarChart3},
-    {name: 'System Hardware', path: '/admin/system', icon: Server},
+    {name: 'Departments', path: '/admin/departments', icon: Landmark},
+    {name: 'Classes', path: '/admin/classes', icon: Layers},
+    {name: 'Enrollments', path: '/admin/enrollments', icon: UserCheck},
+    {name: 'Course Master', path: '/admin/courses', icon: BookOpen},
+    {name: 'Subject Master', path: '/admin/subjects', icon: BookOpen},
+    {name: 'Course-Subject Map', path: '/admin/course-subject', icon: Layers},
+    {name: 'Faculty Assignment', path: '/admin/faculty-mapping', icon: Users},
+    {name: 'Faculty Workload', path: '/admin/workload', icon: BarChart3},
+    {name: 'Announcements', path: '/admin/announcements', icon: Megaphone},
+    {name: 'Academic Structure', path: '/admin/academic-structure', icon: Calendar},
+    {name: 'System Audit Logs', path: '/admin/audit-logs', icon: FileText},
+    {name: 'Branding Settings', path: '/admin/settings', icon: Settings},
+    {name: 'Hardware Health', path: '/admin/system', icon: Server},
     {name: 'Security Center', path: '/admin/security', icon: ShieldAlert},
   ];
 

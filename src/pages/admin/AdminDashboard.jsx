@@ -1,16 +1,14 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import {
   ResponsiveContainer,
-  AreaChart,
-  Area,
+  BarChart,
+  Bar,
   XAxis,
   YAxis,
   CartesianGrid,
-  Tooltip,
-  BarChart,
-  Bar
+  Tooltip
 } from 'recharts';
 import {
   Users,
@@ -18,79 +16,54 @@ import {
   Server,
   Activity,
   Cpu,
+  Layers,
+  Megaphone,
+  Settings,
   ShieldCheck,
-  HardDrive,
-  BellRing
+  FileText
 } from 'lucide-react';
-import { useStudent } from '../../context/StudentContext';
-import { SYSTEM_METRICS } from '../../data/academicData';
 
 
 
 const AdminDashboard = () => {
-  const { studentsList, teachersList, coursesList } = useStudent();
-
-  const totalStudents = studentsList.length;
-  const totalTeachers = teachersList.length;
-  const totalCourses = coursesList.length;
   const navigate = useNavigate();
+  const [stats, setStats] = useState(null);
+  const [loading, setLoading] = useState(true);
+  console.log("ADMIN DASHBOARD MOUNTED");
 
-  const departmentPerformance = Object.values(
-    studentsList.reduce((acc, student) => {
-      const branch = student.branch || "Unknown";
 
-      if (!acc[branch]) {
-        acc[branch] = {
-          branch,
-          count: 0,
-          totalScore: 0
-        };
-      }
+  useEffect(() => {
+    fetchDashboardStats();
+  }, []);
 
-      const score =
-        student.attendance * 0.4 +
-        student.quizScore * 0.3 +
-        ((student.predictedCgpa / 10) * 100) * 0.3;
+  const fetchDashboardStats = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch("http://127.0.0.1:8000/admin/dashboard-stats");
+      const data = await res.json();
+      setStats(data);
+    } catch (err) {
+      console.error("Error loading dashboard stats:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-      acc[branch].count += 1;
-      acc[branch].totalScore += score;
+  if (loading) {
+    return (
+      <div className="flex h-64 items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-emerald-500 border-t-transparent"></div>
+      </div>
+    );
+  }
 
-      return acc;
-    }, {})
-  ).map((dept) => ({
-    branch: dept.branch,
-    score: Math.round(dept.totalScore / dept.count)
-  }));
-
-  const averageCgpa =
-    studentsList.length > 0
-      ? (
-        studentsList.reduce(
-          (sum, student) =>
-            sum + Number(student.predictedCgpa || 0),
-          0
-        ) / studentsList.length
-      ).toFixed(2)
-      : 0;
-
-  const academicHealthScore =
-    studentsList.length > 0
-      ? Math.round(
-        studentsList.reduce((sum, student) => {
-          const attendance = Number(student.attendance || 0);
-          const quiz = Number(student.quizScore || 0);
-          const cgpa =
-            ((Number(student.predictedCgpa || 0) / 10) * 100);
-
-          return (
-            sum +
-            attendance * 0.4 +
-            quiz * 0.3 +
-            cgpa * 0.3
-          );
-        }, 0) / studentsList.length
-      )
-      : 0;// 4 nodes per course
+  if (!stats) {
+    return (
+      <div className="text-center p-8 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl">
+        <p className="text-slate-500 text-sm">Error fetching administrative telemetry data.</p>
+      </div>
+    );
+  }
 
   return (
     <motion.div
@@ -100,19 +73,18 @@ const AdminDashboard = () => {
       className="space-y-6"
     >
       {/* Intro Header */}
-      <div className="bg-gradient-to-r from-emerald-900 via-emerald-950 to-slate-900 border border-emerald-900/50 p-4 rounded-3xl relative overflow-hidden shadow-xl text-white">
+      <div className="bg-gradient-to-r from-emerald-900 via-emerald-950 to-slate-900 border border-emerald-900/50 p-6 rounded-3xl relative overflow-hidden shadow-xl text-white">
         <div className="absolute right-0 top-0 w-64 h-64 bg-radial-gradient(circle,rgba(16,185,129,0.15)_0%,transparent_70%) pointer-events-none" />
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 relative z-10">
           <div>
-            <span className="text-xs text-emerald-400 font-bold uppercase tracking-wider bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20">
+            <span className="text-xs text-emerald-400 font-bold uppercase tracking-wider bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20 animate-pulse">
               LMS Control Panel
             </span>
             <h1 className="text-xl md:text-2xl font-black mt-2">
               Administrator Platform Center
             </h1>
             <p className="text-slate-300 text-sm mt-1 max-w-lg">
-              Centralized administration, academic oversight,
-department monitoring and institutional management.
+              Centralized administrative oversight, academic structural configurations, student enrollment tracking, and system logs.
             </p>
           </div>
         </div>
@@ -124,17 +96,17 @@ department monitoring and institutional management.
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 rounded-2xl shadow-sm">
           <span className="text-[10px] text-slate-400 uppercase font-bold block mb-1">Total Students</span>
           <div className="flex items-center justify-between">
-            <span className="text-2xl font-black text-slate-800 dark:text-white">{totalStudents}</span>
-            <Users size={18} className="text-slate-400" />
+            <span className="text-2xl font-black text-slate-800 dark:text-white">{stats.total_students}</span>
+            <Users size={18} className="text-emerald-500" />
           </div>
         </div>
 
-        {/* Total Teachers */}
+        {/* Total Faculty */}
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 rounded-2xl shadow-sm">
           <span className="text-[10px] text-slate-400 uppercase font-bold block mb-1">Total Faculty</span>
           <div className="flex items-center justify-between">
-            <span className="text-2xl font-black text-slate-800 dark:text-white">{totalTeachers}</span>
-            <Server size={18} className="text-slate-400" />
+            <span className="text-2xl font-black text-slate-800 dark:text-white">{stats.total_faculty}</span>
+            <Users size={18} className="text-indigo-500" />
           </div>
         </div>
 
@@ -142,160 +114,148 @@ department monitoring and institutional management.
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 rounded-2xl shadow-sm">
           <span className="text-[10px] text-slate-400 uppercase font-bold block mb-1">Active Courses</span>
           <div className="flex items-center justify-between">
-            <span className="text-2xl font-black text-slate-800 dark:text-white">{totalCourses}</span>
-            <BookOpen size={18} className="text-slate-400" />
+            <span className="text-2xl font-black text-slate-800 dark:text-white">{stats.total_courses}</span>
+            <BookOpen size={18} className="text-purple-500" />
           </div>
         </div>
 
-        {/* Assessments */}
-
+        {/* Total Subjects */}
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 rounded-2xl shadow-sm">
-          <span className="text-[10px] text-slate-400 uppercase font-bold block mb-1">
-            Average CGPA
-          </span>
-
+          <span className="text-[10px] text-slate-400 uppercase font-bold block mb-1">Active Subjects</span>
           <div className="flex items-center justify-between">
-            <span className="text-2xl font-black text-slate-800 dark:text-white">
-              {averageCgpa}
-            </span>
-
-            <Activity size={18} className="text-slate-400" />
+            <span className="text-2xl font-black text-slate-800 dark:text-white">{stats.total_subjects}</span>
+            <BookOpen size={18} className="text-amber-500" />
           </div>
         </div>
 
-        {/* Server Health Status */}
+        {/* Total Classes */}
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 rounded-2xl shadow-sm col-span-2 lg:col-span-1">
-          <span className="text-[10px] text-slate-400 uppercase font-bold block mb-1">
-            Academic Health
-          </span>
-
-          <div className="flex items-center gap-2">
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
-
-            <span className="text-base font-extrabold text-emerald-500">
-              {academicHealthScore}%
-            </span>
+          <span className="text-[10px] text-slate-400 uppercase font-bold block mb-1">Active Classes</span>
+          <div className="flex items-center justify-between">
+            <span className="text-2xl font-black text-slate-800 dark:text-white">{stats.total_classes}</span>
+            <Layers size={18} className="text-rose-500" />
           </div>
         </div>
       </div>
 
-      {/* Telemetry charts */}
+      {/* Charts & Activities */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Server Load timeline */}
+        {/* Department performance chart */}
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-3xl shadow-sm lg:col-span-2">
           <h3 className="font-extrabold text-slate-800 dark:text-white text-sm md:text-base mb-4 flex items-center gap-2">
-            <Cpu size={18} className="text-emerald-505 text-emerald-500" />
-            Department Performance Index
+            <Cpu size={18} className="text-emerald-500" />
+            Student Distribution by Department
           </h3>
           <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={departmentPerformance}>
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  stroke="#334155"
-                  opacity={0.15}
-                />
-
-                <XAxis
-                  dataKey="branch"
-                  stroke="#64748b"
-                  fontSize={11}
-                />
-
-                <YAxis
-                  stroke="#64748b"
-                  fontSize={11}
-                  domain={[0, 100]}
-                />
-
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: '#0f172a',
-                    borderColor: '#1e293b',
-                    borderRadius: '12px'
-                  }}
-                />
-
-                <Bar
-                  dataKey="score"
-                  radius={[8, 8, 0, 0]}
-                  fill="#10b981"
-                  name="Performance Score"
-                />
-              </BarChart>
-            </ResponsiveContainer>
+            {stats.department_distribution.length === 0 ? (
+              <div className="h-full flex items-center justify-center text-xs text-slate-400">
+                No students enrolled to generate statistics.
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={stats.department_distribution}>
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    stroke="#334155"
+                    opacity={0.15}
+                  />
+                  <XAxis
+                    dataKey="branch"
+                    stroke="#64748b"
+                    fontSize={11}
+                  />
+                  <YAxis
+                    stroke="#64748b"
+                    fontSize={11}
+                    allowDecimals={false}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: '#0f172a',
+                      borderColor: '#1e293b',
+                      borderRadius: '12px'
+                    }}
+                  />
+                  <Bar
+                    dataKey="score"
+                    radius={[8, 8, 0, 0]}
+                    fill="#10b981"
+                    name="Student Count"
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
           </div>
         </div>
 
-        {/* Server Memory and Nodes statistics */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-3xl shadow-sm flex flex-col">
+        {/* Quick actions panel */}
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-3xl shadow-sm flex flex-col justify-between">
+          <div>
+            <h3 className="font-extrabold text-slate-800 dark:text-white text-base mb-1">
+              Quick Operations
+            </h3>
+            <p className="text-xs text-slate-400 mb-5">
+              Frequently accessed administrator endpoints
+            </p>
 
-          <h3 className="font-extrabold text-slate-800 dark:text-white text-lg mb-1">
-            Quick Actions
-          </h3>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                onClick={() => navigate('/admin/users')}
+                className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 hover:bg-emerald-500/20 transition cursor-pointer text-left"
+              >
+                <div className="font-bold text-xs text-emerald-600 dark:text-emerald-400">
+                  Manage Users
+                </div>
+              </button>
 
-          <p className="text-xs text-slate-400 mb-5">
-            Frequently used administrator operations
-          </p>
+              <button
+                onClick={() => navigate('/admin/enrollments')}
+                className="p-4 rounded-xl bg-blue-500/10 border border-blue-500/20 hover:bg-blue-500/20 transition cursor-pointer text-left"
+              >
+                <div className="font-bold text-xs text-blue-600 dark:text-blue-400">
+                  Enroll Student
+                </div>
+              </button>
 
-          <div className="grid grid-cols-2 gap-3">
+              <button
+                onClick={() => navigate('/admin/departments')}
+                className="p-4 rounded-xl bg-purple-500/10 border border-purple-500/20 hover:bg-purple-500/20 transition cursor-pointer text-left"
+              >
+                <div className="font-bold text-xs text-purple-600 dark:text-purple-400">
+                  Departments
+                </div>
+              </button>
 
-            <button 
-            onClick={() => navigate('/admin/users')}
-            className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 hover:bg-emerald-500/20 transition">
-              <div className="font-bold text-emerald-500">
-                Add Student
-              </div>
-            </button>
-
-            <button onClick={() => navigate('/admin/users')}
-            className="p-4 rounded-xl bg-blue-500/10 border border-blue-500/20 hover:bg-blue-500/20 transition">
-              <div className="font-bold text-blue-400">
-                Add Faculty
-              </div>
-            </button>
-
-            <button onClick={() => navigate('/admin/courses')}
-            className="p-4 rounded-xl bg-purple-500/10 border border-purple-500/20 hover:bg-purple-500/20 transition">
-              <div className="font-bold text-purple-400">
-                Add Course
-              </div>
-            </button>
-
-            <button onClick={() => navigate('/admin/reports')}className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/20 hover:bg-amber-500/20 transition">
-              <div className="font-bold text-amber-400">
-                View Reports
-              </div>
-            </button>
-
-          </div>
-
-          <div className="mt-6 border-t border-slate-800 pt-4">
-            <h4 className="font-bold text-white mb-3">
-              Recent Activity
-            </h4>
-
-            <div className="space-y-2 text-xs text-slate-400">
-
-              <div>
-                • New faculty account created
-              </div>
-
-              <div>
-                • Curriculum updated for Semester VI
-              </div>
-
-              <div>
-                • Student directory synced
-              </div>
-
-              <div>
-                • Department report generated
-              </div>
-
+              <button
+                onClick={() => navigate('/admin/settings')}
+                className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/20 hover:bg-amber-500/20 transition cursor-pointer text-left"
+              >
+                <div className="font-bold text-xs text-amber-600 dark:text-amber-400">
+                  Portal Settings
+                </div>
+              </button>
             </div>
           </div>
 
+          <div className="mt-6 border-t border-slate-100 dark:border-slate-850 pt-4">
+            <h4 className="font-bold text-slate-805 dark:text-slate-200 text-xs mb-3 flex items-center gap-1.5">
+              <FileText size={14} className="text-emerald-500" />
+              Recent Activity Audit Trail
+            </h4>
+
+            <div className="space-y-2.5 text-[10px] text-slate-500 dark:text-slate-400 max-h-[140px] overflow-y-auto pr-1">
+              {stats.recent_activities.length === 0 ? (
+                <p className="italic text-slate-400">No system activities recorded yet.</p>
+              ) : (
+                stats.recent_activities.map((act, idx) => (
+                  <div key={idx} className="flex items-start gap-1 justify-between p-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-855 rounded-lg">
+                    <span className="truncate pr-2 font-medium">• {act.text}</span>
+                    <span className="text-[9px] text-slate-400 font-mono shrink-0">{act.timestamp}</span>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
         </div>
       </div>
     </motion.div>

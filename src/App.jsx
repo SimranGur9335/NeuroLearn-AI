@@ -41,9 +41,23 @@ import ClassSelection from './pages/teacher/ClassSelection';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import UserManagement from './pages/admin/UserManagement';
 import CourseManagement from './pages/admin/CourseManagement';
+import SubjectManagement from "./pages/admin/SubjectManagement";
 import AdminReports from './pages/admin/AdminReports';
 import SystemMonitoring from './pages/admin/SystemMonitoring';
 import SecurityCenter from './pages/admin/SecurityCenter';
+import FacultyMapping from "./pages/admin/FacultyMapping";
+import StudentProfile from './pages/admin/StudentProfile';
+import FacultyProfile from './pages/admin/FacultyProfile';
+import DepartmentManagement from './pages/admin/DepartmentManagement';
+import ClassManagement from './pages/admin/ClassManagement';
+import EnrollmentManagement from './pages/admin/EnrollmentManagement';
+import CourseSubjectMapping from './pages/admin/CourseSubjectMapping';
+import AnnouncementCenter from './pages/admin/AnnouncementCenter';
+import AcademicStructure from './pages/admin/AcademicStructure';
+import FacultyWorkload from './pages/admin/FacultyWorkload';
+import AuditLogs from './pages/admin/AuditLogs';
+import AdminSettings from './pages/admin/AdminSettings';
+
 
 function App() {
   return (
@@ -118,6 +132,19 @@ function App() {
               <Route path="/admin/dashboard" element={<AdminDashboard />} />
               <Route path="/admin/users" element={<UserManagement />} />
               <Route path="/admin/courses" element={<CourseManagement />} />
+              <Route path="/admin/subjects" element={<SubjectManagement />}/>
+              <Route path="/admin/faculty-mapping" element={<FacultyMapping />}/>
+              <Route path="/admin/students/:id" element={<StudentProfile />} />
+              <Route path="/admin/faculty/:id" element={<FacultyProfile />} />
+              <Route path="/admin/departments" element={<DepartmentManagement />} />
+              <Route path="/admin/classes" element={<ClassManagement />} />
+              <Route path="/admin/enrollments" element={<EnrollmentManagement />} />
+              <Route path="/admin/course-subject" element={<CourseSubjectMapping />} />
+              <Route path="/admin/announcements" element={<AnnouncementCenter />} />
+              <Route path="/admin/academic-structure" element={<AcademicStructure />} />
+              <Route path="/admin/workload" element={<FacultyWorkload />} />
+              <Route path="/admin/audit-logs" element={<AuditLogs />} />
+              <Route path="/admin/settings" element={<AdminSettings />} />
               <Route path="/admin/reports" element={<AdminReports />} />
               <Route path="/admin/system" element={<SystemMonitoring />} />
               <Route path="/admin/security" element={<SecurityCenter />} />
