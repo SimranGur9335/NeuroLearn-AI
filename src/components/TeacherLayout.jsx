@@ -7,13 +7,14 @@ import {
   TrendingUp,
   AlertTriangle,
   CalendarDays,
-  MessageSquareCode,
   Sparkles,
   ChevronLeft,
   ChevronRight,
   Home,
   LogOut,
-  Bell
+  Bell,
+  ClipboardList,
+  FileSpreadsheet
 } from 'lucide-react';
 import Header from './Header';
 import { useStudent } from '../context/StudentContext';
@@ -29,12 +30,13 @@ const TeacherLayout = () => {
 
   const menuItems = [
     { name: 'Teacher Hub', path: '/teacher/dashboard', icon: LayoutDashboard },
+    { name: 'Attendance Registry', path: '/teacher/attendance', icon: CalendarDays },
     { name: 'Student Monitoring', path: '/teacher/performance', icon: Users },
+    { name: 'Assignment Management', path: '/teacher/assignments', icon: ClipboardList },
+    { name: 'Marks & Gradebook', path: '/teacher/gradebook', icon: FileSpreadsheet },
     { name: 'LMS Analytics', path: '/teacher/analytics', icon: TrendingUp },
     { name: 'Risk Predictions', path: '/teacher/risk', icon: AlertTriangle },
-    { name: 'Attendance Registry', path: '/teacher/attendance', icon: CalendarDays },
-    { name: 'Faculty AI Mentor', path: '/teacher/ai-chat', icon: MessageSquareCode },
-    { name: "Announcements", path: "teacher/teacherAnnouncement", icon: Bell }
+    { name: "Announcements", path: "/teacher/teacherAnnouncement", icon: Bell }
   ];
 
   const handleLogout = () => {

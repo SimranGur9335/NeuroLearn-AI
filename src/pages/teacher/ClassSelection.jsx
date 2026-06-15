@@ -2,19 +2,33 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { BookOpen, Users, GraduationCap, ArrowRight } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { useAuth } from '../../context/AuthContext';
 
 const ClassSelection = () => {
     const [classes, setClasses] = useState([]);
     const navigate = useNavigate();
+    const { user } = useAuth();
+    const email = user?.email || "teacher@neurolearn.ai";
 
     useEffect(() => {
-        fetch('http://127.0.0.1:8000/teacher/1/classes')
-            .then((res) => res.json())
-            .then((data) => setClasses(data))
-            .catch((err) => console.error(err));
-    }, []);
+        const resolveAndFetch = async () => {
+            try {
+                const res = await fetch(`http://127.0.0.1:8000/faculty/by-email/${email}`);
+                if (!res.ok) throw new Error("Failed to resolve faculty");
+                const data = await res.json();
+                localStorage.setItem("faculty_id", data.faculty_id);
+                localStorage.setItem("faculty_name", data.full_name);
+                localStorage.setItem("faculty_email", data.email);
 
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
+                const classesRes = await fetch(`http://127.0.0.1:8000/teacher/${data.faculty_id}/classes`);
+                const classesData = await classesRes.json();
+                setClasses(classesData);
+            } catch (err) {
+                console.error("Error loading workspace data", err);
+            }
+        };
+        resolveAndFetch();
+    }, [email]);
 
     const handleSelect = (cls) => {
         console.log("Selected Class:", cls);
@@ -30,10 +44,8 @@ const ClassSelection = () => {
         navigate("/teacher/dashboard");
     };
 
-
-
     return (
-        <div className="min-h-screen bg-slate-50 dark:bg-slate-950 p-8">
+        <div className="min-h-screen bg-slate-50 dark:bg-slate-950 p-8 font-sans">
             <div className="max-w-6xl mx-auto">
 
                 <div className="mb-10">
@@ -42,7 +54,7 @@ const ClassSelection = () => {
                     </p>
 
                     <h1 className="text-5xl font-black text-slate-900 dark:text-white mt-2">
-                        Welcome Back, {user.username}
+                        Welcome Back, {user?.name || "Dr. Alok Verma"}
                     </h1>
 
                     <p className="text-slate-500 mt-3 max-w-2xl">

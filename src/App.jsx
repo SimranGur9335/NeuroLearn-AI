@@ -37,6 +37,8 @@ import RiskPrediction from './pages/teacher/RiskPrediction';
 import AttendanceTracking from './pages/teacher/AttendanceTracking';
 import ClassSelection from './pages/teacher/ClassSelection';
 import TeacherAnnouncement from "./pages/teacher/TeacherAnnouncement";
+import AssignmentManagement from "./pages/teacher/AssignmentManagement";
+import MarksGradebook from "./pages/teacher/MarksGradebook";
 
 // Admin Portal Pages
 import AdminDashboard from './pages/admin/AdminDashboard';
@@ -120,9 +122,8 @@ function App() {
               <Route path="/teacher/risk" element={<RiskPrediction />} />
               <Route path="/teacher/attendance" element={<AttendanceTracking />} />
               <Route path="teacher/teacherAnnouncement" element={<TeacherAnnouncement />} />
-
-              {/* Reused AI chat for faculty support */}
-              <Route path="/teacher/ai-chat" element={<AiMentorChat />} />
+              <Route path="/teacher/assignments" element={<AssignmentManagement />} />
+              <Route path="/teacher/gradebook" element={<MarksGradebook />} />
             </Route>
 
             {/* Admin Portal Layout & Routes */}

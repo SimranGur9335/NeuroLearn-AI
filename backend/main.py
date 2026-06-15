@@ -180,7 +180,7 @@ def predict_student_performance(data: StudentPerformanceInput):
 def get_teacher_classes(faculty_id: int):
     db = SessionLocal()
     query = text("""
-        SELECT c.class_id, c.class_name, s.subject_name, fa.role
+        SELECT c.class_id, c.class_name, s.subject_id, s.subject_name, fa.role
         FROM faculty_assignments fa
         JOIN classes c ON fa.class_id = c.class_id
         JOIN subjects s ON fa.subject_id = s.subject_id
@@ -192,6 +192,7 @@ def get_teacher_classes(faculty_id: int):
         classes.append({
             "class_id": row.class_id,
             "class_name": row.class_name,
+            "subject_id": row.subject_id,
             "subject_name": row.subject_name,
             "role": row.role
         })
@@ -1566,3 +1567,1036 @@ def update_admin_settings(data: SystemSettingsInput):
     log_audit(db, "UPDATE_SETTINGS", "SystemSettings", None)
     db.close()
     return {"message": "System settings updated successfully"}
+
+
+# --- Pydantic Schemas for V1 Teacher Portal ---
+from typing import List, Dict
+
+class AttendanceRecordInput(BaseModel):
+    student_id: int
+    status: str
+
+class AttendanceSaveInput(BaseModel):
+    class_id: int
+    subject_id: int
+    faculty_id: int
+    date: str
+    records: List[AttendanceRecordInput]
+
+class AssignmentCreateInput(BaseModel):
+    subject_id: int
+    class_id: int
+    title: str
+    description: str
+    due_date: str
+    total_marks: int
+    faculty_id: int
+
+class GradeSubmissionInput(BaseModel):
+    marks_obtained: int
+    status: str
+    faculty_id: int
+
+class StudentSubmissionInput(BaseModel):
+    student_id: int
+    submission_url: str
+
+class StudentMarkEntry(BaseModel):
+    student_id: int
+    assignment_marks: float
+    quiz_marks: float
+    internal_marks: float
+    practical_marks: float
+
+class BulkMarksInput(BaseModel):
+    class_id: int
+    subject_id: int
+    faculty_id: int
+    marks_list: List[StudentMarkEntry]
+
+class RunRiskEngineInput(BaseModel):
+    class_id: int
+    faculty_id: int
+
+
+# --- Teacher Portal V1 Endpoints ---
+
+@app.get("/faculty/by-email/{email}")
+def get_faculty_by_email(email: str):
+    db = SessionLocal()
+    try:
+        faculty = db.execute(
+            text("SELECT * FROM faculty WHERE email = :email"),
+            {"email": email}
+        ).fetchone()
+        
+        if not faculty:
+            # If default demo account or specific domain, auto-create to ensure login flows
+            if email == "teacher@neurolearn.ai":
+                new_id = db.execute(
+                    text("""
+                        INSERT INTO faculty (faculty_code, full_name, email, department, designation, created_at)
+                        VALUES ('FAC100', 'Dr. Alok Verma', 'teacher@neurolearn.ai', 'Computer Engineering', 'Professor & Head', NOW())
+                        RETURNING faculty_id
+                    """)
+                ).scalar()
+                db.commit()
+                # Create assignments if missing
+                db.execute(text("""
+                    INSERT INTO faculty_assignments (faculty_id, class_id, subject_id, role, academic_year, created_at)
+                    VALUES 
+                    (:fid, 1, 1, 'Theory', '2026-2027', NOW()),
+                    (:fid, 2, 2, 'Theory', '2026-2027', NOW()),
+                    (:fid, 3, 3, 'Project Guide', '2026-2027', NOW())
+                    ON CONFLICT DO NOTHING
+                """), {"fid": new_id})
+                db.commit()
+                
+                # Fetch created
+                faculty = db.execute(
+                    text("SELECT * FROM faculty WHERE faculty_id = :id"),
+                    {"id": new_id}
+                ).fetchone()
+            else:
+                raise HTTPException(status_code=404, detail="Faculty not found")
+        
+        return {
+            "faculty_id": faculty.faculty_id,
+            "faculty_code": faculty.faculty_code,
+            "full_name": faculty.full_name,
+            "email": faculty.email,
+            "department": faculty.department,
+            "designation": faculty.designation
+        }
+    finally:
+        db.close()
+
+@app.get("/faculty/mapping-audit")
+def get_mapping_audit():
+    db = SessionLocal()
+    try:
+        # 1. Detect broken mappings (assignments pointing to deleted / missing records)
+        broken = db.execute(text("""
+            SELECT fa.assignment_id, fa.faculty_id, fa.class_id, fa.subject_id
+            FROM faculty_assignments fa
+            LEFT JOIN faculty f ON fa.faculty_id = f.faculty_id
+            LEFT JOIN classes c ON fa.class_id = c.class_id
+            LEFT JOIN subjects s ON fa.subject_id = s.subject_id
+            WHERE f.faculty_id IS NULL OR c.class_id IS NULL OR s.subject_id IS NULL
+        """)).fetchall()
+        
+        # 2. Detect duplicate mappings
+        duplicates = db.execute(text("""
+            SELECT faculty_id, class_id, subject_id, academic_year, COUNT(*)
+            FROM faculty_assignments
+            GROUP BY faculty_id, class_id, subject_id, academic_year
+            HAVING COUNT(*) > 1
+        """)).fetchall()
+        
+        # 3. Detect orphan records in tables referencing deleted faculty
+        orphans = db.execute(text("""
+            SELECT a.assignment_id, a.title, a.class_id, a.subject_id
+            FROM assignments a
+            LEFT JOIN classes c ON a.class_id = c.class_id
+            LEFT JOIN subjects s ON a.subject_id = s.subject_id
+            WHERE c.class_id IS NULL OR s.subject_id IS NULL
+        """)).fetchall()
+
+        broken_report = [
+            {"assignment_id": b.assignment_id, "faculty_id": b.faculty_id, "class_id": b.class_id, "subject_id": b.subject_id}
+            for b in broken
+        ]
+        duplicate_report = [
+            {"faculty_id": d.faculty_id, "class_id": d.class_id, "subject_id": d.subject_id, "academic_year": d.academic_year, "count": d.count}
+            for d in duplicates
+        ]
+        orphan_report = [
+            {"assignment_id": o.assignment_id, "title": o.title, "class_id": o.class_id, "subject_id": o.subject_id}
+            for o in orphans
+        ]
+        
+        # Fix automatically broken mapping rows by deleting them
+        if broken_report:
+            for b in broken_report:
+                db.execute(text("DELETE FROM faculty_assignments WHERE assignment_id = :id"), {"id": b["assignment_id"]})
+            db.commit()
+            
+        return {
+            "status": "success",
+            "broken_mappings_found": len(broken_report),
+            "broken_mappings": broken_report,
+            "duplicate_mappings_found": len(duplicate_report),
+            "duplicate_mappings": duplicate_report,
+            "orphan_records_found": len(orphan_report),
+            "orphan_records": orphan_report,
+            "actions_applied": "Removed broken assignments rows." if broken_report else "None"
+        }
+    finally:
+        db.close()
+
+@app.get("/attendance/records")
+def get_attendance_records(class_id: int, subject_id: int, date: str):
+    db = SessionLocal()
+    try:
+        # Load students in class
+        students = db.execute(text("""
+            SELECT s.student_id, s.roll_no, s.full_name
+            FROM students s
+            JOIN enrollments e ON s.student_id = e.student_id
+            WHERE e.class_id = :class_id
+            ORDER BY s.roll_no
+        """), {"class_id": class_id}).fetchall()
+        
+        # Load attendance status for this date
+        attendance = db.execute(text("""
+            SELECT student_id, status FROM attendance_records
+            WHERE class_id = :class_id AND subject_id = :sub_id AND attendance_date = :date
+        """), {"class_id": class_id, "sub_id": subject_id, "date": date}).fetchall()
+        
+        status_map = {a.student_id: a.status for a in attendance}
+        
+        records = []
+        for s in students:
+            records.append({
+                "student_id": s.student_id,
+                "roll_no": s.roll_no,
+                "full_name": s.full_name,
+                "status": status_map.get(s.student_id, "Present") # Default to Present
+            })
+        return records
+    finally:
+        db.close()
+
+@app.post("/attendance/save")
+def save_attendance(data: AttendanceSaveInput):
+    db = SessionLocal()
+    try:
+        # Ownership Verification: Check if this faculty is assigned to this class and subject
+        mapping = db.execute(text("""
+            SELECT assignment_id, academic_year FROM faculty_assignments
+            WHERE faculty_id = :fid AND class_id = :cid AND subject_id = :sid
+        """), {"fid": data.faculty_id, "cid": data.class_id, "sid": data.subject_id}).fetchone()
+        
+        if not mapping:
+            raise HTTPException(status_code=403, detail="Access Denied: You are not assigned to this class/subject.")
+            
+        # Save records
+        for rec in data.records:
+            existing = db.execute(text("""
+                SELECT attendance_id FROM attendance_records
+                WHERE student_id = :sid AND class_id = :cid AND subject_id = :sub_id AND attendance_date = :date
+            """), {"sid": rec.student_id, "cid": data.class_id, "sub_id": data.subject_id, "date": data.date}).fetchone()
+            
+            if existing:
+                db.execute(text("""
+                    UPDATE attendance_records SET status = :status
+                    WHERE attendance_id = :aid
+                """), {"status": rec.status, "aid": existing.attendance_id})
+            else:
+                db.execute(text("""
+                    INSERT INTO attendance_records (student_id, class_id, subject_id, faculty_id, attendance_date, status, created_at)
+                    VALUES (:student_id, :class_id, :subject_id, :faculty_id, :attendance_date, :status, NOW())
+                """), {
+                    "student_id": rec.student_id,
+                    "class_id": data.class_id,
+                    "subject_id": data.subject_id,
+                    "faculty_id": data.faculty_id,
+                    "attendance_date": data.date,
+                    "status": rec.status
+                })
+        
+        db.commit()
+        log_audit(db, "MARK_ATTENDANCE", "Class", data.class_id, f"Faculty {data.faculty_id}")
+        return {"message": "Attendance records saved successfully"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        db.close()
+
+@app.get("/attendance/history")
+def get_attendance_history(class_id: int, subject_id: int):
+    db = SessionLocal()
+    try:
+        history = db.execute(text("""
+            SELECT attendance_date,
+                   SUM(CASE WHEN status = 'Present' THEN 1 ELSE 0 END) AS present_count,
+                   SUM(CASE WHEN status = 'Absent' THEN 1 ELSE 0 END) AS absent_count,
+                   SUM(CASE WHEN status = 'Late' THEN 1 ELSE 0 END) AS late_count
+            FROM attendance_records
+            WHERE class_id = :cid AND subject_id = :sid
+            GROUP BY attendance_date
+            ORDER BY attendance_date DESC
+        """), {"cid": class_id, "sid": subject_id}).fetchall()
+        
+        return [
+            {
+                "date": str(h.attendance_date),
+                "present": h.present_count,
+                "absent": h.absent_count,
+                "late": h.late_count
+            } for h in history
+        ]
+    finally:
+        db.close()
+
+@app.get("/attendance/monthly-report")
+def get_monthly_attendance_report(class_id: int, subject_id: int, month: int, year: int):
+    db = SessionLocal()
+    try:
+        # Load students
+        students = db.execute(text("""
+            SELECT s.student_id, s.roll_no, s.full_name
+            FROM students s
+            JOIN enrollments e ON s.student_id = e.student_id
+            WHERE e.class_id = :cid
+            ORDER BY s.roll_no
+        """), {"cid": class_id}).fetchall()
+        
+        # Load records in this month
+        records = db.execute(text("""
+            SELECT student_id, attendance_date, status
+            FROM attendance_records
+            WHERE class_id = :cid AND subject_id = :sid
+              AND EXTRACT(MONTH FROM attendance_date) = :m
+              AND EXTRACT(YEAR FROM attendance_date) = :y
+        """), {"cid": class_id, "sid": subject_id, "m": month, "y": year}).fetchall()
+        
+        # Build matrix
+        student_records = {s.student_id: {} for s in students}
+        all_dates = sorted(list(set(str(r.attendance_date) for r in records)))
+        
+        for r in records:
+            if r.student_id in student_records:
+                student_records[r.student_id][str(r.attendance_date)] = r.status
+                
+        matrix = []
+        for s in students:
+            row = {
+                "student_id": s.student_id,
+                "roll_no": s.roll_no,
+                "full_name": s.full_name,
+                "attendance": {}
+            }
+            for d in all_dates:
+                row["attendance"][d] = student_records[s.student_id].get(d, "-")
+            matrix.append(row)
+            
+        return {
+            "dates": all_dates,
+            "matrix": matrix
+        }
+    finally:
+        db.close()
+
+@app.get("/teacher/{faculty_id}/students")
+def get_teacher_students(faculty_id: int):
+    db = SessionLocal()
+    try:
+        # Get all classes assigned to teacher
+        classes = db.execute(text("""
+            SELECT class_id FROM faculty_assignments WHERE faculty_id = :fid
+        """), {"fid": faculty_id}).fetchall()
+        
+        class_ids = [c.class_id for c in classes]
+        if not class_ids:
+            return []
+            
+        # Get students in these classes
+        students = db.execute(text("""
+            SELECT DISTINCT s.student_id, s.roll_no, s.full_name, s.department, s.semester, s.division,
+                   sm.attendance, sm.quiz_score, sm.risk_level, sm.predicted_cgpa, sm.xp_points
+            FROM students s
+            JOIN enrollments e ON s.student_id = e.student_id
+            LEFT JOIN student_metrics sm ON s.student_id = sm.student_id
+            WHERE e.class_id IN :cids
+            ORDER BY s.roll_no
+        """).bindparams(cids=tuple(class_ids))).fetchall()
+        
+        return [
+            {
+                "student_id": row.student_id,
+                "roll_no": row.roll_no,
+                "full_name": row.full_name,
+                "department": row.department,
+                "semester": row.semester,
+                "division": row.division,
+                "attendance": float(row.attendance) if row.attendance else 0.0,
+                "quiz_score": float(row.quiz_score) if row.quiz_score else 0.0,
+                "risk_level": row.risk_level or "Low",
+                "predicted_cgpa": float(row.predicted_cgpa) if row.predicted_cgpa else 0.0,
+                "xp_points": row.xp_points or 0
+            } for row in students
+        ]
+    finally:
+        db.close()
+
+@app.get("/student/{student_id}/profile")
+def get_student_profile_v1(student_id: int):
+    db = SessionLocal()
+    try:
+        student = db.execute(text("SELECT * FROM students WHERE student_id = :id"), {"id": student_id}).fetchone()
+        if not student:
+            raise HTTPException(status_code=404, detail="Student not found")
+            
+        metrics = db.execute(text("SELECT * FROM student_metrics WHERE student_id = :id"), {"id": student_id}).fetchone()
+        
+        # Submissions summary
+        submissions = db.execute(text("""
+            SELECT status, COUNT(*) as count FROM assignment_submissions
+            WHERE student_id = :id GROUP BY status
+        """), {"id": student_id}).fetchall()
+        sub_stats = {s.status: s.count for s in submissions}
+        
+        # Quizzes
+        quizzes = db.execute(text("""
+            SELECT qr.score, q.total_marks, q.quiz_title
+            FROM quiz_results qr
+            JOIN quizzes q ON qr.quiz_id = q.quiz_id
+            WHERE qr.student_id = :id
+        """), {"id": student_id}).fetchall()
+        
+        # Marks
+        marks = db.execute(text("""
+            SELECT m.*, s.subject_name
+            FROM student_marks m
+            JOIN subjects s ON m.subject_id = s.subject_id
+            WHERE m.student_id = :id
+        """), {"id": student_id}).fetchall()
+        
+        # Risk predictions history
+        risk_hist = db.execute(text("""
+            SELECT risk_level, prediction_reason, created_at FROM risk_predictions
+            WHERE student_id = :id ORDER BY created_at DESC LIMIT 5
+        """), {"id": student_id}).fetchall()
+
+        return {
+            "student": {
+                "student_id": student.student_id,
+                "roll_no": student.roll_no,
+                "full_name": student.full_name,
+                "email": student.email,
+                "department": student.department,
+                "semester": student.semester,
+                "division": student.division
+            },
+            "metrics": {
+                "attendance": float(metrics.attendance) if metrics and metrics.attendance else 0.0,
+                "quiz_score": float(metrics.quiz_score) if metrics and metrics.quiz_score else 0.0,
+                "risk_level": metrics.risk_level if metrics else "Low",
+                "predicted_cgpa": float(metrics.predicted_cgpa) if metrics and metrics.predicted_cgpa else 0.0,
+                "xp_points": metrics.xp_points if metrics else 0
+            },
+            "assignment_stats": {
+                "submitted": sub_stats.get("Submitted", 0),
+                "pending": sub_stats.get("Pending", 0),
+                "late": sub_stats.get("Late", 0)
+            },
+            "quizzes": [
+                {
+                    "title": q.quiz_title,
+                    "score": float(q.score) if q.score else 0.0,
+                    "total": q.total_marks
+                } for q in quizzes
+            ],
+            "marks": [
+                {
+                    "subject": m.subject_name,
+                    "assignments": float(m.assignment_marks),
+                    "quizzes": float(m.quiz_marks),
+                    "internal": float(m.internal_marks),
+                    "practical": float(m.practical_marks),
+                    "total": float(m.total_marks),
+                    "grade": m.grade
+                } for m in marks
+            ],
+            "risk_history": [
+                {
+                    "level": r.risk_level,
+                    "reason": r.prediction_reason,
+                    "date": str(r.created_at)
+                } for r in risk_hist
+            ]
+        }
+    finally:
+        db.close()
+
+@app.get("/assignments")
+def get_assignments(class_id: int, subject_id: int):
+    db = SessionLocal()
+    try:
+        assignments = db.execute(text("""
+            SELECT * FROM assignments WHERE class_id = :cid AND subject_id = :sid ORDER BY created_at DESC
+        """), {"cid": class_id, "sid": subject_id}).fetchall()
+        
+        return [
+            {
+                "assignment_id": a.assignment_id,
+                "subject_id": a.subject_id,
+                "class_id": a.class_id,
+                "title": a.title,
+                "description": a.description,
+                "due_date": str(a.due_date),
+                "total_marks": a.total_marks,
+                "created_at": str(a.created_at)
+            } for a in assignments
+        ]
+    finally:
+        db.close()
+
+@app.post("/assignments")
+def create_assignment(data: AssignmentCreateInput):
+    db = SessionLocal()
+    try:
+        # Check ownership
+        mapping = db.execute(text("""
+            SELECT assignment_id FROM faculty_assignments
+            WHERE faculty_id = :fid AND class_id = :cid AND subject_id = :sid
+        """), {"fid": data.faculty_id, "cid": data.class_id, "sid": data.subject_id}).fetchone()
+        
+        if not mapping:
+            raise HTTPException(status_code=403, detail="You are not authorized to create assignments for this class.")
+            
+        new_id = db.execute(text("""
+            INSERT INTO assignments (subject_id, class_id, title, description, due_date, total_marks, created_at)
+            VALUES (:sid, :cid, :title, :desc, :due, :marks, NOW())
+            RETURNING assignment_id
+        """), {
+            "sid": data.subject_id,
+            "cid": data.class_id,
+            "title": data.title,
+            "desc": data.description,
+            "due": data.due_date,
+            "marks": data.total_marks
+        }).scalar()
+        
+        # Seed default pending submissions for all students in this class
+        students = db.execute(text("""
+            SELECT s.student_id FROM students s
+            JOIN enrollments e ON s.student_id = e.student_id
+            WHERE e.class_id = :cid
+        """), {"cid": data.class_id}).fetchall()
+        
+        for s in students:
+            db.execute(text("""
+                INSERT INTO assignment_submissions (assignment_id, student_id, status)
+                VALUES (:aid, :sid, 'Pending')
+            """), {"aid": new_id, "sid": s.student_id})
+            
+        db.commit()
+        log_audit(db, "CREATE_ASSIGNMENT", "Assignment", new_id, f"Faculty {data.faculty_id}")
+        return {"message": "Assignment created successfully", "assignment_id": new_id}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        db.close()
+
+@app.put("/assignments/{assignment_id}")
+def update_assignment(assignment_id: int, data: AssignmentCreateInput):
+    db = SessionLocal()
+    try:
+        # Check assignment exists
+        assign = db.execute(text("SELECT class_id, subject_id FROM assignments WHERE assignment_id = :id"), {"id": assignment_id}).fetchone()
+        if not assign:
+            raise HTTPException(status_code=404, detail="Assignment not found")
+            
+        # Check ownership
+        mapping = db.execute(text("""
+            SELECT assignment_id FROM faculty_assignments
+            WHERE faculty_id = :fid AND class_id = :cid AND subject_id = :sid
+        """), {"fid": data.faculty_id, "cid": assign.class_id, "sid": assign.subject_id}).fetchone()
+        
+        if not mapping:
+            raise HTTPException(status_code=403, detail="You do not own this class and cannot edit this assignment.")
+            
+        db.execute(text("""
+            UPDATE assignments
+            SET title = :title, description = :desc, due_date = :due, total_marks = :marks
+            WHERE assignment_id = :id
+        """), {
+            "title": data.title,
+            "desc": data.description,
+            "due": data.due_date,
+            "marks": data.total_marks,
+            "id": assignment_id
+        })
+        db.commit()
+        log_audit(db, "UPDATE_ASSIGNMENT", "Assignment", assignment_id, f"Faculty {data.faculty_id}")
+        return {"message": "Assignment updated successfully"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        db.close()
+
+@app.delete("/assignments/{assignment_id}")
+def delete_assignment(assignment_id: int, faculty_id: int):
+    db = SessionLocal()
+    try:
+        assign = db.execute(text("SELECT class_id, subject_id FROM assignments WHERE assignment_id = :id"), {"id": assignment_id}).fetchone()
+        if not assign:
+            raise HTTPException(status_code=404, detail="Assignment not found")
+            
+        # Check ownership
+        mapping = db.execute(text("""
+            SELECT assignment_id FROM faculty_assignments
+            WHERE faculty_id = :fid AND class_id = :cid AND subject_id = :sid
+        """), {"fid": faculty_id, "cid": assign.class_id, "sid": assign.subject_id}).fetchone()
+        
+        if not mapping:
+            raise HTTPException(status_code=403, detail="You do not own this class and cannot delete this assignment.")
+            
+        db.execute(text("DELETE FROM assignment_submissions WHERE assignment_id = :id"), {"id": assignment_id})
+        db.execute(text("DELETE FROM assignments WHERE assignment_id = :id"), {"id": assignment_id})
+        db.commit()
+        log_audit(db, "DELETE_ASSIGNMENT", "Assignment", assignment_id, f"Faculty {faculty_id}")
+        return {"message": "Assignment deleted successfully"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        db.close()
+
+@app.get("/assignments/{assignment_id}/submissions")
+def get_assignment_submissions(assignment_id: int):
+    db = SessionLocal()
+    try:
+        submissions = db.execute(text("""
+            SELECT asub.submission_id, asub.assignment_id, asub.student_id, asub.submission_url,
+                   asub.marks_obtained, asub.status, asub.submitted_at, s.full_name, s.roll_no
+            FROM assignment_submissions asub
+            JOIN students s ON asub.student_id = s.student_id
+            WHERE asub.assignment_id = :aid
+            ORDER BY s.roll_no
+        """), {"aid": assignment_id}).fetchall()
+        
+        return [
+            {
+                "submission_id": s.submission_id,
+                "assignment_id": s.assignment_id,
+                "student_id": s.student_id,
+                "submission_url": s.submission_url,
+                "marks_obtained": s.marks_obtained,
+                "status": s.status,
+                "submitted_at": str(s.submitted_at) if s.submitted_at else None,
+                "student_name": s.full_name,
+                "roll_no": s.roll_no
+            } for s in submissions
+        ]
+    finally:
+        db.close()
+
+@app.post("/submissions/{submission_id}/grade")
+def grade_submission(submission_id: int, data: GradeSubmissionInput):
+    db = SessionLocal()
+    try:
+        sub = db.execute(text("""
+            SELECT a.class_id, a.subject_id, asub.student_id FROM assignment_submissions asub
+            JOIN assignments a ON asub.assignment_id = a.assignment_id
+            WHERE asub.submission_id = :sid
+        """), {"sid": submission_id}).fetchone()
+        
+        if not sub:
+            raise HTTPException(status_code=404, detail="Submission not found")
+            
+        # Check ownership
+        mapping = db.execute(text("""
+            SELECT assignment_id FROM faculty_assignments
+            WHERE faculty_id = :fid AND class_id = :cid AND subject_id = :sid
+        """), {"fid": data.faculty_id, "cid": sub.class_id, "sid": sub.subject_id}).fetchone()
+        
+        if not mapping:
+            raise HTTPException(status_code=403, detail="You do not own this class and cannot grade this submission.")
+            
+        db.execute(text("""
+            UPDATE assignment_submissions
+            SET marks_obtained = :marks, status = :status
+            WHERE submission_id = :sid
+        """), {"marks": data.marks_obtained, "status": data.status, "sid": submission_id})
+        
+        # Automatically update marks in student_marks table
+        class_info = db.execute(text("SELECT term_id FROM classes WHERE class_id = :id"), {"id": sub.class_id}).fetchone()
+        term_id = class_info.term_id if class_info else None
+        
+        existing_mark = db.execute(text("""
+            SELECT mark_id FROM student_marks
+            WHERE student_id = :sid AND class_id = :cid AND subject_id = :sub_id
+        """), {"sid": sub.student_id, "cid": sub.class_id, "sub_id": sub.subject_id}).fetchone()
+        
+        if existing_mark:
+            db.execute(text("""
+                UPDATE student_marks
+                SET assignment_marks = :marks, updated_at = NOW()
+                WHERE mark_id = :mid
+            """), {"marks": data.marks_obtained, "mid": existing_mark.mark_id})
+        else:
+            db.execute(text("""
+                INSERT INTO student_marks (student_id, class_id, subject_id, term_id, assignment_marks, quiz_marks, internal_marks, practical_marks, total_marks, grade, created_at, updated_at)
+                VALUES (:sid, :cid, :sub_id, :tid, :marks, 0.0, 0.0, 0.0, :marks, 'F', NOW(), NOW())
+            """), {"sid": sub.student_id, "cid": sub.class_id, "sub_id": sub.subject_id, "tid": term_id, "marks": data.marks_obtained})
+            
+        db.commit()
+        log_audit(db, "GRADE_SUBMISSION", "Submission", submission_id, f"Faculty {data.faculty_id}")
+        return {"message": "Submission graded successfully"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        db.close()
+
+@app.post("/assignments/{assignment_id}/submit")
+def submit_assignment(assignment_id: int, data: StudentSubmissionInput):
+    db = SessionLocal()
+    try:
+        # Locate submission row for student/assignment
+        row = db.execute(text("""
+            SELECT submission_id FROM assignment_submissions
+            WHERE assignment_id = :aid AND student_id = :sid
+        """), {"aid": assignment_id, "sid": data.student_id}).fetchone()
+        
+        # Determine status (Submitted / Late) based on due date
+        due_date = db.execute(text("SELECT due_date FROM assignments WHERE assignment_id = :aid"), {"aid": assignment_id}).scalar()
+        status = "Submitted"
+        if due_date and datetime.now().date() > due_date:
+            status = "Late"
+            
+        if row:
+            db.execute(text("""
+                UPDATE assignment_submissions
+                SET submission_url = :url, status = :status, submitted_at = NOW()
+                WHERE submission_id = :sid
+            """), {"url": data.submission_url, "status": status, "sid": row.submission_id})
+        else:
+            db.execute(text("""
+                INSERT INTO assignment_submissions (assignment_id, student_id, submission_url, status, submitted_at)
+                VALUES (:aid, :sid, :url, :status, NOW())
+            """), {"aid": assignment_id, "sid": data.student_id, "url": data.submission_url, "status": status})
+        db.commit()
+        return {"message": "Assignment work uploaded successfully"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        db.close()
+
+@app.get("/marks")
+def get_student_marks(class_id: int, subject_id: int):
+    db = SessionLocal()
+    try:
+        students = db.execute(text("""
+            SELECT s.student_id, s.roll_no, s.full_name
+            FROM students s
+            JOIN enrollments e ON s.student_id = e.student_id
+            WHERE e.class_id = :cid
+            ORDER BY s.roll_no
+        """), {"cid": class_id}).fetchall()
+        
+        marks = db.execute(text("""
+            SELECT * FROM student_marks WHERE class_id = :cid AND subject_id = :sid
+        """), {"cid": class_id, "sid": subject_id}).fetchall()
+        
+        marks_map = {m.student_id: m for m in marks}
+        
+        records = []
+        for s in students:
+            m = marks_map.get(s.student_id)
+            records.append({
+                "student_id": s.student_id,
+                "roll_no": s.roll_no,
+                "full_name": s.full_name,
+                "assignment_marks": float(m.assignment_marks) if m else 0.0,
+                "quiz_marks": float(m.quiz_marks) if m else 0.0,
+                "internal_marks": float(m.internal_marks) if m else 0.0,
+                "practical_marks": float(m.practical_marks) if m else 0.0,
+                "total_marks": float(m.total_marks) if m else 0.0,
+                "grade": m.grade if m else "F"
+            })
+            
+        return records
+    finally:
+        db.close()
+
+@app.post("/marks/bulk-entry")
+def save_student_marks_bulk(data: BulkMarksInput):
+    db = SessionLocal()
+    try:
+        # Check ownership
+        mapping = db.execute(text("""
+            SELECT assignment_id FROM faculty_assignments
+            WHERE faculty_id = :fid AND class_id = :cid AND subject_id = :sid
+        """), {"fid": data.faculty_id, "cid": data.class_id, "sid": data.subject_id}).fetchone()
+        
+        if not mapping:
+            raise HTTPException(status_code=403, detail="You do not own this class and cannot enter marks.")
+            
+        class_info = db.execute(text("SELECT term_id FROM classes WHERE class_id = :id"), {"id": data.class_id}).fetchone()
+        term_id = class_info.term_id if class_info else None
+        
+        for entry in data.marks_list:
+            total = entry.assignment_marks + entry.quiz_marks + entry.internal_marks + entry.practical_marks
+            
+            # Grade Calculation Rule:
+            if total >= 90: grade = "A+"
+            elif total >= 80: grade = "A"
+            elif total >= 70: grade = "B"
+            elif total >= 60: grade = "C"
+            elif total >= 50: grade = "D"
+            else: grade = "F"
+            
+            existing = db.execute(text("""
+                SELECT mark_id FROM student_marks
+                WHERE student_id = :sid AND class_id = :cid AND subject_id = :sub_id
+            """), {"sid": entry.student_id, "cid": data.class_id, "sub_id": data.subject_id}).fetchone()
+            
+            if existing:
+                db.execute(text("""
+                    UPDATE student_marks
+                    SET assignment_marks = :a, quiz_marks = :q, internal_marks = :i, practical_marks = :p,
+                        total_marks = :total, grade = :grade, updated_at = NOW()
+                    WHERE mark_id = :mid
+                """), {
+                    "a": entry.assignment_marks,
+                    "q": entry.quiz_marks,
+                    "i": entry.internal_marks,
+                    "p": entry.practical_marks,
+                    "total": total,
+                    "grade": grade,
+                    "mid": existing.mark_id
+                })
+            else:
+                db.execute(text("""
+                    INSERT INTO student_marks (student_id, class_id, subject_id, term_id, assignment_marks, quiz_marks, internal_marks, practical_marks, total_marks, grade, created_at, updated_at)
+                    VALUES (:sid, :cid, :sub_id, :tid, :a, :q, :i, :p, :total, :grade, NOW(), NOW())
+                """), {
+                    "sid": entry.student_id,
+                    "cid": data.class_id,
+                    "sub_id": data.subject_id,
+                    "tid": term_id,
+                    "a": entry.assignment_marks,
+                    "q": entry.quiz_marks,
+                    "i": entry.internal_marks,
+                    "p": entry.practical_marks,
+                    "total": total,
+                    "grade": grade
+                })
+                
+        db.commit()
+        log_audit(db, "SAVE_MARKS", "Class", data.class_id, f"Faculty {data.faculty_id}")
+        return {"message": "Marks entered successfully"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        db.close()
+
+@app.post("/teacher/run-risk-engine")
+def run_risk_engine(data: RunRiskEngineInput):
+    db = SessionLocal()
+    try:
+        # Load students in class
+        students = db.execute(text("""
+            SELECT s.student_id, s.full_name
+            FROM students s
+            JOIN enrollments e ON s.student_id = e.student_id
+            WHERE e.class_id = :cid
+        """), {"cid": data.class_id}).fetchall()
+        
+        risk_count = 0
+        for s in students:
+            # 1. Get attendance rate from attendance_records
+            att = db.execute(text("""
+                SELECT COUNT(*) as total,
+                       SUM(CASE WHEN status = 'Present' THEN 1 ELSE 0 END) as present
+                FROM attendance_records
+                WHERE student_id = :sid AND class_id = :cid
+            """), {"sid": s.student_id, "cid": data.class_id}).fetchone()
+            
+            att_rate = 100.0
+            if att and att.total > 0:
+                att_rate = round((att.present / att.total) * 100.0, 2)
+                
+            # 2. Get missing/pending assignments count
+            pending_assigns = db.execute(text("""
+                SELECT COUNT(*) FROM assignment_submissions asub
+                JOIN assignments a ON asub.assignment_id = a.assignment_id
+                WHERE asub.student_id = :sid AND a.class_id = :cid AND asub.status = 'Pending'
+            """), {"sid": s.student_id, "cid": data.class_id}).scalar() or 0
+            
+            # 3. Get low marks (average marks in student_marks < 50)
+            marks = db.execute(text("""
+                SELECT AVG(total_marks) FROM student_marks
+                WHERE student_id = :sid AND class_id = :cid
+            """), {"sid": s.student_id, "cid": data.class_id}).scalar()
+            avg_marks = float(marks) if marks else 80.0
+            
+            # Rule-based Engine logic:
+            reasons = []
+            risk_score = 0.0
+            
+            if att_rate < 75.0:
+                reasons.append(f"Attendance drop to {att_rate}% (<75%)")
+                risk_score += 50.0
+            elif att_rate < 85.0:
+                reasons.append(f"Attendance warning {att_rate}% (<85%)")
+                risk_score += 20.0
+                
+            if pending_assigns > 0:
+                reasons.append(f"{pending_assigns} missing assignment submissions")
+                risk_score += pending_assigns * 15.0
+                
+            if avg_marks < 50.0:
+                reasons.append(f"Failing grade warning (Average Score: {round(avg_marks, 1)})")
+                risk_score += 40.0
+            elif avg_marks < 65.0:
+                reasons.append(f"Low grades warning (Average Score: {round(avg_marks, 1)})")
+                risk_score += 15.0
+                
+            risk_level = "Low"
+            if risk_score >= 50.0:
+                risk_level = "High"
+            elif risk_score >= 20.0:
+                risk_level = "Medium"
+                
+            reason_str = "; ".join(reasons) if reasons else "No risk indicators detected."
+            
+            # Update predictions
+            db.execute(text("""
+                INSERT INTO risk_predictions (student_id, class_id, risk_score, risk_level, attendance_score, quiz_score, prediction_reason, model_version, created_at)
+                VALUES (:sid, :cid, :score, :level, :att_score, :q_score, :reason, 'Rule-Based V1.0', NOW())
+            """), {
+                "sid": s.student_id,
+                "cid": data.class_id,
+                "score": risk_score,
+                "level": risk_level,
+                "att_score": att_rate,
+                "q_score": avg_marks,
+                "reason": reason_str
+            })
+            
+            # Update student_metrics table
+            db.execute(text("""
+                UPDATE student_metrics
+                SET attendance = :att, quiz_score = :quiz, risk_level = :level, updated_at = NOW()
+                WHERE student_id = :sid
+            """), {
+                "att": att_rate,
+                "quiz": avg_marks,
+                "level": risk_level,
+                "sid": s.student_id
+            })
+            
+            risk_count += 1
+            
+        db.commit()
+        log_audit(db, "RUN_RISK_ENGINE", "Class", data.class_id, f"Faculty {data.faculty_id}")
+        return {"message": f"Risk engine successfully analyzed {risk_count} students."}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        db.close()
+
+@app.get("/teacher/{faculty_id}/analytics")
+def get_teacher_analytics(faculty_id: int):
+    db = SessionLocal()
+    try:
+        # Load classes assigned to teacher
+        classes = db.execute(text("""
+            SELECT fa.class_id, fa.subject_id, c.class_name, s.subject_name
+            FROM faculty_assignments fa
+            JOIN classes c ON fa.class_id = c.class_id
+            JOIN subjects s ON fa.subject_id = s.subject_id
+            WHERE fa.faculty_id = :fid
+        """), {"fid": faculty_id}).fetchall()
+        
+        class_ids = [c.class_id for c in classes]
+        if not class_ids:
+            return {
+                "attendance_trend": [],
+                "performance_trend": [],
+                "top_students": [],
+                "weak_students": [],
+                "subject_averages": []
+            }
+            
+        # 1. Attendance Trend
+        att_trend = db.execute(text("""
+            SELECT attendance_date,
+                   ROUND(AVG(CASE WHEN status = 'Present' THEN 100.0 ELSE 0.0 END), 2) as attendance_rate
+            FROM attendance_records
+            WHERE class_id IN :cids
+            GROUP BY attendance_date
+            ORDER BY attendance_date DESC
+            LIMIT 10
+        """).bindparams(cids=tuple(class_ids))).fetchall()
+        
+        # 2. Performance Trend
+        perf_trend = db.execute(text("""
+            SELECT s.department as branch,
+                   ROUND(AVG(sm.attendance), 2) as attendance,
+                   ROUND(AVG(sm.quiz_score), 2) as average
+            FROM students s
+            JOIN enrollments e ON s.student_id = e.student_id
+            JOIN student_metrics sm ON s.student_id = sm.student_id
+            WHERE e.class_id IN :cids
+            GROUP BY s.department
+        """).bindparams(cids=tuple(class_ids))).fetchall()
+        
+        # 3. Top students
+        top_students = db.execute(text("""
+            SELECT s.full_name, sm.quiz_score as score, s.roll_no, s.department
+            FROM students s
+            JOIN enrollments e ON s.student_id = e.student_id
+            JOIN student_metrics sm ON s.student_id = sm.student_id
+            WHERE e.class_id IN :cids
+            ORDER BY sm.quiz_score DESC
+            LIMIT 5
+        """).bindparams(cids=tuple(class_ids))).fetchall()
+        
+        # 4. Weak students
+        weak_students = db.execute(text("""
+            SELECT s.full_name, sm.quiz_score as score, s.roll_no, s.department, sm.risk_level
+            FROM students s
+            JOIN enrollments e ON s.student_id = e.student_id
+            JOIN student_metrics sm ON s.student_id = sm.student_id
+            WHERE e.class_id IN :cids AND sm.risk_level IN ('High', 'Medium')
+            ORDER BY sm.quiz_score ASC
+            LIMIT 5
+        """).bindparams(cids=tuple(class_ids))).fetchall()
+        
+        # 5. Subject performance average
+        subj_perf = []
+        for c in classes:
+            avg_score = db.execute(text("""
+                SELECT AVG(total_marks) FROM student_marks
+                WHERE class_id = :cid AND subject_id = :sid
+            """), {"cid": c.class_id, "sid": c.subject_id}).scalar()
+            subj_perf.append({
+                "subject_name": c.subject_name,
+                "class_name": c.class_name,
+                "average": float(avg_score) if avg_score else 75.0
+            })
+
+        return {
+            "attendance_trend": [
+                {"date": str(a.attendance_date), "rate": float(a.attendance_rate)}
+                for a in reversed(att_trend)
+            ],
+            "performance_trend": [
+                {"branch": p.branch, "attendance": float(p.attendance), "average": float(p.average)}
+                for p in perf_trend
+            ],
+            "top_students": [
+                {"name": t.full_name, "score": float(t.score) if t.score else 0.0, "roll": t.roll_no, "branch": t.department}
+                for t in top_students
+            ],
+            "weak_students": [
+                {"name": w.full_name, "score": float(w.score) if w.score else 0.0, "roll": w.roll_no, "branch": w.department, "risk": w.risk_level}
+                for w in weak_students
+            ],
+            "subject_averages": subj_perf
+        }
+    finally:
+        db.close()
+
