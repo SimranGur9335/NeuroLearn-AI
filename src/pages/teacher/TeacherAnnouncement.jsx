@@ -11,7 +11,7 @@ const TeacherAnnouncements = () => {
     const [activeTab, setActiveTab] =
         useState("received");
 
-    const [stats] = useState({
+    const [stats, setStats] = useState({
         received: 0,
         sent: 0,
         unread: 0
@@ -31,27 +31,46 @@ const TeacherAnnouncements = () => {
 
             const data = await res.json();
 
-const received = data.filter(
-  (ann) => ann.sender_type === "ADMIN"
-);
+            const received = data.filter(
+              (ann) => ann.sender_type === "ADMIN" || ann.sender_type === "admin"
+            );
 
-const sent = data.filter(
-  (ann) => ann.sender_type === "FACULTY"
-);
-
-setAnnouncements(received);
-setSentAnnouncements(sent);
+            const sent = data.filter(
+              (ann) => ann.sender_type === "FACULTY" || ann.sender_type === "teacher"
+            );
 
             setAnnouncements(received);
+            setSentAnnouncements(sent);
+            setStats({
+                received: received.length,
+                sent: sent.length,
+                unread: received.filter(a => !a.is_read).length
+            });
 
         } catch (err) {
             console.error(err);
         }
     };
 
+    const handleMarkAsRead = async (announcementId) => {
+        try {
+            const res = await fetch(`http://127.0.0.1:8000/announcements/${announcementId}/read`, {
+                method: "POST"
+            });
+            if (res.ok) {
+                setAnnouncements(prev => prev.map(a => a.announcement_id === announcementId ? { ...a, is_read: true } : a));
+                setStats(prev => ({
+                    ...prev,
+                    unread: Math.max(0, prev.unread - 1)
+                }));
+            }
+        } catch (err) {
+            console.error("Failed to mark announcement as read:", err);
+        }
+    };
+
     useEffect(() => {
         loadAnnouncements();
-        
     }, []);
     
 
@@ -194,36 +213,44 @@ setSentAnnouncements(sent);
                         Admin Announcements
                     </h3>
 
-                    <div className="border rounded-2xl p-4">
-                        <div className="flex gap-3 items-center">
-                            <Megaphone className="text-blue-500" />
-                            <div className="space-y-4">
-                                {announcements.map((ann) => (
-                                    <div
-                                        key={ann.announcement_id}
-                                        className="border rounded-2xl p-4 hover:shadow-lg transition-all"
-                                    >
-                                        <div className="flex gap-3">
-                                            <Megaphone className="text-blue-500" />
+                    <div className="space-y-4">
+                        {announcements.map((ann) => (
+                            <div
+                                key={ann.announcement_id}
+                                onClick={() => !ann.is_read && handleMarkAsRead(ann.announcement_id)}
+                                className={`border rounded-2xl p-4 hover:shadow-lg transition-all cursor-pointer relative ${!ann.is_read ? 'border-blue-500/50 bg-blue-50/30 dark:bg-blue-950/20' : 'bg-white dark:bg-slate-900'}`}
+                            >
+                                <div className="flex gap-3">
+                                    <Megaphone className="text-blue-500 shrink-0 mt-0.5" />
+                                    <div className="flex-1">
+                                        <div className="flex justify-between items-start">
+                                            <h4 className="font-bold text-slate-800 dark:text-white">
+                                                {ann.title}
+                                            </h4>
+                                            {!ann.is_read && (
+                                                <span className="bg-blue-600 text-white text-[9px] font-bold px-2 py-0.5 rounded-full shrink-0">
+                                                    New
+                                                </span>
+                                            )}
+                                        </div>
 
-                                            <div>
-                                                <h4 className="font-bold">
-                                                    {ann.title}
-                                                </h4>
+                                        <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+                                            {ann.description}
+                                        </p>
 
-                                                <p className="text-sm text-slate-500">
-                                                    {ann.description}
-                                                </p>
-
-                                                <div className="text-xs text-slate-400 mt-2">
-                                                    {ann.target_type}
-                                                </div>
-                                            </div>
+                                        <div className="flex justify-between text-xs text-slate-400 mt-3 pt-2 border-t border-slate-100 dark:border-slate-800/60">
+                                            <span>Target: {ann.target_type}</span>
+                                            <span>{new Date(ann.created_at).toLocaleDateString()}</span>
                                         </div>
                                     </div>
-                                ))}
+                                </div>
                             </div>
-                        </div>
+                        ))}
+                        {announcements.length === 0 && (
+                            <div className="text-center p-8 text-slate-400 text-sm">
+                                No announcements received yet.
+                            </div>
+                        )}
                     </div>
                 </div>
             )}

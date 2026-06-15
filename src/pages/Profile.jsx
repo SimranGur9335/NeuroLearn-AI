@@ -18,7 +18,7 @@ import { useAuth } from '../context/AuthContext';
 import { useStudent } from '../context/StudentContext';
 
 const Profile = () => {
-  const { user, updateProfile, changePassword, logout } = useAuth();
+  const { user, updateProfile, changePassword, updateAvatar, logout } = useAuth();
   const { profile, setProfile } = useStudent();
   const [activeTab, setActiveTab] = useState("details"); // 'details' | 'security'
 
@@ -57,16 +57,14 @@ const Profile = () => {
     updateProfile({
       name: formName,
       mobile: formMobile,
-      branch: formBranch,
-      college: formCollege
+      branch: formBranch
     });
 
     // Sync back to StudentContext profile for global consistency!
     setProfile(prev => ({
       ...prev,
       name: formName,
-      branch: formBranch,
-      college: formCollege
+      branch: formBranch
     }));
 
     setSuccessMsg("Profile details updated successfully!");
@@ -162,11 +160,48 @@ const Profile = () => {
               </div>
             )}
             {errorMsg && (
-              <div className="bg-red-500/10 border border-red-500/20 text-red-550 text-xs p-3.5 rounded-2xl flex items-center gap-2">
+              <div className="bg-red-500/10 border border-red-500/20 text-red-555 text-xs p-3.5 rounded-2xl flex items-center gap-2">
                 <ShieldAlert size={16} />
                 <span>{errorMsg}</span>
               </div>
             )}
+
+            {/* Avatar Section */}
+            <div className="flex items-center gap-4 pb-4 border-b border-slate-100 dark:border-slate-800/85">
+              <div className="relative w-14 h-14 rounded-full bg-indigo-500/10 border border-indigo-500/30 flex items-center justify-center text-2xl select-none">
+                {user?.avatar || "🚀"}
+              </div>
+              <div className="flex-1">
+                <h4 className="font-bold text-slate-800 dark:text-white text-xs uppercase tracking-wider pl-1">Choose Profile Avatar</h4>
+                <div className="flex flex-wrap gap-1.5 mt-2">
+                  {["🚀", "👨‍🏫", "🛡️", "💻", "🧠", "🎓", "🌟", "👾"].map(emoji => (
+                    <button
+                      key={emoji}
+                      type="button"
+                      onClick={async () => {
+                        try {
+                          await updateAvatar(emoji);
+                          // Sync back to StudentContext profile for global consistency!
+                          setProfile(prev => ({ ...prev, avatar: emoji }));
+                          setSuccessMsg("Avatar updated successfully!");
+                          setTimeout(() => setSuccessMsg(""), 3000);
+                        } catch (err) {
+                          setErrorMsg("Failed to update avatar.");
+                          setTimeout(() => setErrorMsg(""), 3000);
+                        }
+                      }}
+                      className={`w-8 h-8 rounded-lg border flex items-center justify-center cursor-pointer transition-all ${
+                        user?.avatar === emoji 
+                          ? 'border-indigo-500 bg-indigo-500/10 scale-105 shadow-sm' 
+                          : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 bg-transparent text-slate-700 dark:text-slate-300'
+                      }`}
+                    >
+                      {emoji}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
 
             <form onSubmit={handleUpdateDetails} className="space-y-4 text-xs">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -213,16 +248,16 @@ const Profile = () => {
                   </div>
                 </div>
 
-                {/* College / Institution */}
+                {/* College / Institution (Locked) */}
                 <div className="space-y-1">
-                  <label className="text-[10px] text-slate-450 uppercase font-bold tracking-wider block">College Campus</label>
-                  <div className="flex items-center bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 rounded-xl px-2.5 py-2.5">
+                  <label className="text-[10px] text-slate-455 uppercase font-bold tracking-wider block">College Campus (Locked)</label>
+                  <div className="flex items-center bg-slate-100 dark:bg-slate-950/40 border border-slate-200/50 dark:border-slate-850/50 rounded-xl px-2.5 py-2.5 opacity-60">
                     <School size={15} className="text-slate-400 mr-2" />
                     <input 
                       type="text" 
                       value={formCollege}
-                      onChange={(e) => setFormCollege(e.target.value)}
-                      className="bg-transparent border-none text-slate-700 dark:text-slate-200 focus:outline-none w-full"
+                      className="bg-transparent border-none text-slate-500 cursor-not-allowed focus:outline-none w-full"
+                      disabled
                     />
                   </div>
                 </div>

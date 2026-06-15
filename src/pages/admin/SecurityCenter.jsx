@@ -18,24 +18,43 @@ const SecurityCenter = () => {
   const [actionFilter, setActionFilter] = useState("ALL"); // ALL | LOGIN | REGISTER
   const [successMsg, setSuccessMsg] = useState("");
 
-  // Load alerts from LocalStorage
-  const loadAlerts = () => {
-    const savedAlerts = JSON.parse(localStorage.getItem("neurolearn_security_alerts") || "[]");
-    setAlerts(savedAlerts);
+  // Load alerts from DB
+  const loadAlerts = async () => {
+    try {
+      const res = await fetch("http://localhost:8000/api/v1/security/events");
+      if (res.ok) {
+        const data = await res.json();
+        setAlerts(data);
+      }
+    } catch (err) {
+      console.error("Error loading security alerts:", err);
+    }
   };
 
   useEffect(() => {
     loadAlerts();
   }, []);
 
-  const handleClearLogs = () => {
+  const handleClearLogs = async () => {
     if (window.confirm("Are you sure you want to permanently clear the institutional security alerts logs?")) {
-      localStorage.setItem("neurolearn_security_alerts", "[]");
-      setAlerts([]);
-      setSuccessMsg("Security logs successfully cleared!");
-      setTimeout(() => setSuccessMsg(""), 3000);
+      try {
+        const res = await fetch("http://localhost:8000/api/v1/security/events", {
+          method: "DELETE"
+        });
+        if (res.ok) {
+          setAlerts([]);
+          setSuccessMsg("Security logs successfully cleared!");
+          setTimeout(() => setSuccessMsg(""), 3000);
+        } else {
+          alert("Failed to clear security logs");
+        }
+      } catch (err) {
+        console.error("Error clearing logs:", err);
+        alert("Error connecting to server!");
+      }
     }
   };
+
 
   // Filter alerts based on search term and dropdown filter
   const filteredAlerts = alerts.filter(alert => {
@@ -45,9 +64,9 @@ const SecurityCenter = () => {
   });
 
   // Calculate statistics
-  const totalSuspicious = alerts.length;
-  const loginBlocks = alerts.filter(a => a.actionType === 'LOGIN').length;
-  const registerBlocks = alerts.filter(a => a.actionType === 'REGISTER').length;
+  const totalSuspicious = alerts.filter(a => a.status === 'BLOCKED').length;
+  const loginBlocks = alerts.filter(a => a.actionType === 'LOGIN' && a.status === 'BLOCKED').length;
+  const registerBlocks = alerts.filter(a => a.actionType === 'REGISTER' && a.status === 'BLOCKED').length;
 
   return (
     <motion.div

@@ -72,131 +72,86 @@ const logSecurityAlert = (email, actionType) => {
 export const authService = {
   /**
    * Log in user using credentials.
-   * Simulates Express JWT endpoint.
+   * Connects to actual backend JWT endpoint.
    */
-  login: async (email, password, role) => {
-    console.log(`[authService] POST ${API_BASE_URL}/login - role: ${role}`);
+  login: async (email, password, role, institutionId, domain) => {
+    console.log(`[authService] POST ${API_BASE_URL}/login - role: ${role}, institution_id: ${institutionId}`);
     
     // Enforcement check: Only official institutional emails allowed
-    if (!validateInstitutionalEmail(email)) {
-      logSecurityAlert(email, 'LOGIN');
-      throw new Error("Unauthorized email domain detected. Please contact the administrator.");
+    if (!validateInstitutionalEmail(email, domain)) {
+      throw new Error(`Unauthorized email domain detected. For this institution, please use an email ending in @${domain || 'neurolearn.ai'}.`);
     }
 
-    // Simulate API network latency
-    await new Promise(resolve => setTimeout(resolve, 800));
+    const response = await fetch(`${API_BASE_URL}/login`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ email, password, role, institution_id: institutionId })
+    });
 
-    // Check custom registrations inside localStorage
-    const localUsers = JSON.parse(localStorage.getItem("neurolearn_custom_users") || "[]");
-    const matchedCustom = localUsers.find(u => u.email === email && u.role === role);
-    
-    let user = null;
-    
-    if (matchedCustom) {
-      if (matchedCustom.password === password) {
-        user = { ...matchedCustom };
-        delete user.password; // strip password
-      }
-    } else {
-      // Check demo accounts
-      const demoAccount = DEMO_ACCOUNTS[role];
-      if (demoAccount && demoAccount.email === email && demoAccount.password === password) {
-        user = { ...demoAccount };
-        delete user.password;
-      }
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.detail || "Invalid email, password, role, or institution Selection!");
     }
 
-    if (!user) {
-      throw new Error("Invalid email, password, or role selection!");
-    }
-
-    const { accessToken, refreshToken } = generateMockTokens(user);
-
-    return {
-      user,
-      accessToken,
-      refreshToken
-    };
+    return await response.json();
   },
 
   /**
    * Register a new user profile.
-   * Simulates Express registration endpoint.
+   * Connects to backend registration endpoint.
    */
-  register: async (userData) => {
+  register: async (userData, domain) => {
     console.log(`[authService] POST ${API_BASE_URL}/register`);
-    await new Promise(resolve => setTimeout(resolve, 1000));
 
-    const { email, password, name, role } = userData;
+    const { email } = userData;
 
     // Enforcement check: Only official institutional emails allowed
-    if (!validateInstitutionalEmail(email)) {
-      logSecurityAlert(email, 'REGISTER');
-      throw new Error("Only official NeuroLearn institutional email addresses are allowed.");
+    if (!validateInstitutionalEmail(email, domain)) {
+      throw new Error(`Only official institutional emails ending with @${domain || 'neurolearn.ai'} are allowed for registration.`);
     }
 
-    // Check if email already registered
-    const demoEmails = Object.values(DEMO_ACCOUNTS).map(d => d.email);
-    const localUsers = JSON.parse(localStorage.getItem("neurolearn_custom_users") || "[]");
-    const emailExists = demoEmails.includes(email) || localUsers.some(u => u.email === email);
+    const response = await fetch(`${API_BASE_URL}/register`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(userData)
+    });
 
-    if (emailExists) {
-      throw new Error("This email is already registered inside NeuroLearn!");
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.detail || "Only official institutional emails are allowed.");
     }
 
-    // Save user in local mock DB
-    const newUser = {
-      ...userData,
-      avatar: role === 'student' ? '🚀' : role === 'teacher' ? '👨‍🏫' : '🛡️'
-    };
-    localUsers.push(newUser);
-    localStorage.setItem("neurolearn_custom_users", JSON.stringify(localUsers));
-
-    // Strip password for return payload
-    const userPayload = { ...newUser };
-    delete userPayload.password;
-
-    return {
-      success: true,
-      user: userPayload
-    };
+    return await response.json();
   },
 
   /**
-   * Simulates JWT Token Refresh endpoint.
+   * Actual JWT Token Refresh endpoint.
    */
   refreshToken: async (token) => {
-    console.log(`[authService] POST ${API_BASE_URL}/refresh-token`);
-    await new Promise(resolve => setTimeout(resolve, 200));
+    console.log(`[authService] POST ${API_BASE_URL}/refresh`);
 
-    if (!token || !token.startsWith("mock_refresh_token_")) {
+    if (!token) {
       throw new Error("Invalid refresh token!");
     }
 
-    // Extract email from refresh token format
-    const encodedEmail = token.replace("mock_refresh_token_", "");
-    const email = atob(encodedEmail);
+    const response = await fetch(`${API_BASE_URL}/refresh`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ refresh_token: token })
+    });
 
-    // Find user details
-    const localUsers = JSON.parse(localStorage.getItem("neurolearn_custom_users") || "[]");
-    let user = localUsers.find(u => u.email === email);
-    
-    if (!user) {
-      // Find in demo accounts
-      user = Object.values(DEMO_ACCOUNTS).find(d => d.email === email);
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.detail || "Invalid refresh token!");
     }
 
-    if (!user) {
-      throw new Error("User associated with token not found!");
-    }
-
-    const userPayload = { ...user };
-    delete userPayload.password;
-
-    const tokens = generateMockTokens(userPayload);
-    return {
-      accessToken: tokens.accessToken,
-      user: userPayload
-    };
+    return await response.json();
   }
 };
+

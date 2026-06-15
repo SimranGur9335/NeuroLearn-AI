@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { 
   ResponsiveContainer, 
@@ -21,25 +21,47 @@ import {
   TrendingUp, 
   Award, 
   HelpCircle,
-  Sparkles
+  Sparkles,
+  RefreshCw
 } from 'lucide-react';
-import { SYSTEM_METRICS } from '../../data/academicData';
 
 const AdminReports = () => {
-  const departmentData = [
-    { subject: 'Computer Sci (CS)', score: 86, completion: 94, attendance: 92 },
-    { subject: 'Information Tech (IT)', score: 81, completion: 89, attendance: 88 },
-    { subject: 'Electronics (ECE)', score: 78, completion: 82, attendance: 85 },
-    { subject: 'Electrical (EEE)', score: 72, completion: 74, attendance: 82 },
-    { subject: 'Mechanical (ME)', score: 68, completion: 70, attendance: 83 }
-  ];
+  const [departmentData, setDepartmentData] = useState([]);
+  const [yearlyRegistrations, setYearlyRegistrations] = useState([]);
+  const [activeSessions, setActiveSessions] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const yearlyRegistrations = [
-    { year: '2022', CS: 80, IT: 60, ECE: 75, EEE: 50, ME: 45 },
-    { year: '2023', CS: 110, IT: 85, ECE: 90, EEE: 55, ME: 52 },
-    { year: '2024', CS: 130, IT: 100, ECE: 98, EEE: 62, ME: 68 },
-    { year: '2025', CS: 150, IT: 120, ECE: 110, EEE: 70, ME: 70 }
-  ];
+  const fetchReports = async () => {
+    setLoading(true);
+    try {
+      const [resDept, resEnroll, resSessions] = await Promise.all([
+        fetch("http://localhost:8000/api/v1/admin/reports/departments"),
+        fetch("http://localhost:8000/api/v1/admin/reports/enrollments"),
+        fetch("http://localhost:8000/api/v1/admin/reports/active-sessions")
+      ]);
+      
+      if (resDept.ok) {
+        const dept = await resDept.json();
+        setDepartmentData(dept);
+      }
+      if (resEnroll.ok) {
+        const enroll = await resEnroll.json();
+        setYearlyRegistrations(enroll);
+      }
+      if (resSessions.ok) {
+        const sessions = await resSessions.json();
+        setActiveSessions(sessions);
+      }
+    } catch (err) {
+      console.error("Failed to load admin reports:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchReports();
+  }, []);
 
   return (
     <motion.div
@@ -88,7 +110,7 @@ const AdminReports = () => {
           </h3>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={SYSTEM_METRICS.activeSessionsHistory}>
+              <AreaChart data={activeSessions}>
                 <defs>
                   <linearGradient id="colorUsers" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#10b981" stopOpacity={0.25}/>

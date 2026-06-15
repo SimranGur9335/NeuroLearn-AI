@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
@@ -8,7 +8,6 @@ import {
   Eye,
   EyeOff,
   ArrowRight,
-  ShieldCheck,
   CheckSquare,
   Square,
   AlertCircle,
@@ -17,6 +16,46 @@ import {
   Settings
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { apiFetch } from '../services/api';
+
+const THEME_MAP = {
+  violet: {
+    accent: 'bg-violet-600 hover:bg-violet-500',
+    text: 'text-violet-400',
+    ring: 'focus-within:ring-violet-500/50',
+    shadow: 'shadow-violet-600/10',
+    border: 'border-violet-500/20',
+    glow: 'from-violet-400 to-fuchsia-400',
+    bg: 'bg-violet-500/10 hover:bg-violet-500/20 text-violet-400 border-violet-500/10'
+  },
+  rose: {
+    accent: 'bg-rose-600 hover:bg-rose-500',
+    text: 'text-rose-400',
+    ring: 'focus-within:ring-rose-500/50',
+    shadow: 'shadow-rose-600/10',
+    border: 'border-rose-500/20',
+    glow: 'from-rose-400 to-pink-400',
+    bg: 'bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border-rose-500/10'
+  },
+  amber: {
+    accent: 'bg-amber-600 hover:bg-amber-500',
+    text: 'text-amber-400',
+    ring: 'focus-within:ring-amber-500/50',
+    shadow: 'shadow-amber-600/10',
+    border: 'border-amber-500/20',
+    glow: 'from-amber-400 to-yellow-400',
+    bg: 'bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border-amber-500/10'
+  },
+  indigo: {
+    accent: 'bg-indigo-600 hover:bg-indigo-500',
+    text: 'text-indigo-400',
+    ring: 'focus-within:ring-indigo-500/50',
+    shadow: 'shadow-indigo-600/10',
+    border: 'border-indigo-500/20',
+    glow: 'from-indigo-400 to-cyan-400',
+    bg: 'bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 border-indigo-500/10'
+  }
+};
 
 const Login = () => {
   const navigate = useNavigate();
@@ -29,14 +68,41 @@ const Login = () => {
   const [rememberMe, setRememberMe] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
 
+  // Institution states
+  const [institutions, setInstitutions] = useState([]);
+  const [selectedInstitutionId, setSelectedInstitutionId] = useState(1);
+
   // Validation / Error / Loading states
   const [errorMsg, setErrorMsg] = useState("");
   const [loading, setLoading] = useState(false);
 
+  useEffect(() => {
+    const fetchInstitutions = async () => {
+      try {
+        const response = await apiFetch('/v1/institutions');
+        if (response.ok) {
+          const data = await response.json();
+          setInstitutions(data);
+          if (data.length > 0) {
+            // Default to COEP (id=1) if present, or the first one
+            const hasCoep = data.some(inst => inst.institution_id === 1);
+            setSelectedInstitutionId(hasCoep ? 1 : data[0].institution_id);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to load institutions:", err);
+      }
+    };
+    fetchInstitutions();
+  }, []);
+
+  const selectedInstitution = institutions.find(inst => inst.institution_id === selectedInstitutionId);
+  const theme = THEME_MAP[selectedInstitution?.theme_color] || THEME_MAP.indigo;
+
   const roles = [
-    { id: 'student', title: 'Student', icon: GraduationCap, color: 'text-indigo-400 border-indigo-500/20' },
-    { id: 'teacher', title: 'Faculty', icon: Users, color: 'text-purple-400 border-purple-500/20' },
-    { id: 'admin', title: 'Admin', icon: Settings, color: 'text-emerald-400 border-emerald-500/20' }
+    { id: 'student', title: 'Student', icon: GraduationCap },
+    { id: 'teacher', title: 'Faculty', icon: Users },
+    { id: 'admin', title: 'Admin', icon: Settings }
   ];
 
   const handleQuickFill = (roleType) => {
@@ -44,6 +110,7 @@ const Login = () => {
     setEmail(`${roleType}@neurolearn.ai`);
     setPassword("Password123");
     setErrorMsg("");
+    setSelectedInstitutionId(1); // Demo accounts are registered under COEP (id = 1)
   };
 
   const handleLoginSubmit = async (e) => {
@@ -63,7 +130,14 @@ const Login = () => {
 
     setLoading(true);
     try {
-      const user = await login(email, password, role, rememberMe);
+      const user = await login(
+        email,
+        password,
+        role,
+        selectedInstitutionId,
+        selectedInstitution?.domain_name || 'neurolearn.ai',
+        rememberMe
+      );
       // Route based on role
       if (user.role === 'student') navigate('/dashboard');
       else if (user.role === 'teacher') navigate('/teacher/select-class');
@@ -89,15 +163,23 @@ const Login = () => {
         {/* Header */}
         <div className="text-center space-y-2">
           <div className="flex items-center justify-center gap-2">
-            <div className="bg-indigo-600 p-2 rounded-xl text-white">
-              <Sparkles size={20} className="animate-pulse" />
-            </div>
-            <span className="font-extrabold text-xl bg-gradient-to-r from-indigo-400 to-cyan-400 bg-clip-text text-transparent">
-              NeuroLearn AI
+            {selectedInstitution?.logo_url ? (
+              <img src={selectedInstitution.logo_url} alt="Logo" className="w-9 h-9 object-contain rounded-lg" />
+            ) : (
+              <div className={`p-2 rounded-xl text-white ${theme.accent}`}>
+                <Sparkles size={18} className="animate-pulse" />
+              </div>
+            )}
+            <span className={`font-extrabold text-xl bg-gradient-to-r ${theme.glow} bg-clip-text text-transparent`}>
+              {selectedInstitution?.short_name || 'NeuroLearn'} AI
             </span>
           </div>
-          <h2 className="text-2xl font-black text-white">Welcome Back</h2>
-          <p className="text-slate-400 text-xs">Enter credentials to load your personalized curriculum.</p>
+          <h2 className="text-2xl font-black text-white">
+            {selectedInstitution?.institution_name || 'Welcome Back'}
+          </h2>
+          <p className="text-slate-400 text-xs">
+            {selectedInstitution ? `${selectedInstitution.short_name} LMS Login Portal` : 'Enter credentials to load your personalized curriculum.'}
+          </p>
         </div>
 
         {/* Role Select Tabs */}
@@ -111,8 +193,8 @@ const Login = () => {
                 type="button"
                 onClick={() => handleQuickFill(r.id)}
                 className={`py-2 px-1.5 rounded-xl text-xs font-bold transition-all flex flex-col items-center gap-1 cursor-pointer ${isSelected
-                    ? 'bg-indigo-600 text-white shadow'
-                    : 'text-slate-400 hover:text-white hover:bg-slate-900/40'
+                  ? `${theme.accent} text-white shadow`
+                  : 'text-slate-400 hover:text-white hover:bg-slate-900/40'
                   }`}
               >
                 <Icon size={14} />
@@ -129,21 +211,21 @@ const Login = () => {
             <button
               type="button"
               onClick={() => handleQuickFill('student')}
-              className="bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 px-2.5 py-1 rounded-lg border border-indigo-500/10 cursor-pointer font-bold"
+              className={`${theme.bg} px-2.5 py-1 rounded-lg cursor-pointer font-bold transition-colors`}
             >
               Student
             </button>
             <button
               type="button"
               onClick={() => handleQuickFill('teacher')}
-              className="bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 px-2.5 py-1 rounded-lg border border-purple-500/10 cursor-pointer font-bold"
+              className={`${theme.bg} px-2.5 py-1 rounded-lg cursor-pointer font-bold transition-colors`}
             >
               Faculty
             </button>
             <button
               type="button"
               onClick={() => handleQuickFill('admin')}
-              className="bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 px-2.5 py-1 rounded-lg border border-emerald-500/10 cursor-pointer font-bold"
+              className={`${theme.bg} px-2.5 py-1 rounded-lg cursor-pointer font-bold transition-colors`}
             >
               Admin
             </button>
@@ -164,16 +246,35 @@ const Login = () => {
 
         {/* Form */}
         <form onSubmit={handleLoginSubmit} className="space-y-4">
+          {/* Institution Selector */}
+          <div className="space-y-1">
+            <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider pl-1">Select Institution</label>
+            <div className={`relative flex items-center bg-slate-950/60 border border-slate-850 focus-within:ring-2 ${theme.ring} rounded-xl px-3 py-2 transition-all`}>
+              <select
+                value={selectedInstitutionId}
+                onChange={(e) => setSelectedInstitutionId(parseInt(e.target.value))}
+                className="bg-transparent border-none text-xs text-slate-200 focus:outline-none w-full cursor-pointer py-1"
+                required
+              >
+                {institutions.map((inst) => (
+                  <option key={inst.institution_id} value={inst.institution_id} className="bg-slate-900 text-slate-200">
+                    {inst.institution_name} ({inst.short_name})
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
           {/* Email input */}
           <div className="space-y-1">
             <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider pl-1">Email Address</label>
-            <div className="relative flex items-center bg-slate-950/60 border border-slate-850 focus-within:ring-2 focus-within:ring-indigo-500/50 rounded-xl px-3 py-2.5 transition-all">
+            <div className={`relative flex items-center bg-slate-950/60 border border-slate-850 focus-within:ring-2 ${theme.ring} rounded-xl px-3 py-2.5 transition-all`}>
               <Mail size={16} className="text-slate-500 mr-2.5 shrink-0" />
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="e.g. student@neurolearn.ai"
+                placeholder={selectedInstitution ? `e.g. yourname@${selectedInstitution.domain_name}` : "e.g. student@neurolearn.ai"}
                 className="bg-transparent border-none text-xs text-slate-200 placeholder-slate-550 focus:outline-none w-full"
                 required
               />
@@ -187,12 +288,12 @@ const Login = () => {
               <button
                 type="button"
                 onClick={() => alert("Faculty Demo Mode: Click quick fill button to reset input parameters.")}
-                className="text-[10px] text-indigo-400 hover:underline cursor-pointer"
+                className={`text-[10px] ${theme.text} hover:underline cursor-pointer`}
               >
                 Forgot Password?
               </button>
             </div>
-            <div className="relative flex items-center bg-slate-950/60 border border-slate-850 focus-within:ring-2 focus-within:ring-indigo-500/50 rounded-xl px-3 py-2.5 transition-all">
+            <div className={`relative flex items-center bg-slate-950/60 border border-slate-850 focus-within:ring-2 ${theme.ring} rounded-xl px-3 py-2.5 transition-all`}>
               <Lock size={16} className="text-slate-500 mr-2.5 shrink-0" />
               <input
                 type={showPassword ? "text" : "password"}
@@ -219,7 +320,7 @@ const Login = () => {
               onClick={() => setRememberMe(!rememberMe)}
               className="flex items-center gap-2 text-xs text-slate-400 hover:text-slate-200 select-none cursor-pointer"
             >
-              {rememberMe ? <CheckSquare size={16} className="text-indigo-500" /> : <Square size={16} className="text-slate-500" />}
+              {rememberMe ? <CheckSquare size={16} className={theme.text} /> : <Square size={16} className="text-slate-500" />}
               <span>Remember Me</span>
             </button>
           </div>
@@ -228,7 +329,7 @@ const Login = () => {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-800 disabled:text-slate-500 text-white font-extrabold rounded-xl transition-all shadow-lg shadow-indigo-600/10 text-xs flex items-center justify-center gap-1.5 cursor-pointer mt-4"
+            className={`w-full py-3.5 ${theme.accent} disabled:bg-slate-800 disabled:text-slate-500 text-white font-extrabold rounded-xl transition-all shadow-lg ${theme.shadow} text-xs flex items-center justify-center gap-1.5 cursor-pointer mt-4`}
           >
             {loading ? (
               <>
@@ -249,7 +350,7 @@ const Login = () => {
           <span>New to NeuroLearn? </span>
           <button
             onClick={() => navigate('/register')}
-            className="text-indigo-400 hover:underline font-bold cursor-pointer"
+            className={`${theme.text} hover:underline font-bold cursor-pointer`}
           >
             Create Account
           </button>

@@ -91,7 +91,7 @@ const Header = () => {
     if (path.includes('analytics')) return 'Personal Performance Dashboard';
     if (path.includes('career')) return 'Career Tracks & Certifications';
     if (path.includes('leaderboard')) return 'Campus Leaderboard';
-    return 'COEP Technological University';
+    return profile.college || 'COEP Technological University';
   };
 
   const menuItems = [
@@ -170,7 +170,7 @@ const Header = () => {
             </div>
             {/* Department Badge */}
             <div className="hidden sm:flex items-center gap-1.5 bg-purple-500/10 text-purple-600 dark:text-purple-400 px-3 py-1.5 rounded-full border border-purple-500/20 text-xs font-extrabold tracking-wide uppercase">
-              <span>Computer Engineering</span>
+              <span>{profile.branch}</span>
             </div>
             {/* Role designation */}
             <div className="bg-purple-600 text-white text-[10px] font-black tracking-widest uppercase px-3.5 py-1.5 rounded-full shadow-md">
@@ -181,7 +181,7 @@ const Header = () => {
           <>
             {/* Institution Badge */}
             <div className="hidden lg:flex items-center gap-1.5 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-3 py-1.5 rounded-full border border-emerald-500/20 text-xs font-extrabold tracking-wide uppercase">
-              <span>COEP Tech University</span>
+              <span>{profile.college}</span>
             </div>
             {/* Server load indicator */}
             <div className="hidden sm:flex items-center gap-1.5 bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 px-3 py-1.5 rounded-full border border-cyan-500/20 text-xs font-semibold">

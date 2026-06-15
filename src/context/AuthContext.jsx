@@ -5,6 +5,48 @@ const AuthContext = createContext();
 
 export const useAuth = () => useContext(AuthContext);
 
+// Global fetch interceptor to automatically attach authorization header
+const originalFetch = window.fetch;
+window.fetch = async function (url, options = {}) {
+  const isBackend = typeof url === 'string' && (
+    url.includes('localhost:8000') ||
+    url.includes('127.0.0.1:8000') ||
+    url.startsWith('/api/') ||
+    url.startsWith('/admin/')
+  );
+
+  if (isBackend) {
+    let targetUrl = url;
+    if (url.includes('127.0.0.1:8000')) {
+      targetUrl = url.replace('127.0.0.1:8000', 'localhost:8000');
+    }
+
+    options.headers = options.headers || {};
+    const token = localStorage.getItem("neurolearn_access_token") || sessionStorage.getItem("neurolearn_access_token");
+    if (token) {
+      if (options.headers instanceof Headers) {
+        options.headers.set('Authorization', `Bearer ${token}`);
+      } else if (Array.isArray(options.headers)) {
+        options.headers.push(['Authorization', `Bearer ${token}`]);
+      } else {
+        options.headers['Authorization'] = `Bearer ${token}`;
+      }
+    }
+    
+    try {
+      const response = await originalFetch(targetUrl, options);
+      if (response.status === 401) {
+        window.dispatchEvent(new Event('auth-unauthorized'));
+      }
+      return response;
+    } catch (err) {
+      throw err;
+    }
+  }
+
+  return originalFetch(url, options);
+};
+
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [role, setRoleState] = useState(null);
@@ -27,8 +69,13 @@ export const AuthProvider = ({ children }) => {
           setUser(data.user);
           setRoleState(data.user.role);
           setAccessToken(data.accessToken);
-          setRefreshToken(savedRefreshToken);
+          setRefreshToken(data.refreshToken || savedRefreshToken);
           setIsAuthenticated(true);
+
+          localStorage.setItem("neurolearn_access_token", data.accessToken);
+          if (data.refreshToken) {
+            localStorage.setItem("neurolearn_refresh_token", data.refreshToken);
+          }
         } catch (err) {
           console.error("Session restoration failed:", err.message);
           // Wipes invalid credentials
@@ -40,16 +87,26 @@ export const AuthProvider = ({ children }) => {
       setLoading(false);
     };
 
+    const handleUnauthorized = () => {
+      logout();
+    };
+
+    window.addEventListener('auth-unauthorized', handleUnauthorized);
     initializeAuth();
+
+    return () => {
+      window.removeEventListener('auth-unauthorized', handleUnauthorized);
+    };
   }, []);
+
 
   /**
    * Login handler.
    */
-  const login = async (email, password, roleSelection, rememberMe = true) => {
+  const login = async (email, password, roleSelection, institutionId, domain, rememberMe = true) => {
     setLoading(true);
     try {
-      const data = await authService.login(email, password, roleSelection);
+      const data = await authService.login(email, password, roleSelection, institutionId, domain);
       
       setUser(data.user);
       setRoleState(data.user.role);
@@ -79,10 +136,10 @@ export const AuthProvider = ({ children }) => {
   /**
    * Registration handler.
    */
-  const register = async (userData) => {
+  const register = async (userData, domain) => {
     setLoading(true);
     try {
-      const data = await authService.register(userData);
+      const data = await authService.register(userData, domain);
       return data;
     } catch (err) {
       throw err;
@@ -111,47 +168,25 @@ export const AuthProvider = ({ children }) => {
   };
 
   /**
+  /**
    * Modifies profile credentials dynamically.
    */
-  const updateProfile = (updatedFields) => {
+  const updateProfile = async (updatedFields) => {
     if (!user) return;
-    
-    const updatedUser = { ...user, ...updatedFields };
-    setUser(updatedUser);
-
-    // Update in custom registrations registry (including demo overrides)
-    const localUsers = JSON.parse(localStorage.getItem("neurolearn_custom_users") || "[]");
-    const userIndex = localUsers.findIndex(u => u.email === user.email && u.role === user.role);
-
-    if (userIndex !== -1) {
-      localUsers[userIndex] = { ...localUsers[userIndex], ...updatedFields };
-    } else {
-      // Create custom entry override for this demo account
-      const customUserOverride = {
-        ...user,
-        ...updatedFields
-      };
-      localUsers.push(customUserOverride);
-    }
-    localStorage.setItem("neurolearn_custom_users", JSON.stringify(localUsers));
-
-    // Re-generate and save new mock access token to match updated state immediately
-    // to prevent mismatch if code reads details from token storage
-    const header = btoa(JSON.stringify({ alg: "HS256", typ: "JWT" }));
-    const payload = btoa(JSON.stringify({
-      sub: updatedUser.email,
-      name: updatedUser.name,
-      role: updatedUser.role,
-      exp: Math.floor(Date.now() / 1000) + (60 * 15)
-    }));
-    const signature = "mock_signature_hash";
-    const newAccessToken = `${header}.${payload}.${signature}`;
-    
-    setAccessToken(newAccessToken);
-    if (localStorage.getItem("neurolearn_access_token")) {
-      localStorage.setItem("neurolearn_access_token", newAccessToken);
-    } else if (sessionStorage.getItem("neurolearn_access_token")) {
-      sessionStorage.setItem("neurolearn_access_token", newAccessToken);
+    try {
+      const res = await fetch("http://localhost:8000/api/v1/profile/update", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updatedFields)
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.detail || "Failed to update profile");
+      }
+      setUser(prev => ({ ...prev, ...updatedFields }));
+    } catch (err) {
+      console.error("Profile update failed:", err);
+      throw err;
     }
   };
 
@@ -160,39 +195,37 @@ export const AuthProvider = ({ children }) => {
    */
   const changePassword = async (oldPassword, newPassword) => {
     if (!user) throw new Error("No active session found.");
-    
-    // Fetch custom users registry
-    const localUsers = JSON.parse(localStorage.getItem("neurolearn_custom_users") || "[]");
-    const userIndex = localUsers.findIndex(u => u.email === user.email && u.role === user.role);
-    
-    if (userIndex !== -1) {
-      if (localUsers[userIndex].password !== oldPassword) {
-        throw new Error("The old password you entered is incorrect!");
+    const res = await fetch("http://localhost:8000/api/v1/profile/change-password", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ old_password: oldPassword, new_password: newPassword })
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.detail || "Failed to change password. Old password might be incorrect.");
+    }
+    return { success: true };
+  };
+
+  /**
+   * Update avatar logic.
+   */
+  const updateAvatar = async (avatarUrl) => {
+    if (!user) return;
+    try {
+      const res = await fetch("http://localhost:8000/api/v1/profile/avatar", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ avatar_url: avatarUrl })
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.detail || "Failed to update avatar");
       }
-      localUsers[userIndex].password = newPassword;
-      localStorage.setItem("neurolearn_custom_users", JSON.stringify(localUsers));
-      return { success: true };
-    } else {
-      // Demo accounts have standard "Password123" fixed values.
-      // We will allow password shifting for demo testing by initializing a custom registry override:
-      if (oldPassword !== "Password123") {
-        throw new Error("The old password you entered is incorrect!");
-      }
-      // Pushes override record to localUsers
-      const customUserOverride = {
-        email: user.email,
-        password: newPassword,
-        name: user.name,
-        role: user.role,
-        branch: user.branch || "",
-        year: user.year || "",
-        rollNumber: user.rollNumber || "",
-        college: user.college || "",
-        avatar: user.avatar || "🚀"
-      };
-      localUsers.push(customUserOverride);
-      localStorage.setItem("neurolearn_custom_users", JSON.stringify(localUsers));
-      return { success: true };
+      setUser(prev => ({ ...prev, avatar: avatarUrl }));
+    } catch (err) {
+      console.error("Avatar update failed:", err);
+      throw err;
     }
   };
 
@@ -208,7 +241,8 @@ export const AuthProvider = ({ children }) => {
       register,
       logout,
       updateProfile,
-      changePassword
+      changePassword,
+      updateAvatar
     }}>
       {children}
     </AuthContext.Provider>

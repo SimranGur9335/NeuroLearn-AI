@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { 
@@ -19,6 +19,46 @@ import {
   Settings
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { apiFetch } from '../services/api';
+
+const THEME_MAP = {
+  violet: {
+    accent: 'bg-violet-600 hover:bg-violet-500',
+    text: 'text-violet-400',
+    ring: 'focus-within:ring-violet-500/50',
+    shadow: 'shadow-violet-600/10',
+    border: 'border-violet-500/20',
+    glow: 'from-violet-400 to-fuchsia-400',
+    bg: 'bg-violet-500/10 hover:bg-violet-500/20 text-violet-400 border-violet-500/10'
+  },
+  rose: {
+    accent: 'bg-rose-600 hover:bg-rose-500',
+    text: 'text-rose-400',
+    ring: 'focus-within:ring-rose-500/50',
+    shadow: 'shadow-rose-600/10',
+    border: 'border-rose-500/20',
+    glow: 'from-rose-400 to-pink-400',
+    bg: 'bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border-rose-500/10'
+  },
+  amber: {
+    accent: 'bg-amber-600 hover:bg-amber-500',
+    text: 'text-amber-400',
+    ring: 'focus-within:ring-amber-500/50',
+    shadow: 'shadow-amber-600/10',
+    border: 'border-amber-500/20',
+    glow: 'from-amber-400 to-yellow-400',
+    bg: 'bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border-amber-500/10'
+  },
+  indigo: {
+    accent: 'bg-indigo-600 hover:bg-indigo-500',
+    text: 'text-indigo-400',
+    ring: 'focus-within:ring-indigo-500/50',
+    shadow: 'shadow-indigo-600/10',
+    border: 'border-indigo-500/20',
+    glow: 'from-indigo-400 to-cyan-400',
+    bg: 'bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 border-indigo-500/10'
+  }
+};
 
 const Register = () => {
   const navigate = useNavigate();
@@ -28,7 +68,6 @@ const Register = () => {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [mobile, setMobile] = useState("");
-  const [college, setCollege] = useState("COEP Technological University");
   const [dept, setDept] = useState("CS");
   const [year, setYear] = useState("3rd Year");
   const [role, setRole] = useState("student"); // 'student' | 'teacher' | 'admin'
@@ -36,10 +75,35 @@ const Register = () => {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [agreeTerms, setAgreeTerms] = useState(false);
 
+  // Institution states
+  const [institutions, setInstitutions] = useState([]);
+  const [selectedInstitutionId, setSelectedInstitutionId] = useState(1);
+
   // UI state
   const [showPassword, setShowPassword] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const fetchInstitutions = async () => {
+      try {
+        const response = await apiFetch('/v1/institutions');
+        if (response.ok) {
+          const data = await response.json();
+          setInstitutions(data);
+          if (data.length > 0) {
+            setSelectedInstitutionId(data[0].institution_id);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to load institutions:", err);
+      }
+    };
+    fetchInstitutions();
+  }, []);
+
+  const selectedInstitution = institutions.find(inst => inst.institution_id === selectedInstitutionId);
+  const theme = THEME_MAP[selectedInstitution?.theme_color] || THEME_MAP.indigo;
 
   const roles = [
     { id: 'student', title: 'Student', icon: GraduationCap },
@@ -67,16 +131,19 @@ const Register = () => {
 
     setLoading(true);
     try {
-      await register({
+      const userData = {
         name,
         email,
-        mobile,
-        college,
-        department: dept,
-        year: role === 'student' ? year : undefined,
+        password,
         role,
-        password
-      });
+        institution_id: selectedInstitutionId,
+        department: dept,
+        roll_no: role === 'student' ? `ROLL${Math.floor(100000 + Math.random() * 900000)}` : undefined,
+        semester: role === 'student' ? 1 : undefined,
+        designation: role === 'teacher' ? 'Assistant Professor' : undefined
+      };
+      
+      await register(userData, selectedInstitution?.domain_name || 'neurolearn.ai');
       alert("Registration successful! Proceeding to Login screen.");
       navigate('/login');
     } catch (err) {
@@ -100,15 +167,21 @@ const Register = () => {
         {/* Header */}
         <div className="text-center space-y-1">
           <div className="flex items-center justify-center gap-2">
-            <div className="bg-indigo-600 p-2 rounded-xl text-white">
-              <Sparkles size={18} />
-            </div>
-            <span className="font-extrabold text-xl bg-gradient-to-r from-indigo-400 to-cyan-400 bg-clip-text text-transparent">
-              NeuroLearn AI
+            {selectedInstitution?.logo_url ? (
+              <img src={selectedInstitution.logo_url} alt="Logo" className="w-9 h-9 object-contain rounded-lg" />
+            ) : (
+              <div className={`p-2 rounded-xl text-white ${theme.accent}`}>
+                <Sparkles size={18} />
+              </div>
+            )}
+            <span className={`font-extrabold text-xl bg-gradient-to-r ${theme.glow} bg-clip-text text-transparent`}>
+              {selectedInstitution?.short_name || 'NeuroLearn'} AI
             </span>
           </div>
           <h2 className="text-xl font-black text-white">Join the Platform</h2>
-          <p className="text-slate-400 text-xs">Access personalized curricula across campus departments.</p>
+          <p className="text-slate-400 text-xs">
+            {selectedInstitution ? `LMS Registration for ${selectedInstitution.institution_name}` : 'Access personalized curricula across campus departments.'}
+          </p>
         </div>
 
         {/* Role Selection Tabs */}
@@ -123,7 +196,7 @@ const Register = () => {
                 onClick={() => setRole(r.id)}
                 className={`py-2 px-1.5 rounded-xl text-xs font-bold transition-all flex flex-col items-center gap-1 cursor-pointer ${
                   isSelected 
-                    ? 'bg-indigo-600 text-white shadow' 
+                    ? `${theme.accent} text-white shadow` 
                     : 'text-slate-400 hover:text-white hover:bg-slate-900/40'
                 }`}
               >
@@ -152,7 +225,7 @@ const Register = () => {
             {/* Full Name */}
             <div className="space-y-1">
               <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider pl-1">Full Name</label>
-              <div className="relative flex items-center bg-slate-950/60 border border-slate-850 focus-within:ring-2 focus-within:ring-indigo-500/50 rounded-xl px-3 py-2 transition-all">
+              <div className={`relative flex items-center bg-slate-950/60 border border-slate-850 focus-within:ring-2 ${theme.ring} rounded-xl px-3 py-2 transition-all`}>
                 <User size={15} className="text-slate-500 mr-2 shrink-0" />
                 <input 
                   type="text" 
@@ -165,16 +238,36 @@ const Register = () => {
               </div>
             </div>
 
+            {/* College select */}
+            <div className="space-y-1">
+              <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider pl-1">College/Institution</label>
+              <div className={`relative flex items-center bg-slate-950/60 border border-slate-850 focus-within:ring-2 ${theme.ring} rounded-xl px-2.5 py-2 transition-all`}>
+                <School size={15} className="text-slate-500 mr-2 shrink-0" />
+                <select
+                  value={selectedInstitutionId}
+                  onChange={(e) => setSelectedInstitutionId(parseInt(e.target.value))}
+                  className="bg-transparent border-none text-xs text-slate-200 focus:outline-none w-full cursor-pointer"
+                  required
+                >
+                  {institutions.map((inst) => (
+                    <option key={inst.institution_id} value={inst.institution_id} className="bg-slate-900 text-slate-250">
+                      {inst.short_name} - {inst.institution_name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
             {/* Email Address */}
             <div className="space-y-1">
               <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider pl-1">Email Address</label>
-              <div className="relative flex items-center bg-slate-950/60 border border-slate-850 focus-within:ring-2 focus-within:ring-indigo-500/50 rounded-xl px-3 py-2 transition-all">
+              <div className={`relative flex items-center bg-slate-950/60 border border-slate-850 focus-within:ring-2 ${theme.ring} rounded-xl px-3 py-2 transition-all`}>
                 <Mail size={15} className="text-slate-500 mr-2 shrink-0" />
                 <input 
                   type="email" 
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="e.g. aarav@apex.edu"
+                  placeholder={selectedInstitution ? `yourname@${selectedInstitution.domain_name}` : "yourname@domain.edu"}
                   className="bg-transparent border-none text-xs text-slate-200 placeholder-slate-550 focus:outline-none w-full"
                   required
                 />
@@ -184,7 +277,7 @@ const Register = () => {
             {/* Mobile Number */}
             <div className="space-y-1">
               <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider pl-1">Mobile Number</label>
-              <div className="relative flex items-center bg-slate-950/60 border border-slate-850 focus-within:ring-2 focus-within:ring-indigo-500/50 rounded-xl px-3 py-2 transition-all">
+              <div className={`relative flex items-center bg-slate-950/60 border border-slate-850 focus-within:ring-2 ${theme.ring} rounded-xl px-3 py-2 transition-all`}>
                 <Phone size={15} className="text-slate-500 mr-2 shrink-0" />
                 <input 
                   type="text" 
@@ -197,47 +290,21 @@ const Register = () => {
               </div>
             </div>
 
-            {/* College select */}
-            <div className="space-y-1">
-              <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider pl-1">College/Institution</label>
-              <div className="relative flex items-center bg-slate-950/60 border border-slate-850 focus-within:ring-2 focus-within:ring-indigo-500/50 rounded-xl px-2.5 py-2 transition-all">
-                <School size={15} className="text-slate-500 mr-2 shrink-0" />
-                <select
-  value={college}
-  onChange={(e) => setCollege(e.target.value)}
-  className="bg-transparent border-none text-xs text-slate-200 focus:outline-none w-full"
->
-  <option className="bg-slate-900 text-white" value="COEP Technological University">
-    COEP Tech, Pune
-  </option>
-  <option className="bg-slate-900 text-white" value="MIT World Peace University">
-    MIT-WPU, Pune
-  </option>
-  <option className="bg-slate-900 text-white" value="Pimpri Chinchwad College of Engineering">
-    PCCOE, Pune
-  </option>
-  <option className="bg-slate-900 text-white" value="Vishwakarma Institute of Technology">
-    VIT, Pune
-  </option>
-</select>
-              </div>
-            </div>
-
             {/* Department select */}
             <div className="space-y-1">
               <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider pl-1">Department Branch</label>
-              <div className="bg-slate-950/60 border border-slate-800 focus-within:ring-2 focus-within:ring-indigo-500/50 rounded-xl px-2.5 py-2 transition-all">
-<select
-  value={dept}
-  onChange={(e) => setDept(e.target.value)}
-  className="bg-transparent border-none text-xs text-slate-200 focus:outline-none w-full"
->
-  <option className="bg-slate-900 text-white" value="CS">Computer Science (CS)</option>
-  <option className="bg-slate-900 text-white" value="IT">Information Technology (IT)</option>
-  <option className="bg-slate-900 text-white" value="ECE">Electronics & Telecom (ECE)</option>
-  <option className="bg-slate-900 text-white" value="EEE">Electrical Engineering (EEE)</option>
-  <option className="bg-slate-900 text-white" value="ME">Mechanical Engineering (ME)</option>
-</select>
+              <div className={`bg-slate-950/60 border border-slate-800 focus-within:ring-2 ${theme.ring} rounded-xl px-2.5 py-2 transition-all`}>
+                <select
+                  value={dept}
+                  onChange={(e) => setDept(e.target.value)}
+                  className="bg-transparent border-none text-xs text-slate-200 focus:outline-none w-full cursor-pointer"
+                >
+                  <option className="bg-slate-900 text-white" value="CS">Computer Science (CS)</option>
+                  <option className="bg-slate-900 text-white" value="IT">Information Technology (IT)</option>
+                  <option className="bg-slate-900 text-white" value="ECE">Electronics & Telecom (ECE)</option>
+                  <option className="bg-slate-900 text-white" value="EEE">Electrical Engineering (EEE)</option>
+                  <option className="bg-slate-900 text-white" value="ME">Mechanical Engineering (ME)</option>
+                </select>
               </div>
             </div>
 
@@ -245,17 +312,17 @@ const Register = () => {
             {role === 'student' ? (
               <div className="space-y-1">
                 <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider pl-1">Academic Year</label>
-                <div className="bg-slate-950/60 border border-slate-850 focus-within:ring-2 focus-within:ring-indigo-500/50 rounded-xl px-2.5 py-2 transition-all">
-  <select
-  value={year}
-  onChange={(e) => setYear(e.target.value)}
-  className="bg-transparent border-none text-xs text-slate-200 focus:outline-none w-full"
->
-  <option className="bg-slate-900 text-white" value="1st Year">First Year (FE)</option>
-  <option className="bg-slate-900 text-white" value="2nd Year">Second Year (SE)</option>
-  <option className="bg-slate-900 text-white" value="3rd Year">Third Year (TE)</option>
-  <option className="bg-slate-900 text-white" value="4th Year">Fourth Year (BE)</option>
-</select>
+                <div className={`bg-slate-950/60 border border-slate-850 focus-within:ring-2 ${theme.ring} rounded-xl px-2.5 py-2 transition-all`}>
+                  <select
+                    value={year}
+                    onChange={(e) => setYear(e.target.value)}
+                    className="bg-transparent border-none text-xs text-slate-200 focus:outline-none w-full cursor-pointer"
+                  >
+                    <option className="bg-slate-900 text-white" value="1st Year">First Year (FE)</option>
+                    <option className="bg-slate-900 text-white" value="2nd Year">Second Year (SE)</option>
+                    <option className="bg-slate-900 text-white" value="3rd Year">Third Year (TE)</option>
+                    <option className="bg-slate-900 text-white" value="4th Year">Fourth Year (BE)</option>
+                  </select>
                 </div>
               </div>
             ) : (
@@ -265,7 +332,7 @@ const Register = () => {
             {/* Password */}
             <div className="space-y-1">
               <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider pl-1">Password</label>
-              <div className="relative flex items-center bg-slate-950/60 border border-slate-850 focus-within:ring-2 focus-within:ring-indigo-500/50 rounded-xl px-3 py-2 transition-all">
+              <div className={`relative flex items-center bg-slate-950/60 border border-slate-850 focus-within:ring-2 ${theme.ring} rounded-xl px-3 py-2 transition-all`}>
                 <Lock size={15} className="text-slate-500 mr-2 shrink-0" />
                 <input 
                   type={showPassword ? "text" : "password"}
@@ -281,7 +348,7 @@ const Register = () => {
             {/* Confirm Password */}
             <div className="space-y-1">
               <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider pl-1">Confirm Password</label>
-              <div className="relative flex items-center bg-slate-950/60 border border-slate-850 focus-within:ring-2 focus-within:ring-indigo-500/50 rounded-xl px-3 py-2 transition-all">
+              <div className={`relative flex items-center bg-slate-950/60 border border-slate-850 focus-within:ring-2 ${theme.ring} rounded-xl px-3 py-2 transition-all`}>
                 <Lock size={15} className="text-slate-500 mr-2 shrink-0" />
                 <input 
                   type={showPassword ? "text" : "password"}
@@ -307,9 +374,9 @@ const Register = () => {
             <button 
               type="button" 
               onClick={() => setAgreeTerms(!agreeTerms)}
-              className="flex items-center gap-2 text-xs text-slate-450 hover:text-slate-200 select-none cursor-pointer"
+              className="flex items-center gap-2 text-xs text-slate-450 hover:text-slate-250 select-none cursor-pointer"
             >
-              {agreeTerms ? <CheckSquare size={16} className="text-indigo-500" /> : <Square size={16} className="text-slate-550" />}
+              {agreeTerms ? <CheckSquare size={16} className={theme.text} /> : <Square size={16} className="text-slate-550" />}
               <span className="text-[11px]">I agree to the Terms & Conditions and campus guidelines.</span>
             </button>
           </div>
@@ -318,7 +385,7 @@ const Register = () => {
           <button 
             type="submit"
             disabled={loading}
-            className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-800 disabled:text-slate-500 text-white font-extrabold rounded-xl transition-all shadow-lg shadow-indigo-600/10 text-xs flex items-center justify-center gap-1.5 cursor-pointer mt-4"
+            className={`w-full py-3.5 ${theme.accent} disabled:bg-slate-800 disabled:text-slate-500 text-white font-extrabold rounded-xl transition-all shadow-lg ${theme.shadow} text-xs flex items-center justify-center gap-1.5 cursor-pointer mt-4`}
           >
             {loading ? (
               <>
@@ -339,7 +406,7 @@ const Register = () => {
           <span>Already have a login? </span>
           <button 
             onClick={() => navigate('/login')}
-            className="text-indigo-400 hover:underline font-bold cursor-pointer"
+            className={`${theme.text} hover:underline font-bold cursor-pointer`}
           >
             Sign In Here
           </button>

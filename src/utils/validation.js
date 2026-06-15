@@ -1,11 +1,18 @@
-/**
- * Validation utility for institutional domains.
- * This is structured to be reusable in a Node.js/Express/PostgreSQL backend environment.
- */
-export const validateInstitutionalEmail = (email) => {
+export const validateInstitutionalEmail = (email, domain = 'neurolearn.ai') => {
   if (!email || typeof email !== 'string') return false;
   
-  // Enforces matching the @neurolearn.ai domain at the end of the string
-  const pattern = /^[a-zA-Z0-9._%+-]+@neurolearn\.ai$/;
-  return pattern.test(email.trim().toLowerCase());
+  const cleanEmail = email.trim().toLowerCase();
+  const emailDomain = cleanEmail.split('@')[1];
+  if (!emailDomain) return false;
+
+  const targetDomain = domain.toLowerCase();
+  if (emailDomain === 'neurolearn.ai') return true;
+  if (emailDomain === targetDomain) return true;
+
+  // Add the extra allowed domains for COEP
+  if (targetDomain === 'coeptech.ac.in') {
+    return emailDomain === 'coep.smail.in' || emailDomain === 'coep.ac.in' || emailDomain === 'coeptech.ac.in';
+  }
+
+  return false;
 };

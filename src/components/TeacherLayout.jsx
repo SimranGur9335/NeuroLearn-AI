@@ -19,12 +19,36 @@ import {
 import Header from './Header';
 import { useStudent } from '../context/StudentContext';
 import { useAuth } from '../context/AuthContext';
-import { COLLEGE_THEMES } from '../data/academicData';
-
+const GRADIENT_THEMES = {
+  violet: {
+    gradient: "from-violet-900 via-slate-950 to-slate-950",
+    textGradient: "from-violet-400 to-fuchsia-400",
+    accent: "bg-violet-600 text-white font-semibold shadow-lg shadow-violet-600/30",
+    toggle: "bg-violet-600 hover:bg-violet-500",
+  },
+  rose: {
+    gradient: "from-rose-900 via-slate-950 to-slate-950",
+    textGradient: "from-rose-400 to-pink-400",
+    accent: "bg-rose-600 text-white font-semibold shadow-lg shadow-rose-600/30",
+    toggle: "bg-rose-600 hover:bg-rose-500",
+  },
+  amber: {
+    gradient: "from-amber-900 via-slate-950 to-slate-950",
+    textGradient: "from-amber-400 to-yellow-400",
+    accent: "bg-amber-600 text-white font-semibold shadow-lg shadow-amber-600/30",
+    toggle: "bg-amber-600 hover:bg-amber-500",
+  },
+  indigo: {
+    gradient: "from-indigo-900 via-slate-950 to-slate-950",
+    textGradient: "from-indigo-400 to-cyan-400",
+    accent: "bg-indigo-600 text-white font-semibold shadow-lg shadow-indigo-600/30",
+    toggle: "bg-indigo-600 hover:bg-indigo-500",
+  }
+};
 
 const TeacherLayout = () => {
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const { profile, institution } = useStudent();
+  const { profile } = useStudent();
   const { logout } = useAuth();
   const navigate = useNavigate();
 
@@ -43,7 +67,8 @@ const TeacherLayout = () => {
     logout();
   };
 
-  const currentTheme = COLLEGE_THEMES[institution] || COLLEGE_THEMES.coep;
+  const currentTheme = GRADIENT_THEMES[profile.theme_color] || GRADIENT_THEMES.indigo;
+  const logoText = profile.college ? (profile.college.split(' ')[0] || 'NeuroLearn') : 'NeuroLearn';
 
   return (
     <div className="flex h-screen overflow-hidden bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-150">
@@ -63,20 +88,28 @@ const TeacherLayout = () => {
                 exit={{ opacity: 0, x: -10 }}
                 className="flex items-center gap-2"
               >
-                <div className={`p-1.5 rounded-lg text-white bg-gradient-to-br ${currentTheme.color}`}>
-                  <Sparkles size={20} className="animate-pulse" />
-                </div>
-                <span className={`font-extrabold text-base bg-gradient-to-r ${currentTheme.color} bg-clip-text text-transparent`}>
-                  {currentTheme.logoText} Faculty
+                {profile.logo_url ? (
+                  <img src={profile.logo_url} alt="Logo" className="w-8 h-8 object-contain rounded-lg bg-slate-950 p-0.5 shrink-0" />
+                ) : (
+                  <div className={`p-1.5 rounded-lg text-white bg-gradient-to-br ${currentTheme.gradient}`}>
+                    <Sparkles size={20} className="animate-pulse" />
+                  </div>
+                )}
+                <span className={`font-extrabold text-base bg-gradient-to-r ${currentTheme.textGradient} bg-clip-text text-transparent`}>
+                  {logoText} Faculty
                 </span>
               </motion.div>
             )}
           </AnimatePresence>
 
           {isCollapsed && (
-            <div className={`p-1.5 rounded-lg text-white mx-auto bg-gradient-to-br ${currentTheme.color}`}>
-              <Sparkles size={20} />
-            </div>
+            profile.logo_url ? (
+              <img src={profile.logo_url} alt="Logo" className="w-8 h-8 object-contain rounded-lg mx-auto bg-slate-950 p-0.5" />
+            ) : (
+              <div className={`p-1.5 rounded-lg text-white mx-auto bg-gradient-to-br ${currentTheme.gradient}`}>
+                <Sparkles size={20} />
+              </div>
+            )
           )}
         </div>
 
@@ -90,7 +123,7 @@ const TeacherLayout = () => {
                 to={item.path}
                 className={({ isActive }) =>
                   `flex items-center gap-4 px-3 py-3 rounded-xl transition-all duration-200 group relative ${isActive
-                    ? 'bg-purple-600 text-white font-semibold shadow-lg shadow-purple-600/30'
+                    ? currentTheme.accent
                     : 'hover:bg-slate-800 hover:text-white'
                   }`
                 }
@@ -119,7 +152,7 @@ const TeacherLayout = () => {
         {/* Collapsible toggle */}
         <button
           onClick={() => setIsCollapsed(!isCollapsed)}
-          className="absolute bottom-20 -right-3 bg-purple-600 hover:bg-purple-500 text-white p-1 rounded-full border border-slate-900 shadow-md cursor-pointer z-50"
+          className={`absolute bottom-20 -right-3 ${currentTheme.toggle} text-white p-1 rounded-full border border-slate-900 shadow-md cursor-pointer z-50`}
         >
           {isCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
         </button>

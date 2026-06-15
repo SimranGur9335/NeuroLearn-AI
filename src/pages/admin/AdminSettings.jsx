@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Save, Settings, Landmark, Mail, Phone, Palette, HelpCircle, LayoutGrid } from 'lucide-react';
+import { useStudent } from '../../context/StudentContext';
 
 const AdminSettings = () => {
+  const { setProfile } = useStudent();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [settings, setSettings] = useState({
@@ -22,7 +24,7 @@ const AdminSettings = () => {
   const fetchSettings = async () => {
     try {
       setLoading(true);
-      const res = await fetch("http://127.0.0.1:8000/admin/settings");
+      const res = await fetch("/admin/settings");
       const data = await res.json();
       setSettings(data);
     } catch (err) {
@@ -36,13 +38,19 @@ const AdminSettings = () => {
     e.preventDefault();
     try {
       setSaving(true);
-      const res = await fetch("http://127.0.0.1:8000/admin/settings", {
+      const res = await fetch("/admin/settings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(settings)
       });
       if (res.ok) {
         alert("System settings saved successfully!");
+        setProfile(prev => ({
+          ...prev,
+          college: settings.institution_name,
+          logo_url: settings.institution_logo,
+          theme_color: settings.branding_color
+        }));
       } else {
         alert("Failed to save settings.");
       }

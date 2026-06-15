@@ -30,9 +30,6 @@ const MarksGradebook = () => {
   const [saving, setSaving] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [alertInfo, setAlertInfo] = useState(null);
-  const MarksGradebook = () => {
-  return <h1>Marks Page Loaded</h1>;
-};
 
   // CSV Import state
   const [csvFile, setCsvFile] = useState(null);

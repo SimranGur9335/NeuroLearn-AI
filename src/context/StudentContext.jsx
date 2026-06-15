@@ -45,7 +45,10 @@ export const StudentProvider = ({ children }) => {
     rollNumber: "2023CS8094",
     college: "COEP Technological University",
     email: "student@neurolearn.ai",
-    avatar: "🚀"
+    avatar: "🚀",
+    logo_url: "/assets/logo.png",
+    theme_color: "indigo",
+    institution_id: 1
   });
 
   // Sync role and profile from AuthContext
@@ -64,7 +67,10 @@ export const StudentProvider = ({ children }) => {
         rollNumber: user.rollNumber || "2023CS8094",
         college: user.college || "COEP Technological University",
         email: user.email || "student@neurolearn.ai",
-        avatar: user.avatar || "🚀"
+        avatar: user.avatar || "🚀",
+        logo_url: user.logo_url || "/assets/logo.png",
+        theme_color: user.theme_color || "indigo",
+        institution_id: user.institution_id || 1
       });
     }
   }, [user]);

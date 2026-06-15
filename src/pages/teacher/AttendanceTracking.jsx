@@ -21,6 +21,8 @@ const AttendanceTracking = () => {
   const selectedClass = JSON.parse(localStorage.getItem("selectedClass") || "{}");
   const facultyId = Number(localStorage.getItem("faculty_id") || "7");
 
+  const [classes, setClasses] = useState([]);
+  const [currentClass, setCurrentClass] = useState(selectedClass);
   const [students, setStudents] = useState([]);
   const [attendanceStatus, setAttendanceStatus] = useState({});
   const [searchTerm, setSearchTerm] = useState("");
@@ -37,13 +39,34 @@ const AttendanceTracking = () => {
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
   const [loading, setLoading] = useState(false);
 
+  // Fetch classes on mount
+  useEffect(() => {
+    const fetchClasses = async () => {
+      try {
+        const res = await fetch(`http://localhost:8000/teacher/${facultyId}/classes`);
+        if (res.ok) {
+          const data = await res.json();
+          setClasses(data);
+          // Fallback if current class is empty
+          if (!currentClass.class_id && data.length > 0) {
+            setCurrentClass(data[0]);
+            localStorage.setItem("selectedClass", JSON.stringify(data[0]));
+          }
+        }
+      } catch (err) {
+        console.error("Error loading workspace classes:", err);
+      }
+    };
+    fetchClasses();
+  }, [facultyId]);
+
   // Load attendance grid for selected date
   const loadDailyGrid = async () => {
-    if (!selectedClass.class_id) return;
+    if (!currentClass.class_id) return;
     setLoading(true);
     try {
       const res = await fetch(
-        `http://127.0.0.1:8000/attendance/records?class_id=${selectedClass.class_id}&subject_id=${selectedClass.subject_id}&date=${selectedDate}`
+        `http://localhost:8000/attendance/records?class_id=${currentClass.class_id}&subject_id=${currentClass.subject_id}&date=${selectedDate}`
       );
       if (!res.ok) throw new Error("Failed to load attendance records");
       const data = await res.json();
@@ -73,10 +96,10 @@ const AttendanceTracking = () => {
 
   // Load history list
   const loadHistory = async () => {
-    if (!selectedClass.class_id) return;
+    if (!currentClass.class_id) return;
     try {
       const res = await fetch(
-        `http://127.0.0.1:8000/attendance/history?class_id=${selectedClass.class_id}&subject_id=${selectedClass.subject_id}`
+        `http://localhost:8000/attendance/history?class_id=${currentClass.class_id}&subject_id=${currentClass.subject_id}`
       );
       const data = await res.json();
       setHistory(data);
@@ -87,10 +110,10 @@ const AttendanceTracking = () => {
 
   // Load monthly matrix
   const loadMonthlyReport = async () => {
-    if (!selectedClass.class_id) return;
+    if (!currentClass.class_id) return;
     try {
       const res = await fetch(
-        `http://127.0.0.1:8000/attendance/monthly-report?class_id=${selectedClass.class_id}&subject_id=${selectedClass.subject_id}&month=${currentMonth}&year=${currentYear}`
+        `http://localhost:8000/attendance/monthly-report?class_id=${currentClass.class_id}&subject_id=${currentClass.subject_id}&month=${currentMonth}&year=${currentYear}`
       );
       const data = await res.json();
       setMonthlyReport(data);
@@ -108,7 +131,7 @@ const AttendanceTracking = () => {
     } else if (activeTab === "monthly") {
       loadMonthlyReport();
     }
-  }, [selectedClass.class_id, selectedDate, activeTab, currentMonth]);
+  }, [currentClass.class_id, currentClass.subject_id, selectedDate, activeTab, currentMonth, currentYear]);
 
   // Bulk actions handlers
   const handleBulkMark = (status) => {
@@ -131,8 +154,8 @@ const AttendanceTracking = () => {
   const handleSaveAttendance = async () => {
     try {
       const payload = {
-        class_id: selectedClass.class_id,
-        subject_id: selectedClass.subject_id,
+        class_id: currentClass.class_id,
+        subject_id: currentClass.subject_id,
         faculty_id: facultyId,
         date: selectedDate,
         records: Object.keys(attendanceStatus).map(sid => ({
@@ -141,7 +164,7 @@ const AttendanceTracking = () => {
         }))
       };
 
-      const res = await fetch("http://127.0.0.1:8000/attendance/save", {
+      const res = await fetch("http://localhost:8000/attendance/save", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)
@@ -174,7 +197,7 @@ const AttendanceTracking = () => {
       .join("\n");
 
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    saveAs(blob, `Monthly_Attendance_Report_Class_${selectedClass.class_id}_Subject_${selectedClass.subject_id}.csv`);
+    saveAs(blob, `Monthly_Attendance_Report_Class_${currentClass.class_id}_Subject_${currentClass.subject_id}.csv`);
   };
 
   const filteredStudents = students.filter(
@@ -198,9 +221,35 @@ const AttendanceTracking = () => {
           <h2 className="text-3xl font-black text-slate-900 dark:text-white mt-1">
             Lecture Attendance & Progress
           </h2>
-          <p className="text-slate-500 dark:text-slate-400 text-xs mt-1">
-            Class: <span className="font-semibold text-slate-800 dark:text-white">{selectedClass.class_name}</span> | Subject: <span className="font-semibold text-slate-800 dark:text-white">{selectedClass.subject_name}</span>
-          </p>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mt-2">
+            <p className="text-slate-500 dark:text-slate-400 text-xs">
+              Class: <span className="font-semibold text-slate-800 dark:text-white">{currentClass.class_name}</span> | Subject: <span className="font-semibold text-slate-800 dark:text-white">{currentClass.subject_name}</span>
+            </p>
+            <div className="flex items-center gap-1.5 border-l border-slate-300 dark:border-slate-700 pl-4">
+              <span className="text-slate-450 dark:text-slate-500 text-xs font-black uppercase tracking-wider">Workspace:</span>
+              <select
+                value={currentClass.class_id ? `${currentClass.class_id}-${currentClass.subject_id}` : ""}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val) {
+                    const [cid, sid] = val.split("-").map(Number);
+                    const match = classes.find(c => c.class_id === cid && c.subject_id === sid);
+                    if (match) {
+                      setCurrentClass(match);
+                      localStorage.setItem("selectedClass", JSON.stringify(match));
+                    }
+                  }
+                }}
+                className="bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-850 px-2.5 py-1 rounded-lg text-xs font-bold text-slate-700 dark:text-slate-350 focus:outline-none focus:ring-1 focus:ring-purple-500/50 cursor-pointer"
+              >
+                {classes.map(c => (
+                  <option key={`${c.class_id}-${c.subject_id}`} value={`${c.class_id}-${c.subject_id}`}>
+                    {c.class_name} - {c.subject_name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
         </div>
 
         {/* Tab Selection */}
