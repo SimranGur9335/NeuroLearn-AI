@@ -36,6 +36,7 @@ import TeacherAnalytics from './pages/teacher/TeacherAnalytics';
 import RiskPrediction from './pages/teacher/RiskPrediction';
 import AttendanceTracking from './pages/teacher/AttendanceTracking';
 import ClassSelection from './pages/teacher/ClassSelection';
+import TeacherAnnouncement from "./pages/teacher/TeacherAnnouncement";
 
 // Admin Portal Pages
 import AdminDashboard from './pages/admin/AdminDashboard';
@@ -118,6 +119,7 @@ function App() {
               <Route path="/teacher/analytics" element={<TeacherAnalytics />} />
               <Route path="/teacher/risk" element={<RiskPrediction />} />
               <Route path="/teacher/attendance" element={<AttendanceTracking />} />
+              <Route path="teacher/teacherAnnouncement" element={<TeacherAnnouncement />} />
 
               {/* Reused AI chat for faculty support */}
               <Route path="/teacher/ai-chat" element={<AiMentorChat />} />

@@ -104,7 +104,12 @@ class CourseSubjectMappingInput(BaseModel):
 class AnnouncementInput(BaseModel):
     title: str
     description: str
-    target_type: str  # 'Students' | 'Faculty' | 'CS' | 'IT' etc. | 'Entire Institution'
+
+    sender_type: str
+    sender_id: int
+
+    target_type: str
+    target_id: Optional[int] = None
 
 class AcademicTermInput(BaseModel):
     academic_year: str
@@ -1212,46 +1217,119 @@ def get_announcements(target_type: Optional[str] = None):
     announcements = []
     for r in result:
         announcements.append({
-            "announcement_id": r.announcement_id,
-            "title": r.title,
-            "description": r.description,
-            "target_type": r.target_type,
-            "created_at": str(r.created_at)
+"announcement_id": r.announcement_id,
+
+    "title": r.title,
+    "description": r.description,
+
+    "sender_type": r.sender_type,
+    "sender_id": r.sender_id,
+
+    "target_type": r.target_type,
+    "target_id": r.target_id,
+
+    "created_at": str(r.created_at)
         })
     db.close()
     return announcements
 
 @app.post("/announcements")
 def create_announcement(data: AnnouncementInput):
+
     db = SessionLocal()
+
     new_id = db.execute(
         text("""
-            INSERT INTO announcements (title, description, target_type, created_at)
-            VALUES (:title, :description, :target_type, NOW())
+            INSERT INTO announcements
+            (
+                title,
+                description,
+
+                sender_type,
+                sender_id,
+
+                target_type,
+                target_id,
+
+                created_at
+            )
+            VALUES
+            (
+                :title,
+                :description,
+
+                :sender_type,
+                :sender_id,
+
+                :target_type,
+                :target_id,
+
+                NOW()
+            )
             RETURNING announcement_id
         """),
         data.dict()
     ).scalar()
+
     db.commit()
-    log_audit(db, "CREATE", "Announcement", new_id)
+
+    log_audit(
+        db,
+        "CREATE",
+        "Announcement",
+        new_id
+    )
+
     db.close()
-    return {"message": "Announcement created successfully", "announcement_id": new_id}
+
+    return {
+        "message": "Announcement created successfully",
+        "announcement_id": new_id
+    }
 
 @app.put("/announcements/{announcement_id}")
-def update_announcement(announcement_id: int, data: AnnouncementInput):
+def update_announcement(
+    announcement_id: int,
+    data: AnnouncementInput
+):
+
     db = SessionLocal()
+
     db.execute(
         text("""
             UPDATE announcements
-            SET title = :title, description = :description, target_type = :target_type
+            SET
+                title = :title,
+                description = :description,
+
+                sender_type = :sender_type,
+                sender_id = :sender_id,
+
+                target_type = :target_type,
+                target_id = :target_id
+
             WHERE announcement_id = :announcement_id
         """),
-        {**data.dict(), "announcement_id": announcement_id}
+        {
+            **data.dict(),
+            "announcement_id": announcement_id
+        }
     )
+
     db.commit()
-    log_audit(db, "UPDATE", "Announcement", announcement_id)
+
+    log_audit(
+        db,
+        "UPDATE",
+        "Announcement",
+        announcement_id
+    )
+
     db.close()
-    return {"message": "Announcement updated successfully"}
+
+    return {
+        "message": "Announcement updated successfully"
+    }
 
 @app.delete("/announcements/{announcement_id}")
 def delete_announcement(announcement_id: int):

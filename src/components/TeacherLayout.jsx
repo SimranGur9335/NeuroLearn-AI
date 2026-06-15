@@ -1,22 +1,25 @@
 import React, { useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  LayoutDashboard, 
-  Users, 
-  TrendingUp, 
-  AlertTriangle, 
-  CalendarDays, 
+import {
+  LayoutDashboard,
+  Users,
+  TrendingUp,
+  AlertTriangle,
+  CalendarDays,
   MessageSquareCode,
   Sparkles,
   ChevronLeft,
   ChevronRight,
-  LogOut
+  Home,
+  LogOut,
+  Bell
 } from 'lucide-react';
 import Header from './Header';
 import { useStudent } from '../context/StudentContext';
 import { useAuth } from '../context/AuthContext';
 import { COLLEGE_THEMES } from '../data/academicData';
+
 
 const TeacherLayout = () => {
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -31,6 +34,7 @@ const TeacherLayout = () => {
     { name: 'Risk Predictions', path: '/teacher/risk', icon: AlertTriangle },
     { name: 'Attendance Registry', path: '/teacher/attendance', icon: CalendarDays },
     { name: 'Faculty AI Mentor', path: '/teacher/ai-chat', icon: MessageSquareCode },
+    { name: "Announcements", path: "teacher/teacherAnnouncement", icon: Bell }
   ];
 
   const handleLogout = () => {
@@ -66,7 +70,7 @@ const TeacherLayout = () => {
               </motion.div>
             )}
           </AnimatePresence>
-          
+
           {isCollapsed && (
             <div className={`p-1.5 rounded-lg text-white mx-auto bg-gradient-to-br ${currentTheme.color}`}>
               <Sparkles size={20} />
@@ -82,11 +86,10 @@ const TeacherLayout = () => {
               <NavLink
                 key={item.path}
                 to={item.path}
-                className={({ isActive }) => 
-                  `flex items-center gap-4 px-3 py-3 rounded-xl transition-all duration-200 group relative ${
-                    isActive 
-                      ? 'bg-purple-600 text-white font-semibold shadow-lg shadow-purple-600/30' 
-                      : 'hover:bg-slate-800 hover:text-white'
+                className={({ isActive }) =>
+                  `flex items-center gap-4 px-3 py-3 rounded-xl transition-all duration-200 group relative ${isActive
+                    ? 'bg-purple-600 text-white font-semibold shadow-lg shadow-purple-600/30'
+                    : 'hover:bg-slate-800 hover:text-white'
                   }`
                 }
               >
@@ -120,13 +123,13 @@ const TeacherLayout = () => {
         </button>
 
         {/* Logout bottom */}
-        <div 
+        <div
           onClick={handleLogout}
           className="p-4 border-t border-slate-800 bg-slate-950/40 flex items-center gap-3 cursor-pointer hover:bg-slate-800/20 text-slate-400 hover:text-white transition-colors"
         >
           <LogOut size={20} className="shrink-0 text-red-500" />
           {!isCollapsed && (
-            <motion.span 
+            <motion.span
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               className="text-xs font-semibold"

@@ -9,15 +9,18 @@ const AnnouncementCenter = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [targetAnn, setTargetAnn] = useState(null);
+  const [formTargetId, setFormTargetId] = useState(null);
+  const [classes, setClasses] = useState([]);
 
   // Form states
   const [formTitle, setFormTitle] = useState("");
   const [formDesc, setFormDesc] = useState("");
-  const [formTargetType, setFormTargetType] = useState("Entire Institution");
+  const [formTargetType, setFormTargetType] = useState("All");
 
   useEffect(() => {
     loadAnnouncements();
     loadDepartments();
+    loadClasses();
   }, []);
 
   const loadAnnouncements = async () => {
@@ -51,8 +54,9 @@ const AnnouncementCenter = () => {
   const handleOpenAdd = () => {
     setFormTitle("");
     setFormDesc("");
-    setFormTargetType("Entire Institution");
+    setFormTargetType("All");
     setShowAddModal(true);
+
   };
 
   const handleOpenEdit = (ann) => {
@@ -62,6 +66,20 @@ const AnnouncementCenter = () => {
     setFormTargetType(ann.target_type);
     setShowEditModal(true);
   };
+
+  const loadClasses = async () => {
+  try {
+    const res = await fetch(
+      "http://127.0.0.1:8000/classes"
+    );
+
+    const data = await res.json();
+
+    setClasses(data);
+  } catch (err) {
+    console.error(err);
+  }
+};
 
   const handleSaveAdd = async (e) => {
     e.preventDefault();
@@ -77,7 +95,12 @@ const AnnouncementCenter = () => {
         body: JSON.stringify({
           title: formTitle,
           description: formDesc,
-          target_type: formTargetType
+
+          sender_type: "ADMIN",
+          sender_id: 1,
+
+          target_type: formTargetType,
+          target_id: formTargetId
         })
       });
       await loadAnnouncements();
@@ -96,7 +119,12 @@ const AnnouncementCenter = () => {
         body: JSON.stringify({
           title: formTitle,
           description: formDesc,
-          target_type: formTargetType
+
+          sender_type: targetAnn.sender_type || "ADMIN",
+          sender_id: targetAnn.sender_id || 1,
+
+          target_type: formTargetType,
+          target_id: formTargetId
         })
       });
       await loadAnnouncements();
@@ -119,20 +147,17 @@ const AnnouncementCenter = () => {
       console.error(err);
     }
   };
-
   const getTargetOptions = () => {
-    const defaultOptions = ["Entire Institution", "Students", "Faculty", "CS", "IT", "ECE", "EEE", "ME"];
-    if (departments.length === 0) return defaultOptions;
-    
-    // Combine defaults and dynamic codes
-    const base = ["Entire Institution", "Students", "Faculty"];
-    departments.forEach(d => {
-      if (d.department_code && !base.includes(d.department_code)) {
-        base.push(d.department_code);
-      }
-    });
-    return base;
+    return [
+      "ALL",
+      "ALL_STUDENTS",
+      "ALL_FACULTY",
+      "DEPARTMENT",
+      "CLASS",
+      "FACULTY"
+    ];
   };
+
 
   return (
     <motion.div
@@ -162,9 +187,8 @@ const AnnouncementCenter = () => {
         <div className="flex flex-wrap gap-2">
           <button
             onClick={() => setFilterTarget("")}
-            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-              filterTarget === "" ? "bg-emerald-600 text-white shadow-md" : "bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 text-slate-500 hover:bg-slate-100"
-            }`}
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${filterTarget === "" ? "bg-emerald-600 text-white shadow-md" : "bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 text-slate-500 hover:bg-slate-100"
+              }`}
           >
             All Broadcasts
           </button>
@@ -172,9 +196,8 @@ const AnnouncementCenter = () => {
             <button
               key={target}
               onClick={() => setFilterTarget(target)}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                filterTarget === target ? "bg-emerald-600 text-white shadow-md" : "bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 text-slate-500 hover:bg-slate-100"
-              }`}
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${filterTarget === target ? "bg-emerald-600 text-white shadow-md" : "bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 text-slate-500 hover:bg-slate-100"
+                }`}
             >
               {target}
             </button>
@@ -206,7 +229,7 @@ const AnnouncementCenter = () => {
                     </span>
                   </div>
                   <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed pr-6">{ann.description}</p>
-                  
+
                   <div className="flex items-center gap-4 text-[10px] text-slate-400 pt-2 font-semibold">
                     <span className="flex items-center gap-1">
                       <Calendar size={12} />
@@ -249,14 +272,13 @@ const AnnouncementCenter = () => {
 
             <div className="space-y-3 text-xs">
               <div>
-                <label className="text-[9px] font-bold text-slate-400 uppercase block mb-1">Notice Title</label>
+                <label className="w-full px-3 py-2 text-slate-900 dark:text-white">Notice Title</label>
                 <input
                   type="text"
                   value={formTitle}
                   onChange={(e) => setFormTitle(e.target.value)}
                   placeholder="e.g. End Semester Examinations Schedule"
-                  className="w-full bg-slate-50 dark:bg-slate-955 border border-slate-200 dark:border-slate-850 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-slate-800 dark:text-slate-200"
-                  required
+                  className="w-full border rounded-xl px-3 py-2 bg-white text-black"
                 />
               </div>
 
@@ -272,7 +294,64 @@ const AnnouncementCenter = () => {
                     <option key={opt} value={opt}>{opt}</option>
                   ))}
                 </select>
+
+                {formTargetType === "DEPARTMENT" && (
+                  <div className="mt-3">
+                    <label className="text-[9px] font-bold text-slate-400 uppercase block mb-1">
+                      Select Department
+                    </label>
+
+                    <select
+                      value={formTargetId || ""}
+                      onChange={(e) =>
+                        setFormTargetId(Number(e.target.value))
+                      }
+                      className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-slate-800 dark:text-slate-200"
+                    >
+                      <option value="">
+                        Select Department
+                      </option>
+
+                      {departments.map((d) => (
+                        <option
+                          key={d.department_id}
+                          value={d.department_id}
+                        >
+                          {d.department_name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
               </div>
+              {formTargetType === "CLASS" && (
+  <div className="mt-3">
+    <label className="text-[9px] font-bold text-slate-400 uppercase block mb-1">
+      Select Class
+    </label>
+
+    <select
+      value={formTargetId || ""}
+      onChange={(e) =>
+        setFormTargetId(Number(e.target.value))
+      }
+      className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 rounded-xl px-3 py-2.5"
+    >
+      <option value="">
+        Select Class
+      </option>
+
+      {classes.map((c) => (
+        <option
+          key={c.class_id}
+          value={c.class_id}
+        >
+          {c.class_name}
+        </option>
+      ))}
+    </select>
+  </div>
+)}
 
               <div>
                 <label className="text-[9px] font-bold text-slate-400 uppercase block mb-1">Broadcast Message Body</label>
