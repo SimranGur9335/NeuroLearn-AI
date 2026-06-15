@@ -29,7 +29,7 @@ const AdminDashboard = () => {
   const navigate = useNavigate();
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
-  console.log("ADMIN DASHBOARD MOUNTED");
+
 
 
   useEffect(() => {

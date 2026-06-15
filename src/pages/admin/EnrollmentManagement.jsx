@@ -196,11 +196,11 @@ const EnrollmentManagement = () => {
               <tbody className="divide-y divide-slate-100 dark:divide-slate-850/80">
                 {filteredEnrollments.map((e) => (
                   <tr key={e.enrollment_id} className="hover:bg-slate-50/40 dark:hover:bg-slate-850/20 transition-colors">
-                    <td className="py-3.5 pl-5 font-bold text-slate-800 dark:text-slate-150">{e.student_name}</td>
-                    <td className="py-3.5 text-slate-550 dark:text-slate-300 font-mono">{e.roll_no}</td>
+                    <td className="py-3.5 pl-5 font-bold text-slate-800 dark:text-emerald-400">{e.student_name}</td>
+                    <td className="py-3.5 text-slate-550 dark:text-emerald-400 font-mono">{e.roll_no}</td>
                     <td className="py-3.5 font-bold text-emerald-600 dark:text-emerald-400">{e.class_name}</td>
-                    <td className="py-3.5 text-center font-bold">{e.semester}</td>
-                    <td className="py-3.5 text-center font-bold">{e.division}</td>
+                    <td className="py-3.5 text-center font-bold text-slate-800 dark:text-emerald-400">{e.semester}</td>
+                    <td className="py-3.5 text-center font-bold text-slate-800 dark:text-emerald-400">{e.division}</td>
                     <td className="py-3.5 text-right pr-5 space-x-1.5 whitespace-nowrap">
                       <button
                         onClick={() => viewHistory(e)}

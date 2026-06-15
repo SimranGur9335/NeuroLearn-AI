@@ -478,6 +478,7 @@ def refresh_token_route(data: RefreshInput):
             "name": name,
             "role": user.role,
             "college": college,
+            "institution_id": user.institution_id,
             "avatar": "🛡️" if user.role == "admin" else ("👨‍🏫" if user.role == "teacher" else "🚀")
         }
         if user.student_id:
@@ -3514,7 +3515,7 @@ def submit_assignment(assignment_id: int, data: StudentSubmissionInput, current_
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
-    fi@app.get("/marks")
+@app.get("/marks")
 def get_student_marks(class_id: int, subject_id: int, current_user: dict = Depends(get_current_user)):
     db = SessionLocal()
     try:

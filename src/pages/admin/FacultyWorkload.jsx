@@ -143,7 +143,7 @@ const FacultyWorkload = () => {
                       </div>
                       <div>
                         <span className="text-[10px] text-slate-400 block font-bold uppercase">Total Classes Assigned</span>
-                        <span className="text-xl font-extrabold text-slate-800 dark:text-white">{workload.total_classes} Classes</span>
+                        <span className="text-xl font-extrabold text-slate-800 dark:text-bold">{workload.total_classes} Classes</span>
                       </div>
                     </div>
 
@@ -153,7 +153,7 @@ const FacultyWorkload = () => {
                       </div>
                       <div>
                         <span className="text-[10px] text-slate-400 block font-bold uppercase">Teaching Credit Weights</span>
-                        <span className="text-xl font-extrabold text-slate-800 dark:text-white">{workload.total_credits} Credits</span>
+                        <span className="text-xl font-extrabold text-slate-800 dark:text-bold">{workload.total_credits} Credits</span>
                       </div>
                     </div>
                   </div>
