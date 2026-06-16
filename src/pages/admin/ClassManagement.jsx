@@ -127,7 +127,7 @@ const ClassManagement = () => {
   };
 
   const getDeptOptions = () => {
-    return departments.length > 0 ? departments.map(d => d.department_code) : ["CS", "IT", "ECE", "EEE", "ME"];
+    return departments.length > 0 ? departments.map(d => d.department_code) : ["CS", "IT"];
   };
 
   const getTermText = (termId) => {

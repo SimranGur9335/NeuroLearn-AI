@@ -195,15 +195,17 @@ export const AuthProvider = ({ children }) => {
    */
   const changePassword = async (oldPassword, newPassword) => {
     if (!user) throw new Error("No active session found.");
-    const res = await fetch("http://localhost:8000/api/v1/profile/change-password", {
+    const res = await fetch("/api/v1/auth/change-password", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ old_password: oldPassword, new_password: newPassword })
     });
     if (!res.ok) {
-      const err = await res.json();
+      const err = await res.json().catch(() => ({}));
       throw new Error(err.detail || "Failed to change password. Old password might be incorrect.");
     }
+    // Update local user state so ProtectedRoute is satisfied
+    setUser(prev => prev ? { ...prev, mustChangePassword: false } : null);
     return { success: true };
   };
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   Sparkles,
@@ -59,6 +59,7 @@ const THEME_MAP = {
 
 const Login = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { login } = useAuth();
 
   // Input states
@@ -71,6 +72,18 @@ const Login = () => {
   // Institution states
   const [institutions, setInstitutions] = useState([]);
   const [selectedInstitutionId, setSelectedInstitutionId] = useState(1);
+
+  // Apply location state if present
+  useEffect(() => {
+    if (location.state) {
+      if (location.state.role) {
+        setRole(location.state.role);
+      }
+      if (location.state.institutionId) {
+        setSelectedInstitutionId(location.state.institutionId);
+      }
+    }
+  }, [location.state]);
 
   // Validation / Error / Loading states
   const [errorMsg, setErrorMsg] = useState("");
@@ -102,12 +115,16 @@ const Login = () => {
   const roles = [
     { id: 'student', title: 'Student', icon: GraduationCap },
     { id: 'faculty', title: 'Faculty', icon: Users },
-    { id: 'admin', title: 'Admin', icon: Settings }
+    { id: 'admin', title: 'Admin', icon: Settings },
   ];
 
   const handleQuickFill = (roleType) => {
     setRole(roleType);
-    setEmail(`${roleType}@neurolearn.ai`);
+    if (roleType === 'super_admin') {
+      setEmail('owner@neurolearn.ai');
+    } else {
+      setEmail(`${roleType}@neurolearn.ai`);
+    }
     setPassword("Password123");
     setErrorMsg("");
     setSelectedInstitutionId(1); // Demo accounts are registered under COEP (id = 1)
@@ -138,10 +155,15 @@ const Login = () => {
         selectedInstitution?.domain_name || 'neurolearn.ai',
         rememberMe
       );
-      // Route based on role
-      if (user.role === 'student') navigate('/dashboard');
-      else if (user.role === 'faculty') navigate('/teacher/select-class');
-      else if (user.role === 'admin') navigate('/admin/dashboard');
+      // Route based on role or force password change status
+      if (user.mustChangePassword) {
+        navigate('/change-password');
+      } else {
+        if (user.role === 'student') navigate('/dashboard');
+        else if (user.role === 'faculty') navigate('/teacher/select-class');
+        else if (user.role === 'admin') navigate('/admin/dashboard');
+        else if (user.role === 'super_admin') navigate('/platform-admin/dashboard');
+      }
     } catch (err) {
       setErrorMsg(err.message || "Failed to sign in. Please verify your credentials.");
     } finally {

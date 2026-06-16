@@ -1,17 +1,17 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { 
-  Sparkles, 
-  Terminal, 
-  Map, 
-  Award, 
-  Cpu, 
-  ChevronRight, 
-  Users, 
-  BookOpen, 
-  ShieldCheck, 
-  GraduationCap 
+import {
+  Sparkles,
+  Terminal,
+  Map,
+  Award,
+  Cpu,
+  ChevronRight,
+  Users,
+  BookOpen,
+  ShieldCheck,
+  GraduationCap
 } from 'lucide-react';
 
 const LandingPage = () => {
@@ -87,7 +87,7 @@ const LandingPage = () => {
           <a href="#stats" className="hover:text-white transition-colors">Campus Success</a>
           <a href="#testimonials" className="hover:text-white transition-colors">Testimonials</a>
         </div>
-        <button 
+        <button
           onClick={() => navigate('/login')}
           className="bg-indigo-600 hover:bg-indigo-500 hover:shadow-lg hover:shadow-indigo-600/30 text-white font-bold px-5 py-2.5 rounded-xl border border-indigo-500/30 transition-all text-sm cursor-pointer"
         >
@@ -119,14 +119,14 @@ const LandingPage = () => {
               Unlock a personalized roadmap based on your strengths. Pass quizzes, level up, track streaks, and connect your study goals directly to salaries and certifications.
             </p>
             <div className="mt-10 flex flex-wrap gap-4">
-              <button 
-                onClick={() => navigate('/login')}
+              <button
+                onClick={() => navigate('/select-institution')}
                 className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold px-8 py-4 rounded-xl text-base shadow-xl shadow-indigo-600/20 flex items-center gap-2 group transition-all cursor-pointer"
               >
-                Go to Student Portal
+                Go to Institute Portal
                 <ChevronRight size={18} className="group-hover:translate-x-1 transition-transform" />
               </button>
-              <a 
+              <a
                 href="#features"
                 className="px-6 py-4 rounded-xl border border-slate-800 bg-slate-900/40 hover:bg-slate-900 hover:border-slate-700 text-slate-300 font-semibold text-sm transition-all flex items-center justify-center cursor-pointer"
               >
@@ -250,8 +250,8 @@ const LandingPage = () => {
           <p className="text-slate-300 mt-4 text-sm md:text-base max-w-lg mx-auto leading-relaxed">
             Join thousands of B.Tech / BE engineering students today and build verification analytics professors can rely on.
           </p>
-          <button 
-            onClick={() => navigate('/login')}
+          <button
+            onClick={() => navigate('/select-institution')}
             className="mt-8 bg-white hover:bg-slate-100 text-slate-950 font-extrabold px-8 py-4 rounded-xl shadow-lg transition-all transform hover:scale-105 cursor-pointer text-sm"
           >
             Launch Student Portal

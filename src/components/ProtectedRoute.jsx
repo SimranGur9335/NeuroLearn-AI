@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { Sparkles } from 'lucide-react';
 
 const ProtectedRoute = ({ children, allowedRoles }) => {
-  const { isAuthenticated, role, loading } = useAuth();
+  const { isAuthenticated, role, loading, user } = useAuth();
 
   if (loading) {
     return (
@@ -24,6 +24,11 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
     // Not logged in: route to Login Arena
     return <Navigate to="/login" replace />;
   }
+
+  if (user?.mustChangePassword) {
+    return <Navigate to="/change-password" replace />;
+  }
+
 
   if (allowedRoles && !allowedRoles.includes(role)) {
     // Authenticated but wrong credentials: route to authorized workspace

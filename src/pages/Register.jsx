@@ -70,7 +70,7 @@ const Register = () => {
   const [mobile, setMobile] = useState("");
   const [dept, setDept] = useState("CS");
   const [year, setYear] = useState("3rd Year");
-  const [role, setRole] = useState("student"); // 'student' | 'teacher' | 'admin'
+  const [role, setRole] = useState("admin"); // Only 'admin' role is registerable publicly
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [agreeTerms, setAgreeTerms] = useState(false);
@@ -106,8 +106,6 @@ const Register = () => {
   const theme = THEME_MAP[selectedInstitution?.theme_color] || THEME_MAP.indigo;
 
   const roles = [
-    { id: 'student', title: 'Student', icon: GraduationCap },
-    { id: 'teacher', title: 'Faculty', icon: Users },
     { id: 'admin', title: 'Admin', icon: Settings }
   ];
 
@@ -300,9 +298,7 @@ const Register = () => {
                 >
                   <option className="bg-slate-900 text-white" value="CS">Computer Science (CS)</option>
                   <option className="bg-slate-900 text-white" value="IT">Information Technology (IT)</option>
-                  <option className="bg-slate-900 text-white" value="ECE">Electronics & Telecom (ECE)</option>
-                  <option className="bg-slate-900 text-white" value="EEE">Electrical Engineering (EEE)</option>
-                  <option className="bg-slate-900 text-white" value="ME">Mechanical Engineering (ME)</option>
+
                 </select>
               </div>
             </div>

@@ -168,7 +168,7 @@ const CourseManagement = () => {
   };
 
   const getDeptList = () => {
-    return departments.length > 0 ? departments.map(d => d.department_code) : ["CS", "IT", "ECE", "EEE", "ME"];
+    return departments.length > 0 ? departments.map(d => d.department_code) : ["CS", "IT"];
   };
 
   const filteredCourses = courses.filter(course =>
