@@ -6,6 +6,7 @@ import PlatformLayout from './components/PlatformLayout';
 import TeacherLayout from './components/TeacherLayout';
 import AdminLayout from './components/AdminLayout';
 import ProtectedRoute from './components/ProtectedRoute';
+import InstitutionRequests from "./pages/platform-admin/InstitutionRequests";
 
 // Public & Selection Pages
 import LandingPage from './pages/LandingPage';
@@ -104,7 +105,7 @@ function App() {
             <Route
               path="/teacher/select-class"
               element={
-                <ProtectedRoute allowedRoles={['teacher']}>
+                <ProtectedRoute allowedRoles={['faculty']}>
                   <ClassSelection />
                 </ProtectedRoute>
               }
@@ -112,7 +113,7 @@ function App() {
 
             {/* Teacher Portal Layout & Routes */}
             <Route element={
-              <ProtectedRoute allowedRoles={['teacher']}>
+              <ProtectedRoute allowedRoles={['faculty']}>
                 <TeacherLayout />
               </ProtectedRoute>
             }>
@@ -155,11 +156,20 @@ function App() {
 
             {/* Fallback route */}
             <Route path="*" element={<Navigate to="/" replace />} />
+
+            {/* Platform Admin Routes */}
+            <Route
+              path="/platform-admin/requests"
+              element={<InstitutionRequests />}
+            />
           </Routes>
         </Router>
       </StudentProvider>
     </AuthProvider>
+
+    
   );
+  
 }
 
 export default App;

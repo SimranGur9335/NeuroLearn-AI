@@ -16,11 +16,11 @@ export const DEMO_ACCOUNTS = {
     college: "COEP Technological University",
     avatar: "🚀"
   },
-  teacher: {
+  faculty: {
     email: "teacher@neurolearn.ai",
     password: "Password123",
     name: "Dr. Alok Verma",
-    role: "teacher",
+    role: "faculty",
     branch: "Computer Engineering",
     designation: "Professor & Head",
     college: "COEP Technological University",

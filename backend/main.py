@@ -113,7 +113,7 @@ def verify_student_access(current_user: dict, student_id: int):
         
         if current_user["role"] == "admin":
             return
-        if current_user["role"] == "teacher":
+        if current_user["role"] == "faculty":
             query = text("""
                 SELECT 1 FROM enrollments e
                 JOIN faculty_assignments fa ON e.class_id = fa.class_id
@@ -266,6 +266,15 @@ class RegisterInput(BaseModel):
     faculty_code: Optional[str] = None
     designation: Optional[str] = None
 
+class InstitutionApplication(BaseModel):
+    institution_name: str
+    institution_code: str
+    contact_person: str
+    email: str
+    phone: str
+    website: str | None = None
+    address: str
+
 
 
 # --- Audit Logging Helper ---
@@ -361,7 +370,7 @@ def login_route(data: LoginInput):
                 name = student.full_name
                 roll_number = student.roll_no
                 branch = f"B.Tech {student.department}"
-        elif user.role == "teacher" and user.faculty_id:
+        elif user.role == "faculty" and user.faculty_id:
             faculty = db.execute(
                 text("SELECT full_name, department, designation FROM faculty WHERE faculty_id = :fid"),
                 {"fid": user.faculty_id}
@@ -393,6 +402,15 @@ def login_route(data: LoginInput):
         access_token = create_access_token(token_payload)
         refresh_token = create_refresh_token(token_payload)
 
+        # Determine avatar based on role
+        avatar = "🚀"
+        if user.role == "super_admin":
+            avatar = "👑"
+        elif user.role == "admin":
+            avatar = "🛡️"
+        elif user.role == "faculty":
+            avatar = "👨‍🏫"
+
         # Assemble user payload
         user_info = {
             "email": user.email,
@@ -402,7 +420,7 @@ def login_route(data: LoginInput):
             "institution_id": user.institution_id,
             "theme_color": inst_color,
             "logo_url": inst_logo,
-            "avatar": "🛡️" if user.role == "admin" else ("👨‍🏫" if user.role == "teacher" else "🚀")
+            "avatar": avatar
         }
         if user.student_id:
             user_info["student_id"] = user.student_id
@@ -430,7 +448,7 @@ def refresh_token_route(data: RefreshInput):
     db = SessionLocal()
     try:
         user = db.execute(
-            text("SELECT user_id, email, role, student_id, faculty_id FROM users WHERE user_id = :uid"),
+            text("SELECT user_id, email, role, student_id, faculty_id, institution_id FROM users WHERE user_id = :uid"),
             {"uid": payload["user_id"]}
         ).fetchone()
 
@@ -444,6 +462,10 @@ def refresh_token_route(data: RefreshInput):
         designation = None
         college = "COEP Technological University"
 
+        if user.role == "super_admin":
+            name = "Platform Owner"
+            college = "NeuroLearn AI Platform"
+
         if user.role == "student" and user.student_id:
             student = db.execute(
                 text("SELECT full_name, roll_no, department, division, semester FROM students WHERE student_id = :sid"),
@@ -453,7 +475,7 @@ def refresh_token_route(data: RefreshInput):
                 name = student.full_name
                 roll_number = student.roll_no
                 branch = f"B.Tech {student.department}"
-        elif user.role == "teacher" and user.faculty_id:
+        elif user.role == "faculty" and user.faculty_id:
             faculty = db.execute(
                 text("SELECT full_name, department, designation FROM faculty WHERE faculty_id = :fid"),
                 {"fid": user.faculty_id}
@@ -479,7 +501,7 @@ def refresh_token_route(data: RefreshInput):
             "role": user.role,
             "college": college,
             "institution_id": user.institution_id,
-            "avatar": "🛡️" if user.role == "admin" else ("👨‍🏫" if user.role == "teacher" else "🚀")
+            "avatar": "🛡️" if user.role == "admin" else ("👨‍🏫" if user.role == "faculty" else "🚀")
         }
         if user.student_id:
             user_info["student_id"] = user.student_id
@@ -545,6 +567,8 @@ def register_route(data: RegisterInput):
         student_id = None
         faculty_id = None
 
+
+
         if data.role == "student":
             roll_no = data.roll_no or f"MOCK{random.randint(1000, 9999)}"
             existing_student = db.execute(text("SELECT student_id FROM students WHERE roll_no = :roll OR email = :email"), {"roll": roll_no, "email": email}).fetchone()
@@ -576,7 +600,7 @@ def register_route(data: RegisterInput):
                     {"sid": student_id}
                 )
 
-        elif data.role == "teacher":
+        elif data.role == "faculty":
             code = data.faculty_code or f"FAC{random.randint(100, 999)}"
             existing_faculty = db.execute(text("SELECT faculty_id FROM faculty WHERE faculty_code = :code OR email = :email"), {"code": code, "email": email}).fetchone()
             if existing_faculty:
@@ -732,7 +756,7 @@ def predict_student_performance(data: StudentPerformanceInput):
     return {"predicted_grade": round(float(prediction[0]), 2)}
 
 
-# --- Teacher Telemetry Routes ---
+# --- faculty Telemetry Routes ---
 
 @app.get("/teacher/{faculty_id}/classes")
 def get_teacher_classes(faculty_id: int):
@@ -987,7 +1011,7 @@ def get_today_attendance(class_id: int):
 # --- Student CRUD (API-driven) ---
 
 @app.get("/students")
-def get_students(current_user: dict = Depends(require_role(["admin", "teacher"]))):
+def get_students(current_user: dict = Depends(require_role(["admin", "faculty"]))):
     db = SessionLocal()
     try:
         result = db.execute(
@@ -1120,7 +1144,7 @@ def delete_student(student_id: int, current_user: dict = Depends(require_role(["
 # --- Faculty CRUD ---
 
 @app.get("/faculty")
-def get_faculty(current_user: dict = Depends(require_role(["admin", "teacher"]))):
+def get_faculty(current_user: dict = Depends(require_role(["admin", "faculty"]))):
     db = SessionLocal()
     try:
         result = db.execute(
@@ -1985,16 +2009,16 @@ def delete_course_subject_mapping(mapping_id: int):
 def get_announcements(current_user: dict = Depends(get_current_user)):
     db = SessionLocal()
     try:
-        role = current_user["role"]
-        iid = current_user["institution_id"]
+        role = current_user["role"] 
+        iid = current_user.get("institution_id")
         
         if role == "admin":
             # Admin sees all announcements in their institution
             query = text("SELECT * FROM announcements WHERE institution_id = :iid ORDER BY announcement_id DESC")
             result = db.execute(query, {"iid": iid}).fetchall()
             
-        elif role == "teacher":
-            # Teacher sees: Institution targets, Faculty targets, and their own sent announcements
+        elif role == "faculty":
+            # faculty sees: Institution targets, Faculty targets, and their own sent announcements
             faculty_id = current_user["faculty_id"]
             faculty = db.execute(text("SELECT department FROM faculty WHERE faculty_id = :fid"), {"fid": faculty_id}).fetchone()
             dept = faculty.department if faculty else ""
@@ -2008,7 +2032,7 @@ def get_announcements(current_user: dict = Depends(get_current_user)):
                     OR (a.target_type = 'Department' AND a.target_id IN (
                         SELECT department_id FROM departments WHERE department_name = :dept
                     ))
-                    OR (a.sender_type = 'teacher' AND a.sender_id = :fid)
+                    OR (a.sender_type = 'faculty' AND a.sender_id = :fid)
                   )
                 ORDER BY a.announcement_id DESC
             """)
@@ -2055,7 +2079,7 @@ def get_announcements(current_user: dict = Depends(get_current_user)):
         for r in result:
             # Resolve sender name
             sender_name = "System Administrator"
-            if r.sender_type == "teacher":
+            if r.sender_type == "faculty":
                 sender = db.execute(text("SELECT full_name FROM faculty WHERE faculty_id = :fid"), {"fid": r.sender_id}).fetchone()
                 if sender:
                     sender_name = sender.full_name
@@ -2100,11 +2124,11 @@ def mark_announcement_as_read(announcement_id: int, current_user: dict = Depends
         db.close()
 
 @app.post("/announcements")
-def create_announcement(data: AnnouncementInput, current_user: dict = Depends(require_role(["admin", "teacher"]))):
+def create_announcement(data: AnnouncementInput, current_user: dict = Depends(require_role(["admin", "faculty"]))):
     db = SessionLocal()
     try:
         sender_type = current_user["role"]
-        sender_id = current_user["faculty_id"] if sender_type == "teacher" else current_user["user_id"]
+        sender_id = current_user["faculty_id"] if sender_type == "faculty" else current_user["user_id"]
         iid = current_user["institution_id"]
         
         new_id = db.execute(
@@ -2143,7 +2167,7 @@ def create_announcement(data: AnnouncementInput, current_user: dict = Depends(re
 def update_announcement(
     announcement_id: int,
     data: AnnouncementInput,
-    current_user: dict = Depends(require_role(["admin", "teacher"]))
+    current_user: dict = Depends(require_role(["admin", "faculty"]))
 ):
     db = SessionLocal()
     try:
@@ -2153,8 +2177,8 @@ def update_announcement(
         if ann.institution_id != current_user["institution_id"]:
             raise HTTPException(status_code=403, detail="Access denied: Announcement belongs to another institution")
 
-        if current_user["role"] == "teacher":
-            if ann.sender_type != "teacher" or ann.sender_id != current_user["faculty_id"]:
+        if current_user["role"] == "faculty":
+            if ann.sender_type != "faculty" or ann.sender_id != current_user["faculty_id"]:
                 raise HTTPException(status_code=403, detail="Access denied: You do not own this announcement")
 
         db.execute(
@@ -2183,7 +2207,7 @@ def update_announcement(
 @app.delete("/announcements/{announcement_id}")
 def delete_announcement(
     announcement_id: int,
-    current_user: dict = Depends(require_role(["admin", "teacher"]))
+    current_user: dict = Depends(require_role(["admin", "faculty"]))
 ):
     db = SessionLocal()
     try:
@@ -2193,8 +2217,8 @@ def delete_announcement(
         if ann.institution_id != current_user["institution_id"]:
             raise HTTPException(status_code=403, detail="Access denied: Announcement belongs to another institution")
 
-        if current_user["role"] == "teacher":
-            if ann.sender_type != "teacher" or ann.sender_id != current_user["faculty_id"]:
+        if current_user["role"] == "faculty":
+            if ann.sender_type != "faculty" or ann.sender_id != current_user["faculty_id"]:
                 raise HTTPException(status_code=403, detail="Access denied: You do not own this announcement")
 
         db.execute(text("DELETE FROM announcements WHERE announcement_id = :id"), {"id": announcement_id})
@@ -2499,7 +2523,7 @@ def get_my_profile(current_user: dict = Depends(get_current_user)):
                     "division": s.division,
                     "avatar": s.avatar_url or "🚀"
                 })
-        elif role == "teacher" and current_user["faculty_id"]:
+        elif role == "faculty" and current_user["faculty_id"]:
             f = db.execute(text("SELECT * FROM faculty WHERE faculty_id = :fid"), {"fid": current_user["faculty_id"]}).fetchone()
             if f:
                 profile_data.update({
@@ -2541,7 +2565,7 @@ def update_my_profile(data: dict, current_user: dict = Depends(get_current_user)
             )
             db.commit()
             log_audit(db, "UPDATE_PROFILE", "Student", sid, performed_by=f"Student {sid}")
-        elif role == "teacher" and current_user["faculty_id"]:
+        elif role == "faculty" and current_user["faculty_id"]:
             fid = current_user["faculty_id"]
             db.execute(
                 text("""
@@ -2573,7 +2597,7 @@ def update_my_avatar(data: AvatarUpdateInput, current_user: dict = Depends(get_c
         if role == "student" and current_user["student_id"]:
             db.execute(text("UPDATE students SET avatar_url = :url WHERE student_id = :sid"), {"url": data.avatar_url, "sid": current_user["student_id"]})
             db.commit()
-        elif role == "teacher" and current_user["faculty_id"]:
+        elif role == "faculty" and current_user["faculty_id"]:
             db.execute(text("UPDATE faculty SET avatar_url = :url WHERE faculty_id = :fid"), {"url": data.avatar_url, "fid": current_user["faculty_id"]})
             db.commit()
         return {"success": True, "message": "Avatar updated successfully"}
@@ -2619,6 +2643,8 @@ def change_my_password(data: PasswordChangeInput, current_user: dict = Depends(g
                 VALUES (:uid, :email, 'PASSWORD_CHANGE_SUCCESS', 'Successfully changed password', CURRENT_TIMESTAMP)
             """),
             {"uid": uid, "email": current_user["email"]}
+
+
         )
         db.commit()
         log_audit(db, "CHANGE_PASSWORD", "User", uid, performed_by=f"User {uid}")
@@ -2769,7 +2795,7 @@ def get_report_active_sessions(current_user: dict = Depends(require_role(["admin
         db.close()
 
 
-# --- Pydantic Schemas for V1 Teacher Portal ---
+# --- Pydantic Schemas for V1 faculty Portal ---
 from typing import List, Dict
 
 class AttendanceRecordInput(BaseModel):
@@ -2936,11 +2962,11 @@ def get_mapping_audit():
 
 @app.get("/attendance/records")
 def get_attendance_records(class_id: int, subject_id: int, date: str, current_user: dict = Depends(get_current_user)):
-    if current_user["role"] not in ["admin", "teacher"]:
+    if current_user["role"] not in ["admin", "faculty"]:
         raise HTTPException(status_code=403, detail="Access denied")
     db = SessionLocal()
     try:
-        if current_user["role"] == "teacher":
+        if current_user["role"] == "faculty":
             verify_teacher_access(db, current_user["faculty_id"], class_id, subject_id)
             
         # Load students in class
@@ -2974,12 +3000,12 @@ def get_attendance_records(class_id: int, subject_id: int, date: str, current_us
 
 @app.post("/attendance/save")
 def save_attendance(data: AttendanceSaveInput, current_user: dict = Depends(get_current_user)):
-    if current_user["role"] not in ["admin", "teacher"]:
+    if current_user["role"] not in ["admin", "faculty"]:
         raise HTTPException(status_code=403, detail="Access denied")
     db = SessionLocal()
     try:
-        faculty_id = current_user["faculty_id"] if current_user["role"] == "teacher" else data.faculty_id
-        if current_user["role"] == "teacher":
+        faculty_id = current_user["faculty_id"] if current_user["role"] == "faculty" else data.faculty_id
+        if current_user["role"] == "faculty":
             verify_teacher_access(db, faculty_id, data.class_id, data.subject_id)
             
         # Save records
@@ -3018,11 +3044,11 @@ def save_attendance(data: AttendanceSaveInput, current_user: dict = Depends(get_
 
 @app.get("/attendance/history")
 def get_attendance_history(class_id: int, subject_id: int, current_user: dict = Depends(get_current_user)):
-    if current_user["role"] not in ["admin", "teacher"]:
+    if current_user["role"] not in ["admin", "faculty"]:
         raise HTTPException(status_code=403, detail="Access denied")
     db = SessionLocal()
     try:
-        if current_user["role"] == "teacher":
+        if current_user["role"] == "faculty":
             verify_teacher_access(db, current_user["faculty_id"], class_id, subject_id)
             
         history = db.execute(text("""
@@ -3049,11 +3075,11 @@ def get_attendance_history(class_id: int, subject_id: int, current_user: dict = 
 
 @app.get("/attendance/monthly-report")
 def get_monthly_attendance_report(class_id: int, subject_id: int, month: int, year: int, current_user: dict = Depends(get_current_user)):
-    if current_user["role"] not in ["admin", "teacher"]:
+    if current_user["role"] not in ["admin", "faculty"]:
         raise HTTPException(status_code=403, detail="Access denied")
     db = SessionLocal()
     try:
-        if current_user["role"] == "teacher":
+        if current_user["role"] == "faculty":
             verify_teacher_access(db, current_user["faculty_id"], class_id, subject_id)
             
         # Load students
@@ -3116,11 +3142,11 @@ def get_monthly_attendance_report(class_id: int, subject_id: int, month: int, ye
 
 @app.get("/teacher/{faculty_id}/students")
 def get_teacher_students(faculty_id: int, current_user: dict = Depends(get_current_user)):
-    if current_user["role"] == "teacher" and current_user["faculty_id"] != faculty_id:
+    if current_user["role"] == "faculty" and current_user["faculty_id"] != faculty_id:
         raise HTTPException(status_code=403, detail="Access denied: Faculty ID mismatch")
     db = SessionLocal()
     try:
-        # Get all classes assigned to teacher
+        # Get all classes assigned to faculty
         classes = db.execute(text("""
             SELECT class_id FROM faculty_assignments WHERE faculty_id = :fid
         """), {"fid": faculty_id}).fetchall()
@@ -3254,7 +3280,7 @@ def get_student_profile_v1(student_id: int, current_user: dict = Depends(get_cur
 def get_assignments(class_id: int, subject_id: int, current_user: dict = Depends(get_current_user)):
     db = SessionLocal()
     try:
-        if current_user["role"] == "teacher":
+        if current_user["role"] == "faculty":
             verify_teacher_access(db, current_user["faculty_id"], class_id, subject_id)
         elif current_user["role"] == "student":
             q = text("SELECT 1 FROM enrollments WHERE student_id = :sid AND class_id = :cid")
@@ -3283,11 +3309,11 @@ def get_assignments(class_id: int, subject_id: int, current_user: dict = Depends
 
 @app.post("/assignments")
 def create_assignment(data: AssignmentCreateInput, current_user: dict = Depends(get_current_user)):
-    if current_user["role"] not in ["admin", "teacher"]:
+    if current_user["role"] not in ["admin", "faculty"]:
         raise HTTPException(status_code=403, detail="Access denied")
     db = SessionLocal()
     try:
-        faculty_id = current_user["faculty_id"] if current_user["role"] == "teacher" else data.faculty_id
+        faculty_id = current_user["faculty_id"] if current_user["role"] == "faculty" else data.faculty_id
         verify_teacher_access(db, faculty_id, data.class_id, data.subject_id)
             
         new_id = db.execute(text("""
@@ -3327,7 +3353,7 @@ def create_assignment(data: AssignmentCreateInput, current_user: dict = Depends(
 
 @app.put("/assignments/{assignment_id}")
 def update_assignment(assignment_id: int, data: AssignmentCreateInput, current_user: dict = Depends(get_current_user)):
-    if current_user["role"] not in ["admin", "teacher"]:
+    if current_user["role"] not in ["admin", "faculty"]:
         raise HTTPException(status_code=403, detail="Access denied")
     db = SessionLocal()
     try:
@@ -3336,7 +3362,7 @@ def update_assignment(assignment_id: int, data: AssignmentCreateInput, current_u
         if not assign:
             raise HTTPException(status_code=404, detail="Assignment not found")
             
-        faculty_id = current_user["faculty_id"] if current_user["role"] == "teacher" else data.faculty_id
+        faculty_id = current_user["faculty_id"] if current_user["role"] == "faculty" else data.faculty_id
         verify_teacher_access(db, faculty_id, assign.class_id, assign.subject_id)
             
         db.execute(text("""
@@ -3361,7 +3387,7 @@ def update_assignment(assignment_id: int, data: AssignmentCreateInput, current_u
 
 @app.delete("/assignments/{assignment_id}")
 def delete_assignment(assignment_id: int, faculty_id: int, current_user: dict = Depends(get_current_user)):
-    if current_user["role"] not in ["admin", "teacher"]:
+    if current_user["role"] not in ["admin", "faculty"]:
         raise HTTPException(status_code=403, detail="Access denied")
     db = SessionLocal()
     try:
@@ -3369,7 +3395,7 @@ def delete_assignment(assignment_id: int, faculty_id: int, current_user: dict = 
         if not assign:
             raise HTTPException(status_code=404, detail="Assignment not found")
             
-        fid = current_user["faculty_id"] if current_user["role"] == "teacher" else faculty_id
+        fid = current_user["faculty_id"] if current_user["role"] == "faculty" else faculty_id
         verify_teacher_access(db, fid, assign.class_id, assign.subject_id)
             
         db.execute(text("DELETE FROM assignment_submissions WHERE assignment_id = :id"), {"id": assignment_id})
@@ -3385,7 +3411,7 @@ def delete_assignment(assignment_id: int, faculty_id: int, current_user: dict = 
 
 @app.get("/assignments/{assignment_id}/submissions")
 def get_assignment_submissions(assignment_id: int, current_user: dict = Depends(get_current_user)):
-    if current_user["role"] not in ["admin", "teacher"]:
+    if current_user["role"] not in ["admin", "faculty"]:
         raise HTTPException(status_code=403, detail="Access denied")
     db = SessionLocal()
     try:
@@ -3393,7 +3419,7 @@ def get_assignment_submissions(assignment_id: int, current_user: dict = Depends(
         if not assign:
             raise HTTPException(status_code=404, detail="Assignment not found")
             
-        if current_user["role"] == "teacher":
+        if current_user["role"] == "faculty":
             verify_teacher_access(db, current_user["faculty_id"], assign.class_id, assign.subject_id)
 
         submissions = db.execute(text("""
@@ -3424,7 +3450,7 @@ def get_assignment_submissions(assignment_id: int, current_user: dict = Depends(
 
 @app.post("/submissions/{submission_id}/grade")
 def grade_submission(submission_id: int, data: GradeSubmissionInput, current_user: dict = Depends(get_current_user)):
-    if current_user["role"] not in ["admin", "teacher"]:
+    if current_user["role"] not in ["admin", "faculty"]:
         raise HTTPException(status_code=403, detail="Access denied")
     db = SessionLocal()
     try:
@@ -3437,7 +3463,7 @@ def grade_submission(submission_id: int, data: GradeSubmissionInput, current_use
         if not sub:
             raise HTTPException(status_code=404, detail="Submission not found")
             
-        faculty_id = current_user["faculty_id"] if current_user["role"] == "teacher" else data.faculty_id
+        faculty_id = current_user["faculty_id"] if current_user["role"] == "faculty" else data.faculty_id
         verify_teacher_access(db, faculty_id, sub.class_id, sub.subject_id)
             
         db.execute(text("""
@@ -3519,7 +3545,7 @@ def submit_assignment(assignment_id: int, data: StudentSubmissionInput, current_
 def get_student_marks(class_id: int, subject_id: int, current_user: dict = Depends(get_current_user)):
     db = SessionLocal()
     try:
-        if current_user["role"] == "teacher":
+        if current_user["role"] == "faculty":
             verify_teacher_access(db, current_user["faculty_id"], class_id, subject_id)
         elif current_user["role"] == "student":
             q = text("SELECT 1 FROM enrollments WHERE student_id = :sid AND class_id = :cid")
@@ -3562,11 +3588,11 @@ def get_student_marks(class_id: int, subject_id: int, current_user: dict = Depen
 
 @app.post("/marks/bulk-entry")
 def save_student_marks_bulk(data: BulkMarksInput, current_user: dict = Depends(get_current_user)):
-    if current_user["role"] not in ["admin", "teacher"]:
+    if current_user["role"] not in ["admin", "faculty"]:
         raise HTTPException(status_code=403, detail="Access denied")
     db = SessionLocal()
     try:
-        faculty_id = current_user["faculty_id"] if current_user["role"] == "teacher" else data.faculty_id
+        faculty_id = current_user["faculty_id"] if current_user["role"] == "faculty" else data.faculty_id
         verify_teacher_access(db, faculty_id, data.class_id, data.subject_id)
             
         class_info = db.execute(text("SELECT term_id FROM classes WHERE class_id = :id"), {"id": data.class_id}).fetchone()
@@ -3629,13 +3655,13 @@ def save_student_marks_bulk(data: BulkMarksInput, current_user: dict = Depends(g
     finally:
         db.close()
 
-@app.post("/teacher/run-risk-engine")
+@app.post("/faculty/run-risk-engine")
 def run_risk_engine(data: RunRiskEngineInput, current_user: dict = Depends(get_current_user)):
-    if current_user["role"] not in ["admin", "teacher"]:
+    if current_user["role"] not in ["admin", "faculty"]:
         raise HTTPException(status_code=403, detail="Access denied")
     db = SessionLocal()
     try:
-        faculty_id = current_user["faculty_id"] if current_user["role"] == "teacher" else data.faculty_id
+        faculty_id = current_user["faculty_id"] if current_user["role"] == "faculty" else data.faculty_id
         verify_teacher_access(db, faculty_id, data.class_id)
         
         # Load students in class
@@ -3741,13 +3767,13 @@ def run_risk_engine(data: RunRiskEngineInput, current_user: dict = Depends(get_c
     finally:
         db.close()
 
-@app.get("/teacher/{faculty_id}/analytics")
-def get_teacher_analytics(faculty_id: int, current_user: dict = Depends(get_current_user)):
-    if current_user["role"] == "teacher" and current_user["faculty_id"] != faculty_id:
+@app.get("/faculty/{faculty_id}/analytics")
+def get_faculty_analytics(faculty_id: int, current_user: dict = Depends(get_current_user)):
+    if current_user["role"] == "faculty" and current_user["faculty_id"] != faculty_id:
         raise HTTPException(status_code=403, detail="Access denied: Faculty ID mismatch")
     db = SessionLocal()
     try:
-        # Load classes assigned to teacher
+        # Load classes assigned to faculty
         classes = db.execute(text("""
             SELECT fa.class_id, fa.subject_id, c.class_name, s.subject_name
             FROM faculty_assignments fa
@@ -3847,3 +3873,220 @@ def get_teacher_analytics(faculty_id: int, current_user: dict = Depends(get_curr
         db.close()
 
 
+@app.post("/api/v1/institution/apply")
+def apply_institution(data: InstitutionApplication):
+    db = SessionLocal()
+
+    try:
+        existing = db.execute(
+            text("""
+                SELECT request_id
+                FROM institution_requests
+                WHERE email = :email
+                AND status = 'pending'
+            """),
+            {"email": data.email}
+        ).fetchone()
+
+        if existing:
+            raise HTTPException(
+                status_code=400,
+                detail="Application already pending"
+            )
+
+        db.execute(
+            text("""
+                INSERT INTO institution_requests (
+                    institution_name,
+                    institution_code,
+                    contact_person,
+                    email,
+                    phone,
+                    website,
+                    address,
+                    status,
+                    created_at
+                )
+                VALUES (
+                    :institution_name,
+                    :institution_code,
+                    :contact_person,
+                    :email,
+                    :phone,
+                    :website,
+                    :address,
+                    'pending',
+                    CURRENT_TIMESTAMP
+                )
+            """),
+            {
+                "institution_name": data.institution_name,
+                "institution_code": data.institution_code.upper(),
+                "contact_person": data.contact_person,
+                "email": data.email,
+                "phone": data.phone,
+                "website": data.website,
+                "address": data.address
+            }
+        )
+
+        db.commit()
+
+        return {
+            "success": True,
+            "message": "Institution application submitted successfully"
+        }
+
+    finally:
+        db.close()
+
+@app.get("/api/v1/platform-admin/institution-requests")
+def get_institution_requests():
+    db = SessionLocal()
+
+    try:
+        rows = db.execute(
+            text("""
+                SELECT
+                    request_id,
+                    institution_name,
+                    institution_code,
+                    contact_person,
+                    email,
+                    phone,
+                    website,
+                    address,
+                    status,
+                    created_at
+                FROM institution_requests
+                ORDER BY created_at DESC
+            """)
+        ).fetchall()
+
+        return [
+            {
+                "request_id": row.request_id,
+                "institution_name": row.institution_name,
+                "institution_code": row.institution_code,
+                "contact_person": row.contact_person,
+                "email": row.email,
+                "phone": row.phone,
+                "website": row.website,
+                "address": row.address,
+                "status": row.status,
+                "created_at": str(row.created_at)
+            }
+            for row in rows
+        ]
+
+    finally:
+        db.close()
+
+@app.post("/api/v1/platform-admin/approve/{request_id}")
+def approve_institution(request_id: int):
+    db = SessionLocal()
+
+    try:
+        request = db.execute(
+            text("""
+                SELECT *
+                FROM institution_requests
+                WHERE request_id = :rid
+            """),
+            {"rid": request_id}
+        ).fetchone()
+
+        if not request:
+            raise HTTPException(
+                status_code=404,
+                detail="Request not found"
+            )
+
+        institution = db.execute(
+            text("""
+                SELECT institution_id
+                FROM institutions
+                WHERE
+                    REPLACE(UPPER(short_name),' ','') = 
+                    REPLACE(UPPER(:code),' ','')
+            """),
+            {"code": request.institution_code}
+        ).fetchone()
+
+        if not institution:
+            raise HTTPException(
+                status_code=404,
+                detail="Institution not found"
+            )
+
+        existing_admin = db.execute(
+            text("""
+                SELECT user_id
+                FROM users
+                WHERE role='admin'
+                AND institution_id=:iid
+            """),
+            {"iid": institution.institution_id}
+        ).fetchone()
+
+        if existing_admin:
+            raise HTTPException(
+                status_code=400,
+                detail="Admin already exists"
+            )
+
+        admin_email = f"admin_{request.institution_code.lower()}@neurolearn.ai"
+
+        db.execute(
+            text("""
+                INSERT INTO users (
+                    email,
+                    password_hash,
+                    role,
+                    institution_id,
+                    must_change_password,
+                    is_active,
+                    created_at,
+                    updated_at
+                )
+                VALUES (
+                    :email,
+                    :hash,
+                    'admin',
+                    :iid,
+                    TRUE,
+                    TRUE,
+                    CURRENT_TIMESTAMP,
+                    CURRENT_TIMESTAMP
+                )
+            """),
+            {
+                "email": admin_email,
+                "iid": institution.institution_id,
+
+                # temporary password hash
+                "hash": "$2b$12$QoUoIW8ECFB3IPpaWfQbR.PDPzv.I8K14Q2Zjd8XYDvtZ71aFM04W"
+            }
+        )
+
+        db.execute(
+            text("""
+                UPDATE institution_requests
+                SET status='approved',
+                    approved_at=CURRENT_TIMESTAMP
+                WHERE request_id=:rid
+            """),
+            {"rid": request_id}
+        )
+
+        db.commit()
+
+        return {
+            "success": True,
+            "institution": request.institution_name,
+            "admin_email": admin_email,
+            "temporary_password": "Admin@123"
+        }
+
+    finally:
+        db.close()
