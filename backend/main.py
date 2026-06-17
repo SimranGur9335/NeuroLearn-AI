@@ -201,6 +201,9 @@ class DepartmentInput(BaseModel):
     department_name: str
     department_code: str
 
+class ForgotPasswordInput(BaseModel):
+    email: str
+
 class ClassInput(BaseModel):
     class_name: str
     division: str
@@ -489,6 +492,24 @@ def refresh_token_route(data: RefreshInput):
         designation = None
         college = "COEP Technological University"
 
+        inst_color = None
+        inst_logo = None
+
+        if user.institution_id:
+            inst = db.execute(
+                text("""
+            SELECT institution_name, theme_color, logo_url
+            FROM institutions
+                    WHERE institution_id = :iid
+                """),
+                {"iid": user.institution_id}
+            ).fetchone()
+
+            if inst:
+                college = inst.institution_name
+                inst_color = inst.theme_color
+                inst_logo = inst.logo_url
+
         if user.role == "super_admin":
             name = "Platform Owner"
             college = "NeuroLearn AI Platform"
@@ -529,8 +550,10 @@ def refresh_token_route(data: RefreshInput):
             "role": user.role,
             "college": college,
             "institution_id": user.institution_id,
-            "avatar": "🛡️" if user.role == "admin" else ("👨‍🏫" if user.role == "faculty" else "🚀")
-        }
+    "theme_color": inst_color,
+    "logo_url": inst_logo,
+    "avatar": "🛡️" if user.role == "admin" else ("👨‍🏫" if user.role == "faculty" else "🚀")
+}
         if user.student_id:
             user_info["student_id"] = user.student_id
             user_info["rollNumber"] = roll_number
@@ -1108,7 +1131,7 @@ def get_student_profile(student_id: int, current_user: dict = Depends(get_curren
     finally:
         db.close()
 
-@app.post("/students")
+@app.post("/api/students")
 def create_student(data: StudentInput, current_user: dict = Depends(require_role(["admin"]))):
     db = SessionLocal()
     try:
@@ -1258,7 +1281,7 @@ def get_faculty_profile(faculty_id: int, current_user: dict = Depends(get_curren
     finally:
         db.close()
 
-@app.post("/faculty")
+@app.post("/api/faculty")
 def create_faculty(data: FacultyInput, current_user: dict = Depends(require_role(["admin"]))):
     db = SessionLocal()
     try:
@@ -1340,7 +1363,7 @@ def delete_faculty(faculty_id: int, current_user: dict = Depends(require_role(["
 
 # --- Faculty Mapping CRUD ---
 
-@app.get("/faculty-mapping")
+@app.get("/api/faculty-mapping")
 def get_mappings():
     db = SessionLocal()
     result = db.execute(
@@ -1370,7 +1393,7 @@ def get_mappings():
     db.close()
     return mappings
 
-@app.post("/faculty-mapping")
+@app.post("/api/faculty-mapping")
 def create_mapping(data: FacultyMappingInput):
     db = SessionLocal()
     new_id = db.execute(
@@ -1425,7 +1448,7 @@ def delete_mapping(mapping_id: int):
 
 # --- Course CRUD ---
 
-@app.get("/courses")
+@app.get("/api/courses")
 def get_courses(current_user: dict = Depends(get_current_user)):
     db = SessionLocal()
     try:
@@ -1448,7 +1471,7 @@ def get_courses(current_user: dict = Depends(get_current_user)):
     finally:
         db.close()
 
-@app.post("/courses")
+@app.post("/api/courses")
 def create_course(data: CourseInput, current_user: dict = Depends(require_role(["admin"]))):
     db = SessionLocal()
     try:
@@ -1527,7 +1550,7 @@ def delete_course(course_id: int, current_user: dict = Depends(require_role(["ad
 
 # --- Subject CRUD ---
 
-@app.get("/subjects")
+@app.get("/api/subjects")
 def get_subjects(current_user: dict = Depends(get_current_user)):
     db = SessionLocal()
     try:
@@ -1549,7 +1572,7 @@ def get_subjects(current_user: dict = Depends(get_current_user)):
     finally:
         db.close()
 
-@app.post("/subjects")
+@app.post("/api/subjects")
 def create_subject(data: SubjectInput, current_user: dict = Depends(require_role(["admin"]))):
     db = SessionLocal()
     try:
@@ -1629,7 +1652,7 @@ def delete_subject(subject_id: int, current_user: dict = Depends(require_role(["
 
 # --- Class CRUD ---
 
-@app.get("/classes")
+@app.get("/api/classes")
 def get_classes(current_user: dict = Depends(get_current_user)):
     db = SessionLocal()
     try:
@@ -1651,7 +1674,7 @@ def get_classes(current_user: dict = Depends(get_current_user)):
     finally:
         db.close()
 
-@app.post("/classes")
+@app.post("/api/classes")
 def create_class(data: ClassInput, current_user: dict = Depends(require_role(["admin"]))):
     db = SessionLocal()
     try:
@@ -1750,7 +1773,7 @@ def get_departments(current_user: dict = Depends(get_current_user)):
     finally:
         db.close()
 
-@app.post("/departments")
+@app.post("/api/departments")
 def create_department(data: DepartmentInput, current_user: dict = Depends(require_role(["admin"]))):
     db = SessionLocal()
     try:
@@ -1852,7 +1875,7 @@ def get_department_stats():
 
 # --- Phase C: Enrollment Management & History ---
 
-@app.get("/enrollments")
+@app.get("/api/enrollments")
 def get_enrollments():
     db = SessionLocal()
     result = db.execute(text("""
@@ -1880,7 +1903,7 @@ def get_enrollments():
     db.close()
     return enrollments
 
-@app.post("/enrollments")
+@app.post("/api/enrollments")
 def create_enrollment(data: EnrollmentInput):
     db = SessionLocal()
     # Check if student is already enrolled in this class
@@ -1965,7 +1988,7 @@ def get_enrollment_history(student_id: int):
 
 # --- Phase D: Course-Subject Mapping ---
 
-@app.get("/course-subject-mappings")
+@app.get("/api/course-subject-mappings")
 def get_course_subject_mappings():
     db = SessionLocal()
     result = db.execute(text("""
@@ -1993,7 +2016,7 @@ def get_course_subject_mappings():
     db.close()
     return mappings
 
-@app.post("/course-subject-mappings")
+@app.post("/api/course-subject-mappings")
 def create_course_subject_mapping(data: CourseSubjectMappingInput):
     db = SessionLocal()
     existing = db.execute(
@@ -4477,3 +4500,40 @@ def change_password(data: ChangePasswordInput, current_user: dict = Depends(get_
         db.close()
 
 
+@app.post("/api/v1/auth/forgot-password")
+def forgot_password(data: ForgotPasswordInput):
+    db = SessionLocal()
+
+    user = db.execute(
+        text("""
+            SELECT user_id,email
+            FROM users
+            WHERE email=:email
+        """),
+        {"email": data.email}
+    ).fetchone()
+
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    temp_password = "Password@123"
+
+    db.execute(
+        text("""
+            UPDATE users
+            SET password_hash=:pwd,
+                must_change_password=TRUE
+            WHERE user_id=:uid
+        """),
+        {
+            "pwd": hash_password(temp_password),
+            "uid": user.user_id
+        }
+    )
+
+    db.commit()
+
+    return {
+        "success": True,
+        "temporary_password": temp_password
+    }

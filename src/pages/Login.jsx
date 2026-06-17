@@ -342,6 +342,7 @@ const Login = () => {
         </form>
 
         {/* Footer redirection */}
+        {/* Hidden for MVP */}
         <div className="text-center pt-2 text-xs text-slate-400 border-t border-slate-900">
           <span>New to NeuroLearn? </span>
           <button

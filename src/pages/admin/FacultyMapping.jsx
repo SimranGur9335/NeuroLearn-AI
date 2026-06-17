@@ -38,9 +38,9 @@ const FacultyMapping = () => {
     const fetchDependencies = async () => {
       try {
         const [facRes, subRes, classRes] = await Promise.all([
-          fetch("http://127.0.0.1:8000/faculty"),
-          fetch("http://127.0.0.1:8000/subjects"),
-          fetch("http://127.0.0.1:8000/classes")
+          fetch("http://127.0.0.1:8000/api/faculty"),
+          fetch("http://127.0.0.1:8000/api/subjects"),
+          fetch("http://127.0.0.1:8000/api/classes")
         ]);
 
         if (facRes.ok) {
@@ -74,7 +74,7 @@ const FacultyMapping = () => {
 
   const loadMappings = async () => {
     try {
-      const response = await fetch("http://127.0.0.1:8000/faculty-mapping");
+      const response = await fetch("http://127.0.0.1:8000/api/faculty-mapping");
       if (!response.ok) {
         throw new Error("Failed to load mappings");
       }
@@ -111,7 +111,7 @@ const FacultyMapping = () => {
 
     try {
       const res = await fetch(
-        "http://127.0.0.1:8000/faculty-mapping",
+        "http://127.0.0.1:8000/api/faculty-mapping",
         {
           method: "POST",
           headers: {

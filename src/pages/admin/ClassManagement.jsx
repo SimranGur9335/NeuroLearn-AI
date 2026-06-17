@@ -24,11 +24,11 @@ const ClassManagement = () => {
 
   const loadData = async () => {
     try {
-      const cRes = await fetch("http://127.0.0.1:8000/classes");
+      const cRes = await fetch("http://127.0.0.1:8000/api/classes");
       const cData = await cRes.json();
       setClassesList(cData);
 
-      const dRes = await fetch("http://127.0.0.1:8000/departments");
+      const dRes = await fetch("http://127.0.0.1:8000/api/departments");
       const dData = await dRes.json();
       setDepartments(dData);
       if (dData.length > 0 && !formDept) {

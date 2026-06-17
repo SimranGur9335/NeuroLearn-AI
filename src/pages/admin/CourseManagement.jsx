@@ -18,12 +18,12 @@ const CourseManagement = () => {
   const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
-    fetch("http://127.0.0.1:8000/courses")
+    fetch("http://127.0.0.1:8000/api/courses")
       .then((res) => res.json())
       .then((data) => setCourses(data))
       .catch((err) => console.error(err));
 
-    fetch("http://127.0.0.1:8000/departments")
+    fetch("http://127.0.0.1:8000/api/departments")
       .then((res) => res.json())
       .then((data) => setDepartments(data))
       .catch((err) => console.error(err));
@@ -65,7 +65,7 @@ const CourseManagement = () => {
 
     try {
       await fetch(
-        "http://127.0.0.1:8000/courses",
+        "http://127.0.0.1:8000/api/courses",
         {
           method: "POST",
           headers: {
@@ -82,7 +82,7 @@ const CourseManagement = () => {
       );
 
       const response = await fetch(
-        "http://127.0.0.1:8000/courses"
+        "http://127.0.0.1:8000/api/courses"
       );
 
       const data = await response.json();
@@ -116,9 +116,7 @@ const CourseManagement = () => {
         }
       );
 
-      const response = await fetch(
-        "http://127.0.0.1:8000/courses"
-      );
+      const response = await fetch("http://127.0.0.1:8000/api/courses");
 
       const data = await response.json();
 
@@ -144,16 +142,9 @@ const CourseManagement = () => {
 
     try {
 
-      await fetch(
-        `http://127.0.0.1:8000/courses/${courseId}`,
-        {
-          method: "DELETE"
-        }
-      );
+      await fetch(`http://127.0.0.1:8000/courses/${courseId}`,{ method: "DELETE" } );
 
-      const response = await fetch(
-        "http://127.0.0.1:8000/courses"
-      );
+      const response = await fetch("http://127.0.0.1:8000/apicourses");
 
       const data = await response.json();
 

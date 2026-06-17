@@ -14,7 +14,7 @@ const FacultyWorkload = () => {
 
   const loadFaculty = async () => {
     try {
-      const res = await fetch("http://127.0.0.1:8000/faculty");
+      const res = await fetch("http://127.0.0.1:8000/api/faculty");
       const data = await res.json();
       setFacultyList(data);
       if (data.length > 0) {

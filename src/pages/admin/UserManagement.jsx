@@ -34,7 +34,7 @@ const UserManagement = () => {
   const [formEmail, setFormEmail] = useState("");
   const [formDesignation, setFormDesignation] = useState("Assistant Professor");
   const [formPhone, setFormPhone] = useState("");
-  
+
   // Credentials dialog state
   const [createdCredentials, setCreatedCredentials] = useState(null);
 
@@ -335,7 +335,7 @@ const UserManagement = () => {
               </div>
             </div>
             <div className="flex justify-end">
-              <button 
+              <button
                 onClick={() => setCreatedCredentials(null)}
                 className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-4 py-2 rounded-xl text-xs cursor-pointer"
               >
@@ -352,21 +352,19 @@ const UserManagement = () => {
         <div className="flex gap-2">
           <button
             onClick={() => { setActiveTab("students"); setSearchTerm(""); setCurrentPage(1); setCreatedCredentials(null); }}
-            className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-              activeTab === "students" 
-                ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20' 
+            className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${activeTab === "students"
+                ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20'
                 : 'bg-slate-950/40 border border-slate-850 text-slate-400 hover:text-white'
-            }`}
+              }`}
           >
             Students Directory
           </button>
           <button
             onClick={() => { setActiveTab("faculty"); setSearchTerm(""); setCurrentPage(1); setCreatedCredentials(null); }}
-            className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-              activeTab === "faculty" 
-                ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20' 
+            className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${activeTab === "faculty"
+                ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20'
                 : 'bg-slate-950/40 border border-slate-850 text-slate-400 hover:text-white'
-            }`}
+              }`}
           >
             Faculty Registry
           </button>
@@ -465,8 +463,8 @@ const UserManagement = () => {
                     <tr key={teacher.faculty_id} className="border-b border-slate-900/50 hover:bg-slate-900/20 transition-colors">
                       <td className="py-3.5 pl-5 font-bold text-white">{teacher.full_name}</td>
                       <td className="py-3.5 text-indigo-400 font-semibold">{teacher.department}</td>
-                      <td className="py-3.5 text-slate-300" text-white> {teacher.designation || "Assistant Professor"}</td>
-                      <td className="py-3.5 text-slate-450 text-white bold">{teacher.email}</td>
+                      <td className="py-3.5 text-white">{teacher.designation || "Assistant Professor"} </td>
+                      <td className="py-3.5 text-white font-bold">{teacher.email}</td>
                       <td className="py-3.5 text-center text-slate-300 font-bold">{teacher.faculty_code}</td>
                       <td className="py-3.5 text-right pr-5 space-x-1.5 whitespace-nowrap">
                         <button
@@ -568,7 +566,7 @@ const UserManagement = () => {
                       required
                     />
                   </div>
- 
+
                   <div>
                     <label className="text-[9px] font-bold text-slate-500 uppercase block mb-1">Department Branch</label>
                     <select
@@ -584,19 +582,19 @@ const UserManagement = () => {
                 </>
               ) : (
                 <>
-                                 <div>
-  <label className="text-[9px] font-bold text-slate-500 uppercase block mb-1">
-    Faculty ID *
-  </label>
-  <input
-    type="text"
-    value={formFacultyId}
-    onChange={(e) => setFormFacultyId(e.target.value)}
-    placeholder="e.g. FAC001"
-    className="w-full bg-slate-950/60 border border-slate-850 rounded-xl px-3 py-2.5 text-white"
-    required
-  />
-</div>
+                  <div>
+                    <label className="text-[9px] font-bold text-slate-500 uppercase block mb-1">
+                      Faculty ID *
+                    </label>
+                    <input
+                      type="text"
+                      value={formFacultyId}
+                      onChange={(e) => setFormFacultyId(e.target.value)}
+                      placeholder="e.g. FAC001"
+                      className="w-full bg-slate-950/60 border border-slate-850 rounded-xl px-3 py-2.5 text-white"
+                      required
+                    />
+                  </div>
                   <div>
                     <label className="text-[9px] font-bold text-slate-500 uppercase block mb-1">Department Branch</label>
                     <select
