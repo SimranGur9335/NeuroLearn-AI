@@ -3,6 +3,7 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   LayoutDashboard,
+  Library,
   Map,
   GraduationCap,
   TrendingUp,
@@ -35,6 +36,7 @@ const Sidebar = () => {
 
   const menuItems = [
     { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
+    { name: 'Student Hub', path: '/student-hub', icon: Library },
     { name: 'Domains', path: '/domains', icon: BookOpen },
     { name: 'Interactive Roadmap', path: '/roadmap', icon: Map },
     { name: 'Quiz Arena', path: '/quiz', icon: GraduationCap },
@@ -43,7 +45,7 @@ const Sidebar = () => {
     { name: 'Leaderboard & Badges', path: '/leaderboard', icon: Trophy },
     { name: 'AI Mentor Chat', path: '/ai/chat', icon: MessageSquareCode },
     { name: 'Academic Predictions', path: '/ai/predictions', icon: Brain },
-    { name: 'Emotion & Mood', path: '/ai/emotions', icon: Smile },
+    { name: 'Learning Wellness', path: '/ai/emotions', icon: Smile },
     { name: 'AI Smart Advisor', path: '/ai/recommendations', icon: Sparkles }
   ];
 

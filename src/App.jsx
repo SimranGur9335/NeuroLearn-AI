@@ -36,6 +36,15 @@ import PerformancePrediction from './pages/ai/PerformancePrediction';
 import EmotionAnalysis from './pages/ai/EmotionAnalysis';
 import RecommendationEngine from './pages/ai/RecommendationEngine';
 
+// Student Hub Pages
+import StudentHubHome from './pages/student-hub/StudentHubHome';
+import CoursesPage from './pages/student-hub/CoursesPage';
+import AssignmentsPage from './pages/student-hub/AssignmentsPage';
+import AttendancePage from './pages/student-hub/AttendancePage';
+import GradesPage from './pages/student-hub/GradesPage';
+import AnnouncementsPage from './pages/student-hub/AnnouncementsPage';
+import CalendarPage from './pages/student-hub/CalendarPage';
+
 // Teacher Portal Pages
 import TeacherDashboard from './pages/teacher/TeacherDashboard';
 import StudentPerformance from './pages/teacher/StudentPerformance';
@@ -106,6 +115,15 @@ function App() {
               <Route path="/ai/predictions" element={<PerformancePrediction />} />
               <Route path="/ai/emotions" element={<EmotionAnalysis />} />
               <Route path="/ai/recommendations" element={<RecommendationEngine />} />
+
+              {/* Student Hub Routes */}
+              <Route path="/student-hub" element={<StudentHubHome />} />
+              <Route path="/student-hub/courses" element={<CoursesPage />} />
+              <Route path="/student-hub/assignments" element={<AssignmentsPage />} />
+              <Route path="/student-hub/attendance" element={<AttendancePage />} />
+              <Route path="/student-hub/grades" element={<GradesPage />} />
+              <Route path="/student-hub/announcements" element={<AnnouncementsPage />} />
+              <Route path="/student-hub/calendar" element={<CalendarPage />} />
             </Route>
 
             {/* Class Selection Page */}

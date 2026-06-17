@@ -1,0 +1,152 @@
+import React, { useEffect, useState } from 'react';
+import { apiFetch } from '../../services/api';
+import StudentHubHeader from '../../components/StudentHubHeader';
+import { useStudent } from '../../context/StudentContext';
+import { THEME_COLOR_MAP } from '../../components/StudentHubTheme';
+import { Bell, Check, Megaphone, User, Clock } from 'lucide-react';
+
+const AnnouncementsPage = () => {
+  const { profile } = useStudent();
+  const themeColor = profile?.theme_color || 'indigo';
+  const theme = THEME_COLOR_MAP[themeColor] || THEME_COLOR_MAP.indigo;
+
+  const [loading, setLoading] = useState(true);
+  const [announcements, setAnnouncements] = useState([]);
+  const [error, setError] = useState(null);
+
+  const fetchAnnouncements = async () => {
+    try {
+      setLoading(true);
+      const res = await apiFetch('/student-hub/announcements');
+      if (!res.ok) {
+        throw new Error('Failed to load announcements');
+      }
+      const data = await res.json();
+      setAnnouncements(data);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchAnnouncements();
+  }, []);
+
+  const handleMarkAsRead = async (announcementId) => {
+    try {
+      const response = await apiFetch(`/announcements/${announcementId}/read`, {
+        method: 'POST'
+      });
+      if (response.ok) {
+        // Update local state directly to prevent a full reload layout shift
+        setAnnouncements(prev => 
+          prev.map(ann => 
+            ann.announcement_id === announcementId 
+              ? { ...ann, is_read: true } 
+              : ann
+          )
+        );
+      }
+    } catch (err) {
+      console.error("Failed to mark announcement as read:", err);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <StudentHubHeader 
+        title="Announcements Bulletin" 
+        description="Stay updated with notices, exam scheduling details, and department alerts."
+        showBackButton={true}
+      />
+
+      {loading ? (
+        <div className="flex flex-col items-center justify-center min-h-[30vh] space-y-4">
+          <div className="w-8 h-8 border-4 border-slate-700 border-t-indigo-500 rounded-full animate-spin" />
+          <span className="text-slate-400 text-xs animate-pulse">Loading notices bulletin...</span>
+        </div>
+      ) : error ? (
+        <div className="bg-red-500/10 border border-red-500/30 p-4 rounded-xl text-red-400 text-sm">
+          {error}
+        </div>
+      ) : announcements.length === 0 ? (
+        <div className="bg-slate-900 border border-slate-800 p-12 rounded-2xl text-center text-slate-500 text-sm">
+          No announcements have been published for you yet.
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {announcements.map((ann) => (
+            <div 
+              key={ann.announcement_id}
+              className={`bg-slate-900/60 border ${ann.is_read ? 'border-slate-850' : `border-slate-800 shadow-lg` // highlighting unread
+              } rounded-2xl p-6 hover:border-slate-700 transition-all duration-300 relative overflow-hidden`}
+            >
+              {/* Subtle unread glow bar on the left */}
+              {!ann.is_read && (
+                <div className={`absolute left-0 top-0 bottom-0 w-1 ${theme.accent}`} />
+              )}
+
+              <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
+                <div className="space-y-3">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className={`text-[10px] uppercase font-bold tracking-widest ${
+                      ann.target_type === 'Institution' 
+                        ? 'bg-purple-500/10 text-purple-400 border border-purple-500/20'
+                        : ann.target_type === 'Department'
+                        ? 'bg-sky-500/10 text-sky-400 border border-sky-500/20'
+                        : 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20'
+                    } px-2.5 py-0.5 rounded-md`}>
+                      {ann.target_type} Notice
+                    </span>
+                    {!ann.is_read && (
+                      <span className={`text-[9px] uppercase font-extrabold px-1.5 py-0.2 rounded ${theme.accent} text-white`}>
+                        New Alert
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="space-y-1">
+                    <h3 className="font-extrabold text-lg text-white leading-snug">{ann.title}</h3>
+                    <p className="text-sm text-slate-300 leading-relaxed whitespace-pre-line">{ann.description}</p>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-4 text-xs text-slate-500 font-medium">
+                    <span className="flex items-center gap-1">
+                      <User size={13} />
+                      Sender: {ann.sender_name} ({ann.sender_type})
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <Clock size={13} />
+                      {new Date(ann.created_at).toLocaleDateString(undefined, {
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Mark read button */}
+                {!ann.is_read && (
+                  <button
+                    onClick={() => handleMarkAsRead(ann.announcement_id)}
+                    className={`shrink-0 self-start md:self-auto bg-slate-800 hover:bg-slate-700 text-white hover:${theme.text} border border-slate-700/80 hover:border-slate-600 font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 transition-all cursor-pointer`}
+                  >
+                    <Check size={14} />
+                    <span>Acknowledge</span>
+                  </button>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default AnnouncementsPage;

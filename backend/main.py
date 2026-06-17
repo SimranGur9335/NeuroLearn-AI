@@ -417,7 +417,7 @@ def login_route(data: LoginInput):
             {"user_id": user.user_id, "email": data.email}
         )
         db.commit()
-        print("USER INSTITUTION =", user.institution_id)
+        
         # Create tokens
         token_payload = {
             "user_id": user.user_id,
@@ -429,7 +429,6 @@ def login_route(data: LoginInput):
         }
         access_token = create_access_token(token_payload)
         refresh_token = create_refresh_token(token_payload)
-        print("TOKEN PAYLOAD =", token_payload)
 
         # Determine avatar based on role
         avatar = "🚀"
@@ -4537,3 +4536,366 @@ def forgot_password(data: ForgotPasswordInput):
         "success": True,
         "temporary_password": temp_password
     }
+
+
+# --- Phase F: Student Hub Endpoints ---
+
+@app.get("/api/student-hub/dashboard-summary")
+def get_student_hub_dashboard_summary(current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "student":
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    student_id = current_user["student_id"]
+    institution_id = current_user.get("institution_id")
+    user_id = current_user["user_id"]
+    
+    db = SessionLocal()
+    try:
+        # Enrolled courses count
+        courses_count = db.execute(text("""
+            SELECT COUNT(DISTINCT fa.subject_id)
+            FROM enrollments e
+            JOIN classes c ON e.class_id = c.class_id
+            JOIN faculty_assignments fa ON c.class_id = fa.class_id
+            WHERE e.student_id = :sid
+        """), {"sid": student_id}).scalar() or 0
+        
+        # Pending assignments count
+        pending_assignments = db.execute(text("""
+            SELECT COUNT(*) 
+            FROM assignment_submissions 
+            WHERE student_id = :sid AND status = 'Pending'
+        """), {"sid": student_id}).scalar() or 0
+        
+        # Unread announcements count
+        student = db.execute(text("SELECT department FROM students WHERE student_id = :sid"), {"sid": student_id}).fetchone()
+        dept = student.department if student else ""
+        
+        enrolled_classes = db.execute(text("SELECT class_id FROM enrollments WHERE student_id = :sid"), {"sid": student_id}).fetchall()
+        class_ids = [c.class_id for c in enrolled_classes]
+        if not class_ids:
+            class_ids = [-1]
+            
+        unread_announcements = db.execute(text("""
+            SELECT COUNT(DISTINCT a.announcement_id) FROM announcements a
+            WHERE a.institution_id = :iid
+              AND (
+                a.target_type = 'Institution'
+                OR (a.target_type = 'Department' AND a.target_id IN (
+                    SELECT department_id FROM departments WHERE department_code = :dept OR department_name = :dept
+                ))
+                OR (a.target_type = 'Class' AND a.target_id IN :class_ids)
+                OR (a.target_type = 'Student' AND a.target_id = :sid)
+              )
+              AND a.announcement_id NOT IN (
+                SELECT announcement_id FROM announcement_reads WHERE user_id = :uid
+              )
+        """).bindparams(class_ids=tuple(class_ids)), {"sid": student_id, "dept": dept, "iid": institution_id, "uid": user_id}).scalar() or 0
+        
+        # Overall attendance and CGPA
+        metrics = db.execute(text("SELECT attendance, predicted_cgpa FROM student_metrics WHERE student_id = :sid"), {"sid": student_id}).fetchone()
+        attendance_pct = float(metrics.attendance) if metrics and metrics.attendance else 0.0
+        cgpa = float(metrics.predicted_cgpa) if metrics and metrics.predicted_cgpa else 0.0
+        
+        # Consolidated 5 recent activities
+        activity_query = text("""
+            SELECT type, title, description, timestamp FROM (
+                SELECT 'assignment' as type, a.title as title, 'Submitted assignment' as description, sub.submitted_at as timestamp
+                FROM assignment_submissions sub
+                JOIN assignments a ON sub.assignment_id = a.assignment_id
+                WHERE sub.student_id = :sid AND sub.status IN ('Submitted', 'Late', 'Graded') AND sub.submitted_at IS NOT NULL
+                
+                UNION ALL
+                
+                SELECT 'attendance' as type, COALESCE(s.subject_name, 'Class') as title, 'Marked ' || ar.status as description, CAST(ar.attendance_date AS TIMESTAMP) as timestamp
+                FROM attendance_records ar
+                LEFT JOIN subjects s ON ar.subject_id = s.subject_id
+                WHERE ar.student_id = :sid
+                
+                UNION ALL
+                
+                SELECT 'grade' as type, s.subject_name as title, 'Marks updated: ' || sm.total_marks || ' (' || sm.grade || ')' as description, sm.updated_at as timestamp
+                FROM student_marks sm
+                JOIN subjects s ON sm.subject_id = s.subject_id
+                WHERE sm.student_id = :sid
+                
+                UNION ALL
+                
+                SELECT 'announcement' as type, a.title as title, 'New announcement posted' as description, a.created_at as timestamp
+                FROM announcements a
+                WHERE a.institution_id = :iid
+                  AND (
+                    a.target_type = 'Institution'
+                    OR (a.target_type = 'Department' AND a.target_id IN (
+                        SELECT department_id FROM departments WHERE department_code = :dept OR department_name = :dept
+                    ))
+                    OR (a.target_type = 'Class' AND a.target_id IN :class_ids)
+                    OR (a.target_type = 'Student' AND a.target_id = :sid)
+                  )
+            ) q
+            ORDER BY timestamp DESC LIMIT 5
+        """)
+        
+        activities_res = db.execute(activity_query.bindparams(class_ids=tuple(class_ids)), {
+            "sid": student_id,
+            "iid": institution_id,
+            "dept": dept
+        }).fetchall()
+        
+        activities = []
+        for r in activities_res:
+            activities.append({
+                "type": r.type,
+                "title": r.title,
+                "description": r.description,
+                "timestamp": str(r.timestamp)
+            })
+            
+        return {
+            "courses_count": courses_count,
+            "pending_assignments": pending_assignments,
+            "unread_announcements": unread_announcements,
+            "attendance_pct": attendance_pct,
+            "cgpa": cgpa,
+            "activities": activities
+        }
+    finally:
+        db.close()
+
+@app.get("/api/student-hub/courses")
+def get_student_hub_courses(current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "student":
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    student_id = current_user["student_id"]
+    db = SessionLocal()
+    try:
+        courses = db.execute(text("""
+            SELECT DISTINCT s.subject_name, s.subject_code, f.full_name as faculty_name, s.semester, s.credits
+            FROM enrollments e
+            JOIN classes c ON e.class_id = c.class_id
+            JOIN faculty_assignments fa ON c.class_id = fa.class_id
+            JOIN subjects s ON fa.subject_id = s.subject_id
+            JOIN faculty f ON fa.faculty_id = f.faculty_id
+            WHERE e.student_id = :sid
+            ORDER BY s.subject_name
+        """), {"sid": student_id}).fetchall()
+        
+        return [
+            {
+                "subject_name": c.subject_name,
+                "subject_code": c.subject_code,
+                "faculty_name": c.faculty_name,
+                "semester": c.semester,
+                "credits": c.credits
+            } for c in courses
+        ]
+    finally:
+        db.close()
+
+@app.get("/api/student-hub/assignments")
+def get_student_hub_assignments(current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "student":
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    student_id = current_user["student_id"]
+    db = SessionLocal()
+    try:
+        assignments = db.execute(text("""
+            SELECT a.assignment_id, a.title, a.description, a.due_date, a.total_marks,
+                   s.subject_name, s.subject_code,
+                   sub.submission_url, sub.marks_obtained, sub.status, sub.submitted_at, sub.submission_id
+            FROM enrollments e
+            JOIN classes c ON e.class_id = c.class_id
+            JOIN assignments a ON c.class_id = a.class_id
+            JOIN subjects s ON a.subject_id = s.subject_id
+            LEFT JOIN assignment_submissions sub ON a.assignment_id = sub.assignment_id AND sub.student_id = :sid
+            WHERE e.student_id = :sid
+            ORDER BY a.due_date ASC
+        """), {"sid": student_id}).fetchall()
+        
+        return [
+            {
+                "assignment_id": a.assignment_id,
+                "title": a.title,
+                "description": a.description,
+                "due_date": str(a.due_date),
+                "total_marks": a.total_marks,
+                "subject_name": a.subject_name,
+                "subject_code": a.subject_code,
+                "submission_url": a.submission_url,
+                "marks_obtained": float(a.marks_obtained) if a.marks_obtained is not None else None,
+                "status": a.status or "Pending",
+                "submitted_at": str(a.submitted_at) if a.submitted_at else None,
+                "submission_id": a.submission_id
+            } for a in assignments
+        ]
+    finally:
+        db.close()
+
+@app.get("/api/student-hub/attendance")
+def get_student_hub_attendance(current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "student":
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    student_id = current_user["student_id"]
+    db = SessionLocal()
+    try:
+        # 1. Overall attendance
+        metrics = db.execute(text("SELECT attendance FROM student_metrics WHERE student_id = :sid"), {"sid": student_id}).fetchone()
+        overall_pct = float(metrics.attendance) if metrics and metrics.attendance else 0.0
+        
+        # 2. Subject-wise breakdown
+        subjects = db.execute(text("""
+            SELECT s.subject_name, s.subject_code, s.subject_id,
+                   COUNT(CASE WHEN ar.status = 'Present' THEN 1 END) as present_count,
+                   COUNT(ar.attendance_id) as total_count
+            FROM enrollments e
+            JOIN classes c ON e.class_id = c.class_id
+            JOIN faculty_assignments fa ON c.class_id = fa.class_id
+            JOIN subjects s ON fa.subject_id = s.subject_id
+            LEFT JOIN attendance_records ar ON ar.student_id = :sid AND ar.subject_id = s.subject_id
+            WHERE e.student_id = :sid
+            GROUP BY s.subject_name, s.subject_code, s.subject_id
+            ORDER BY s.subject_name
+        """), {"sid": student_id}).fetchall()
+        
+        subject_breakdown = []
+        for s in subjects:
+            pct = (s.present_count * 100.0 / s.total_count) if s.total_count > 0 else 100.0
+            subject_breakdown.append({
+                "subject_name": s.subject_name,
+                "subject_code": s.subject_code,
+                "present_count": s.present_count,
+                "total_count": s.total_count,
+                "percentage": round(pct, 2)
+            })
+            
+        # 3. History
+        history_res = db.execute(text("""
+            SELECT ar.attendance_date, ar.status, s.subject_name, s.subject_code
+            FROM attendance_records ar
+            LEFT JOIN subjects s ON ar.subject_id = s.subject_id
+            WHERE ar.student_id = :sid
+            ORDER BY ar.attendance_date DESC
+            LIMIT 50
+        """), {"sid": student_id}).fetchall()
+        
+        history = [
+            {
+                "date": str(h.attendance_date),
+                "status": h.status,
+                "subject_name": h.subject_name or "General",
+                "subject_code": h.subject_code or "GEN"
+            } for h in history_res
+        ]
+        
+        return {
+            "overall_percentage": overall_pct,
+            "subject_breakdown": subject_breakdown,
+            "history": history
+        }
+    finally:
+        db.close()
+
+@app.get("/api/student-hub/grades")
+def get_student_hub_grades(current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "student":
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    student_id = current_user["student_id"]
+    db = SessionLocal()
+    try:
+        metrics = db.execute(text("SELECT predicted_cgpa FROM student_metrics WHERE student_id = :sid"), {"sid": student_id}).fetchone()
+        cgpa = float(metrics.predicted_cgpa) if metrics and metrics.predicted_cgpa else 0.0
+        
+        grades_res = db.execute(text("""
+            SELECT sm.assignment_marks, sm.quiz_marks, sm.internal_marks, sm.practical_marks, sm.total_marks, sm.grade,
+                   s.subject_name, s.subject_code, s.credits, s.semester
+            FROM enrollments e
+            JOIN classes c ON e.class_id = c.class_id
+            JOIN faculty_assignments fa ON c.class_id = fa.class_id
+            JOIN subjects s ON fa.subject_id = s.subject_id
+            LEFT JOIN student_marks sm ON sm.student_id = :sid AND sm.subject_id = s.subject_id
+            WHERE e.student_id = :sid
+            ORDER BY s.subject_name
+        """), {"sid": student_id}).fetchall()
+        
+        subject_grades = []
+        for g in grades_res:
+            subject_grades.append({
+                "subject_name": g.subject_name,
+                "subject_code": g.subject_code,
+                "credits": g.credits,
+                "semester": g.semester,
+                "assignment_marks": float(g.assignment_marks) if g.assignment_marks is not None else 0.0,
+                "quiz_marks": float(g.quiz_marks) if g.quiz_marks is not None else 0.0,
+                "internal_marks": float(g.internal_marks) if g.internal_marks is not None else 0.0,
+                "practical_marks": float(g.practical_marks) if g.practical_marks is not None else 0.0,
+                "total_marks": float(g.total_marks) if g.total_marks is not None else 0.0,
+                "grade": g.grade or "-"
+            })
+            
+        return {
+            "cgpa": cgpa,
+            "gpa": cgpa,
+            "subject_grades": subject_grades
+        }
+    finally:
+        db.close()
+
+@app.get("/api/student-hub/announcements")
+def get_student_hub_announcements_api(current_user: dict = Depends(get_current_user)):
+    return get_announcements(current_user)
+
+@app.get("/api/student-hub/calendar")
+def get_student_hub_calendar(current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "student":
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    student_id = current_user["student_id"]
+    institution_id = current_user.get("institution_id")
+    
+    db = SessionLocal()
+    try:
+        events = []
+        
+        # 1. Academic calendar events
+        cal_res = db.execute(text("""
+            SELECT title, description, event_type, start_date, end_date
+            FROM academic_calendar_events
+            WHERE institution_id = :iid
+            ORDER BY start_date ASC
+        """), {"iid": institution_id}).fetchall()
+        
+        for e in cal_res:
+            events.append({
+                "title": e.title,
+                "description": e.description or "",
+                "event_type": e.event_type or "Academic",
+                "start_date": str(e.start_date),
+                "end_date": str(e.end_date) if e.end_date else str(e.start_date)
+            })
+            
+        # 2. Assignment deadlines
+        assign_res = db.execute(text("""
+            SELECT a.title, a.description, a.due_date
+            FROM enrollments e
+            JOIN classes c ON e.class_id = c.class_id
+            JOIN assignments a ON c.class_id = a.class_id
+            WHERE e.student_id = :sid
+            ORDER BY a.due_date ASC
+        """), {"sid": student_id}).fetchall()
+        
+        for a in assign_res:
+            events.append({
+                "title": f"Due: {a.title}",
+                "description": a.description or "",
+                "event_type": "Assignment",
+                "start_date": str(a.due_date),
+                "end_date": str(a.due_date)
+            })
+            
+        return events
+    finally:
+        db.close()
