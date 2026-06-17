@@ -3,6 +3,7 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   LayoutDashboard,
+  Library,
   Map,
   GraduationCap,
   TrendingUp,
@@ -36,6 +37,7 @@ const Sidebar = () => {
 
   const menuItems = [
     { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
+    { name: 'Student Hub', path: '/student-hub', icon: Library },
     { name: 'Domains', path: '/domains', icon: BookOpen },
     { name: 'Interactive Roadmap', path: '/roadmap', icon: Map },
     { name: 'Quiz Arena', path: '/quiz', icon: GraduationCap },
