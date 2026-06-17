@@ -14,12 +14,12 @@ const SubjectManagement = () => {
     const [searchTerm, setSearchTerm] = useState("");
 
     useEffect(() => {
-        fetch("http://127.0.0.1:8000/subjects")
+        fetch("http://127.0.0.1:8000/api/subjects")
             .then((res) => res.json())
             .then((data) => setSubjects(data))
             .catch((err) => console.error(err));
 
-        fetch("http://127.0.0.1:8000/departments")
+        fetch("http://127.0.0.1:8000/api/departments")
             .then((res) => res.json())
             .then((data) => setDepartments(data))
             .catch((err) => console.error(err));
@@ -63,7 +63,7 @@ const SubjectManagement = () => {
 
         try {
             await fetch(
-                "http://127.0.0.1:8000/subjects",
+                "http://127.0.0.1:8000/api/subjects",
                 {
                     method: "POST",
                     headers: {
@@ -166,7 +166,7 @@ const SubjectManagement = () => {
     };
 
     const getDeptList = () => {
-        return departments.length > 0 ? departments.map(d => d.department_code) : ["CS", "IT", "ECE", "EEE", "ME"];
+        return departments.length > 0 ? departments.map(d => d.department_code) : ["CS", "IT"];
     };
 
     const filteredSubjects = subjects.filter(subject =>

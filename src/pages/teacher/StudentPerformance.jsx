@@ -43,7 +43,7 @@ const StudentPerformance = () => {
   const [profileDetail, setProfileDetail] = useState(null);
   const [profileLoading, setProfileLoading] = useState(false);
 
-  const branches = ["All", "CS", "IT", "ECE", "EEE", "ME"];
+  const branches = ["All", "CS", "IT"];
 
   // Fetch teacher classes mapping and overall students roster
   useEffect(() => {

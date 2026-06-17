@@ -143,9 +143,7 @@ const AdminReports = () => {
                 <Legend verticalAlign="top" height={36} iconType="circle" />
                 <Area type="monotone" dataKey="CS" stackId="1" stroke="#6366f1" fill="#6366f1" fillOpacity={0.15} name="CS" />
                 <Area type="monotone" dataKey="IT" stackId="1" stroke="#06b6d4" fill="#06b6d4" fillOpacity={0.15} name="IT" />
-                <Area type="monotone" dataKey="ECE" stackId="1" stroke="#a855f7" fill="#a855f7" fillOpacity={0.15} name="ECE" />
-                <Area type="monotone" dataKey="EEE" stackId="1" stroke="#f59e0b" fill="#f59e0b" fillOpacity={0.1} name="EEE" />
-                <Area type="monotone" dataKey="ME" stackId="1" stroke="#ef4444" fill="#ef4444" fillOpacity={0.1} name="ME" />
+                
               </AreaChart>
             </ResponsiveContainer>
           </div>

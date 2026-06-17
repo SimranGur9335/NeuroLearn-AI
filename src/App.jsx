@@ -6,12 +6,19 @@ import PlatformLayout from './components/PlatformLayout';
 import TeacherLayout from './components/TeacherLayout';
 import AdminLayout from './components/AdminLayout';
 import ProtectedRoute from './components/ProtectedRoute';
+import PlatformAdminLayout from './components/PlatformAdminLayout';
+import InstitutionRequests from "./pages/platform-admin/InstitutionRequests";
+import PlatformDashboard from './pages/platform-admin/Dashboard';
+import PlatformInstitutions from './pages/platform-admin/Institutions';
+import PlatformUsers from './pages/platform-admin/Users';
+import PlatformSettings from './pages/platform-admin/Settings';
 
 // Public & Selection Pages
 import LandingPage from './pages/LandingPage';
 import RoleSelection from './pages/RoleSelection';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import ChangePassword from './pages/ChangePassword';
 import Profile from './pages/Profile';
 
 // Student Portal Pages
@@ -72,8 +79,9 @@ function App() {
             <Route path="/" element={<LandingPage />} />
 
             {/* Public Authentication Screens */}
-            <Route path="/login" element={<Login />} />
+            <Route path="/select-institution" element={<Login />} />
             <Route path="/register" element={<Register />} />
+            <Route path="/change-password" element={<ChangePassword />} />
 
             {/* Role Selection Screen */}
             <Route path="/select-role" element={<RoleSelection />} />
@@ -104,7 +112,7 @@ function App() {
             <Route
               path="/teacher/select-class"
               element={
-                <ProtectedRoute allowedRoles={['teacher']}>
+                <ProtectedRoute allowedRoles={['faculty']}>
                   <ClassSelection />
                 </ProtectedRoute>
               }
@@ -112,7 +120,7 @@ function App() {
 
             {/* Teacher Portal Layout & Routes */}
             <Route element={
-              <ProtectedRoute allowedRoles={['teacher']}>
+              <ProtectedRoute allowedRoles={['faculty']}>
                 <TeacherLayout />
               </ProtectedRoute>
             }>
@@ -135,8 +143,8 @@ function App() {
               <Route path="/admin/dashboard" element={<AdminDashboard />} />
               <Route path="/admin/users" element={<UserManagement />} />
               <Route path="/admin/courses" element={<CourseManagement />} />
-              <Route path="/admin/subjects" element={<SubjectManagement />}/>
-              <Route path="/admin/faculty-mapping" element={<FacultyMapping />}/>
+              <Route path="/admin/subjects" element={<SubjectManagement />} />
+              <Route path="/admin/faculty-mapping" element={<FacultyMapping />} />
               <Route path="/admin/students/:id" element={<StudentProfile />} />
               <Route path="/admin/faculty/:id" element={<FacultyProfile />} />
               <Route path="/admin/departments" element={<DepartmentManagement />} />
@@ -153,13 +161,29 @@ function App() {
               <Route path="/admin/security" element={<SecurityCenter />} />
             </Route>
 
+            {/* Platform Admin Layout & Routes */}
+            <Route element={
+              <ProtectedRoute allowedRoles={['super_admin']}>
+                <PlatformAdminLayout />
+              </ProtectedRoute>
+            }>
+              <Route path="/platform-admin/dashboard" element={<PlatformDashboard />} />
+              <Route path="/platform-admin/requests" element={<InstitutionRequests />} />
+              <Route path="/platform-admin/institutions" element={<PlatformInstitutions />} />
+              <Route path="/platform-admin/users" element={<PlatformUsers />} />
+              <Route path="/platform-admin/settings" element={<PlatformSettings />} />
+            </Route>
+
             {/* Fallback route */}
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Router>
       </StudentProvider>
     </AuthProvider>
+
+
   );
+
 }
 
 export default App;

@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { Sparkles } from 'lucide-react';
 
 const ProtectedRoute = ({ children, allowedRoles }) => {
-  const { isAuthenticated, role, loading } = useAuth();
+  const { isAuthenticated, role, loading, user } = useAuth();
 
   if (loading) {
     return (
@@ -25,11 +25,16 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
     return <Navigate to="/login" replace />;
   }
 
+  if (user?.mustChangePassword) {
+    return <Navigate to="/change-password" replace />;
+  }
+
+
   if (allowedRoles && !allowedRoles.includes(role)) {
     // Authenticated but wrong credentials: route to authorized workspace
     console.warn(`[ProtectedRoute] Access denied for role: ${role}. Expected: ${allowedRoles}`);
     if (role === 'student') return <Navigate to="/dashboard" replace />;
-    if (role === 'teacher') return <Navigate to="/teacher/dashboard" replace />;
+    if (role === 'faculty') return <Navigate to="/teacher/dashboard" replace />;
     if (role === 'admin') return <Navigate to="/admin/dashboard" replace />;
     return <Navigate to="/login" replace />;
   }

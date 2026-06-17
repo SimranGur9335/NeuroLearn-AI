@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   Sparkles,
@@ -59,18 +59,31 @@ const THEME_MAP = {
 
 const Login = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { login } = useAuth();
 
   // Input states
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState("student"); // 'student' | 'teacher' | 'admin'
+  const [role, setRole] = useState("student"); // 'student' | 'faculty' | 'admin'
   const [rememberMe, setRememberMe] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
 
   // Institution states
   const [institutions, setInstitutions] = useState([]);
   const [selectedInstitutionId, setSelectedInstitutionId] = useState(1);
+
+  // Apply location state if present
+  useEffect(() => {
+    if (location.state) {
+      if (location.state.role) {
+        setRole(location.state.role);
+      }
+      if (location.state.institutionId) {
+        setSelectedInstitutionId(location.state.institutionId);
+      }
+    }
+  }, [location.state]);
 
   // Validation / Error / Loading states
   const [errorMsg, setErrorMsg] = useState("");
@@ -101,13 +114,17 @@ const Login = () => {
 
   const roles = [
     { id: 'student', title: 'Student', icon: GraduationCap },
-    { id: 'teacher', title: 'Faculty', icon: Users },
-    { id: 'admin', title: 'Admin', icon: Settings }
+    { id: 'faculty', title: 'Faculty', icon: Users },
+    { id: 'admin', title: 'Admin', icon: Settings },
   ];
 
   const handleQuickFill = (roleType) => {
     setRole(roleType);
-    setEmail(`${roleType}@neurolearn.ai`);
+    if (roleType === 'super_admin') {
+      setEmail('owner@neurolearn.ai');
+    } else {
+      setEmail(`${roleType}@neurolearn.ai`);
+    }
     setPassword("Password123");
     setErrorMsg("");
     setSelectedInstitutionId(1); // Demo accounts are registered under COEP (id = 1)
@@ -138,10 +155,15 @@ const Login = () => {
         selectedInstitution?.domain_name || 'neurolearn.ai',
         rememberMe
       );
-      // Route based on role
-      if (user.role === 'student') navigate('/dashboard');
-      else if (user.role === 'teacher') navigate('/teacher/select-class');
-      else if (user.role === 'admin') navigate('/admin/dashboard');
+      // Route based on role or force password change status
+      if (user.mustChangePassword) {
+        navigate('/change-password');
+      } else {
+        if (user.role === 'student') navigate('/dashboard');
+        else if (user.role === 'faculty') navigate('/teacher/select-class');
+        else if (user.role === 'admin') navigate('/admin/dashboard');
+        else if (user.role === 'super_admin') navigate('/platform-admin/dashboard');
+      }
     } catch (err) {
       setErrorMsg(err.message || "Failed to sign in. Please verify your credentials.");
     } finally {
@@ -204,33 +226,7 @@ const Login = () => {
           })}
         </div>
 
-        {/* Quick Fill credentials helpers */}
-        <div className="bg-slate-950/40 border border-slate-850 rounded-2xl p-3.5 space-y-2">
-          <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider block">Demo Auto-Fill accounts:</span>
-          <div className="flex flex-wrap gap-2 text-[10px]">
-            <button
-              type="button"
-              onClick={() => handleQuickFill('student')}
-              className={`${theme.bg} px-2.5 py-1 rounded-lg cursor-pointer font-bold transition-colors`}
-            >
-              Student
-            </button>
-            <button
-              type="button"
-              onClick={() => handleQuickFill('teacher')}
-              className={`${theme.bg} px-2.5 py-1 rounded-lg cursor-pointer font-bold transition-colors`}
-            >
-              Faculty
-            </button>
-            <button
-              type="button"
-              onClick={() => handleQuickFill('admin')}
-              className={`${theme.bg} px-2.5 py-1 rounded-lg cursor-pointer font-bold transition-colors`}
-            >
-              Admin
-            </button>
-          </div>
-        </div>
+
 
         {/* Error messaging */}
         {errorMsg && (
@@ -346,6 +342,7 @@ const Login = () => {
         </form>
 
         {/* Footer redirection */}
+        {/* Hidden for MVP */}
         <div className="text-center pt-2 text-xs text-slate-400 border-t border-slate-900">
           <span>New to NeuroLearn? </span>
           <button

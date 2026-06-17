@@ -18,18 +18,18 @@ const CourseSubjectMapping = () => {
 
   const loadData = async () => {
     try {
-      const cRes = await fetch("http://127.0.0.1:8000/courses");
+      const cRes = await fetch("http://127.0.0.1:8000/api/courses");
       const cData = await cRes.json();
       setCourses(cData);
       if (cData.length > 0 && !selectedCourse) {
         setSelectedCourse(cData[0]);
       }
 
-      const sRes = await fetch("http://127.0.0.1:8000/subjects");
+      const sRes = await fetch("http://127.0.0.1:8000/api/subjects");
       const sData = await sRes.json();
       setSubjects(sData);
 
-      const mRes = await fetch("http://127.0.0.1:8000/course-subject-mappings");
+      const mRes = await fetch("http://127.0.0.1:8000/api/course-subject-mappings");
       const mData = await mRes.json();
       setMappings(mData);
     } catch (err) {

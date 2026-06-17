@@ -1,15 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { 
-  Sparkles, 
-  User, 
-  Mail, 
-  Phone, 
-  School, 
-  Lock, 
-  CheckSquare, 
-  Square, 
+import {
+  Sparkles,
+  User,
+  Mail,
+  Phone,
+  School,
+  Lock,
+  CheckSquare,
+  Square,
   ArrowRight,
   AlertCircle,
   Eye,
@@ -70,7 +70,7 @@ const Register = () => {
   const [mobile, setMobile] = useState("");
   const [dept, setDept] = useState("CS");
   const [year, setYear] = useState("3rd Year");
-  const [role, setRole] = useState("student"); // 'student' | 'teacher' | 'admin'
+  const [role, setRole] = useState("admin"); // Only 'admin' role is registerable publicly
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [agreeTerms, setAgreeTerms] = useState(false);
@@ -106,8 +106,6 @@ const Register = () => {
   const theme = THEME_MAP[selectedInstitution?.theme_color] || THEME_MAP.indigo;
 
   const roles = [
-    { id: 'student', title: 'Student', icon: GraduationCap },
-    { id: 'teacher', title: 'Faculty', icon: Users },
     { id: 'admin', title: 'Admin', icon: Settings }
   ];
 
@@ -117,7 +115,7 @@ const Register = () => {
 
     // Validation checks
     if (!name.trim()) return setErrorMsg("Full Name is required.");
-    
+
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) return setErrorMsg("Please enter a valid email address.");
 
@@ -142,7 +140,7 @@ const Register = () => {
         semester: role === 'student' ? 1 : undefined,
         designation: role === 'teacher' ? 'Assistant Professor' : undefined
       };
-      
+
       await register(userData, selectedInstitution?.domain_name || 'neurolearn.ai');
       alert("Registration successful! Proceeding to Login screen.");
       navigate('/login');
@@ -158,7 +156,7 @@ const Register = () => {
       {/* Grid Overlay Graphic */}
       <div className="absolute inset-0 bg-[linear-gradient(to_right,#0f172a_1px,transparent_1px),linear-gradient(to_bottom,#0f172a_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_50%,#000_70%,transparent_100%)] pointer-events-none" />
 
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.4 }}
@@ -194,11 +192,10 @@ const Register = () => {
                 key={r.id}
                 type="button"
                 onClick={() => setRole(r.id)}
-                className={`py-2 px-1.5 rounded-xl text-xs font-bold transition-all flex flex-col items-center gap-1 cursor-pointer ${
-                  isSelected 
-                    ? `${theme.accent} text-white shadow` 
-                    : 'text-slate-400 hover:text-white hover:bg-slate-900/40'
-                }`}
+                className={`py-2 px-1.5 rounded-xl text-xs font-bold transition-all flex flex-col items-center gap-1 cursor-pointer ${isSelected
+                  ? `${theme.accent} text-white shadow`
+                  : 'text-slate-400 hover:text-white hover:bg-slate-900/40'
+                  }`}
               >
                 <Icon size={14} />
                 <span>{r.title}</span>
@@ -209,7 +206,7 @@ const Register = () => {
 
         {/* Error notification */}
         {errorMsg && (
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             className="bg-red-500/10 border border-red-500/20 text-red-500 text-xs p-3 rounded-2xl flex items-start gap-2.5"
@@ -227,8 +224,8 @@ const Register = () => {
               <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider pl-1">Full Name</label>
               <div className={`relative flex items-center bg-slate-950/60 border border-slate-850 focus-within:ring-2 ${theme.ring} rounded-xl px-3 py-2 transition-all`}>
                 <User size={15} className="text-slate-500 mr-2 shrink-0" />
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="e.g. Aarav Singh"
@@ -263,8 +260,8 @@ const Register = () => {
               <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider pl-1">Email Address</label>
               <div className={`relative flex items-center bg-slate-950/60 border border-slate-850 focus-within:ring-2 ${theme.ring} rounded-xl px-3 py-2 transition-all`}>
                 <Mail size={15} className="text-slate-500 mr-2 shrink-0" />
-                <input 
-                  type="email" 
+                <input
+                  type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder={selectedInstitution ? `yourname@${selectedInstitution.domain_name}` : "yourname@domain.edu"}
@@ -279,8 +276,8 @@ const Register = () => {
               <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider pl-1">Mobile Number</label>
               <div className={`relative flex items-center bg-slate-950/60 border border-slate-850 focus-within:ring-2 ${theme.ring} rounded-xl px-3 py-2 transition-all`}>
                 <Phone size={15} className="text-slate-500 mr-2 shrink-0" />
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   value={mobile}
                   onChange={(e) => setMobile(e.target.value)}
                   placeholder="10 digit number"
@@ -301,9 +298,7 @@ const Register = () => {
                 >
                   <option className="bg-slate-900 text-white" value="CS">Computer Science (CS)</option>
                   <option className="bg-slate-900 text-white" value="IT">Information Technology (IT)</option>
-                  <option className="bg-slate-900 text-white" value="ECE">Electronics & Telecom (ECE)</option>
-                  <option className="bg-slate-900 text-white" value="EEE">Electrical Engineering (EEE)</option>
-                  <option className="bg-slate-900 text-white" value="ME">Mechanical Engineering (ME)</option>
+
                 </select>
               </div>
             </div>
@@ -334,7 +329,7 @@ const Register = () => {
               <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider pl-1">Password</label>
               <div className={`relative flex items-center bg-slate-950/60 border border-slate-850 focus-within:ring-2 ${theme.ring} rounded-xl px-3 py-2 transition-all`}>
                 <Lock size={15} className="text-slate-500 mr-2 shrink-0" />
-                <input 
+                <input
                   type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -350,7 +345,7 @@ const Register = () => {
               <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider pl-1">Confirm Password</label>
               <div className={`relative flex items-center bg-slate-950/60 border border-slate-850 focus-within:ring-2 ${theme.ring} rounded-xl px-3 py-2 transition-all`}>
                 <Lock size={15} className="text-slate-500 mr-2 shrink-0" />
-                <input 
+                <input
                   type={showPassword ? "text" : "password"}
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
@@ -358,7 +353,7 @@ const Register = () => {
                   className="bg-transparent border-none text-xs text-slate-200 placeholder-slate-550 focus:outline-none w-full font-mono"
                   required
                 />
-                <button 
+                <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
                   className="text-slate-550 hover:text-white cursor-pointer select-none shrink-0 ml-1.5"
@@ -371,8 +366,8 @@ const Register = () => {
 
           {/* Terms checkbox */}
           <div className="flex items-start pt-2">
-            <button 
-              type="button" 
+            <button
+              type="button"
               onClick={() => setAgreeTerms(!agreeTerms)}
               className="flex items-center gap-2 text-xs text-slate-450 hover:text-slate-250 select-none cursor-pointer"
             >
@@ -382,7 +377,7 @@ const Register = () => {
           </div>
 
           {/* Submit */}
-          <button 
+          <button
             type="submit"
             disabled={loading}
             className={`w-full py-3.5 ${theme.accent} disabled:bg-slate-800 disabled:text-slate-500 text-white font-extrabold rounded-xl transition-all shadow-lg ${theme.shadow} text-xs flex items-center justify-center gap-1.5 cursor-pointer mt-4`}
@@ -404,7 +399,7 @@ const Register = () => {
         {/* Footer redirection */}
         <div className="text-center pt-2 text-xs text-slate-400 border-t border-slate-900">
           <span>Already have a login? </span>
-          <button 
+          <button
             onClick={() => navigate('/login')}
             className={`${theme.text} hover:underline font-bold cursor-pointer`}
           >

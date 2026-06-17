@@ -23,24 +23,11 @@ export const TEACHERS = [
   { id: "t-5", name: "Dr. Robert Smith", department: "IT", designation: "Professor", email: "robert.smith@apex.edu", courses: ["CEN-304", "CEN-305"] },
   { id: "t-6", name: "Mr. Vivek Chawla", department: "IT", designation: "Assistant Professor", email: "vivek.c@apex.edu", courses: ["CEN-305"] },
   { id: "t-7", name: "Dr. Neha Sharma", department: "IT", designation: "Associate Professor", email: "neha.s@apex.edu", courses: ["CEN-306"] },
-  { id: "t-8", name: "Dr. H. S. Murthy", department: "ECE", designation: "Professor & Head", email: "hs.murthy@apex.edu", courses: ["ECE-201"] },
-  { id: "t-9", name: "Mrs. Anjali Rao", department: "ECE", designation: "Assistant Professor", email: "anjali.rao@apex.edu", courses: ["ECE-202"] },
-  { id: "t-10", name: "Dr. Sameer Gupta", department: "ECE", designation: "Associate Professor", email: "sameer.g@apex.edu", courses: ["ECE-201", "ECE-202"] },
-  { id: "t-11", name: "Dr. Vikram Joshi", department: "EEE", designation: "Professor & Head", email: "vikram.j@apex.edu", courses: ["EEE-301"] },
-  { id: "t-12", name: "Mr. Rajeev Mehta", department: "EEE", designation: "Assistant Professor", email: "rajeev.m@apex.edu", courses: ["EEE-302"] },
-  { id: "t-13", name: "Dr. S. K. Bose", department: "EEE", designation: "Associate Professor", email: "sk.bose@apex.edu", courses: ["EEE-301", "EEE-302"] },
-  { id: "t-14", name: "Dr. Anil Kulkarni", department: "ME", designation: "Professor & Head", email: "anil.k@apex.edu", courses: ["ME-201"] },
-  { id: "t-15", name: "Mr. Sanjay Nair", department: "ME", designation: "Assistant Professor", email: "sanjay.n@apex.edu", courses: ["ME-202"] },
-  { id: "t-16", name: "Dr. David Davis", department: "ME", designation: "Associate Professor", email: "david.d@apex.edu", courses: ["ME-201", "ME-202"] },
+  
   { id: "t-17", name: "Prof. Emily Watson", department: "CS", designation: "Associate Professor", email: "emily.w@apex.edu", courses: ["CEN-303"] },
   { id: "t-18", name: "Mr. Michael Johnson", department: "CS", designation: "Assistant Professor", email: "michael.j@apex.edu", courses: ["CEN-302"] },
   { id: "t-19", name: "Dr. Swati Paul", department: "IT", designation: "Associate Professor", email: "swati.paul@apex.edu", courses: ["CEN-304"] },
-  { id: "t-20", name: "Mrs. Karen Dsouza", department: "IT", designation: "Assistant Professor", email: "karen.d@apex.edu", courses: ["CEN-305"] },
-  { id: "t-21", name: "Dr. K. Raghavan", department: "ECE", designation: "Professor", email: "k.raghavan@apex.edu", courses: ["ECE-201"] },
-  { id: "t-22", name: "Mr. Amit Patel", department: "ECE", designation: "Assistant Professor", email: "amit.patel@apex.edu", courses: ["ECE-202"] },
-  { id: "t-23", name: "Dr. G. S. Saini", department: "EEE", designation: "Professor", email: "gs.saini@apex.edu", courses: ["EEE-301"] },
-  { id: "t-24", name: "Dr. Suresh Nair", department: "ME", designation: "Professor", email: "suresh.nair@apex.edu", courses: ["ME-201"] },
-  { id: "t-25", name: "Mr. Vijay Kumar", department: "ME", designation: "Assistant Professor", email: "vijay.k@apex.edu", courses: ["ME-202"] }
+  { id: "t-20", name: "Mrs. Karen Duza", department: "IT", designation: "Assistant Professor", email: "karen.d@apex.edu", courses: ["CEN-305"] },
 ];
 
 export const generateStudents = () => {
@@ -61,7 +48,7 @@ export const generateStudents = () => {
     "Saini", "Garg", "Aggarwal", "Bansal", "Goel", "Mittals", "Singhal", "Tayal", "Kalyani", "Deshmukh"
   ];
 
-  const branches = ["CS", "IT", "ECE", "EEE", "ME"];
+  const branches = ["CS", "IT"];
   const years = ["1st Year", "2nd Year", "3rd Year", "4th Year"];
 
   // Generates 520 students deterministically using i

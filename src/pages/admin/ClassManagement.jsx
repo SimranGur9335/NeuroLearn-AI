@@ -24,11 +24,11 @@ const ClassManagement = () => {
 
   const loadData = async () => {
     try {
-      const cRes = await fetch("http://127.0.0.1:8000/classes");
+      const cRes = await fetch("http://127.0.0.1:8000/api/classes");
       const cData = await cRes.json();
       setClassesList(cData);
 
-      const dRes = await fetch("http://127.0.0.1:8000/departments");
+      const dRes = await fetch("http://127.0.0.1:8000/api/departments");
       const dData = await dRes.json();
       setDepartments(dData);
       if (dData.length > 0 && !formDept) {
@@ -127,7 +127,7 @@ const ClassManagement = () => {
   };
 
   const getDeptOptions = () => {
-    return departments.length > 0 ? departments.map(d => d.department_code) : ["CS", "IT", "ECE", "EEE", "ME"];
+    return departments.length > 0 ? departments.map(d => d.department_code) : ["CS", "IT"];
   };
 
   const getTermText = (termId) => {
@@ -277,7 +277,7 @@ const ClassManagement = () => {
                   <select
                     value={formDept}
                     onChange={(e) => setFormDept(e.target.value)}
-                    className="w-full bg-slate-50 dark:bg-slate-955 border border-slate-200 dark:border-slate-850 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-slate-800 dark:text-slate-200"
+                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-slate-800 dark:text-slate-200"
                   >
                     {getDeptOptions().map(d => (
                       <option key={d} value={d}>{d}</option>
@@ -285,11 +285,11 @@ const ClassManagement = () => {
                   </select>
                 </div>
                 <div>
-                  <label className="text-[9px] font-bold text-slate-400 uppercase block mb-1">Academic Term</label>
+                  <label className="text-[9px] dark- bold dark:text-slate-500 font-bold text-slate-400 uppercase block mb-1">Academic Term</label>
                   <select
                     value={formTermId}
                     onChange={(e) => setFormTermId(e.target.value)}
-                    className="w-full bg-slate-50 dark:bg-slate-955 border border-slate-200 dark:border-slate-850 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-slate-800 dark:text-slate-200"
+                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-slate-800 dark:text-slate-500"
                   >
                     {academicTerms.map(t => (
                       <option key={t.term_id} value={t.term_id}>
@@ -339,7 +339,7 @@ const ClassManagement = () => {
                   type="text"
                   value={formName}
                   onChange={(e) => setFormName(e.target.value)}
-                  className="w-full bg-slate-50 dark:bg-slate-905 border border-slate-200 dark:border-slate-850 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-slate-800 dark:text-slate-200"
+                  className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-slate-800 dark:text-slate-500"
                   required
                 />
               </div>
@@ -376,7 +376,7 @@ const ClassManagement = () => {
                   <select
                     value={formDept}
                     onChange={(e) => setFormDept(e.target.value)}
-                    className="w-full bg-slate-50 dark:bg-slate-955 border border-slate-200 dark:border-slate-850 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-slate-800 dark:text-slate-200"
+                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-slate-800 dark:text-slate-500"
                   >
                     {getDeptOptions().map(d => (
                       <option key={d} value={d}>{d}</option>
