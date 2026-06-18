@@ -92,7 +92,17 @@ export const StudentProvider = ({ children }) => {
 
   const [badges, setBadges] = useState(() => {
     const saved = localStorage.getItem('neurolearn_badges');
-    return saved !== null ? JSON.parse(saved) : INITIAL_BADGES;
+    if (saved !== null) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length === 15) {
+          return parsed;
+        }
+      } catch (e) {
+        console.error("Error parsing badges from localstorage:", e);
+      }
+    }
+    return INITIAL_BADGES;
   });
 
   const [quizHistory, setQuizHistory] = useState(() => {
@@ -250,26 +260,8 @@ export const StudentProvider = ({ children }) => {
   };
 
   const unlockBadgesCheck = (nodeId, domainId, percentage) => {
-    setBadges(prev => {
-      return prev.map(badge => {
-        if (badge.id === "b3" && nodeId === "cyber-1" && !badge.unlocked) {
-          return { ...badge, unlocked: true };
-        }
-        if (badge.id === "b4" && domainId === "ai-ml" && percentage === 100 && !badge.unlocked) {
-          return { ...badge, unlocked: true };
-        }
-        if (badge.id === "b5" && nodeId === "devops-2" && !badge.unlocked) {
-          return { ...badge, unlocked: true };
-        }
-        if (badge.id === "b6" && !badge.unlocked) {
-          const passedCount = quizHistory.filter(h => (h.score / 3) >= 0.8).length;
-          if (passedCount >= 4) {
-            return { ...badge, unlocked: true };
-          }
-        }
-        return badge;
-      });
-    });
+    // API-Ready placeholder for backend real-time badge unlocking rules
+    console.log(`Badge unlock check triggered for nodeId: ${nodeId}, domainId: ${domainId}, percentage: ${percentage}`);
   };
 
   // --- CRUD Operations: Student Registry ---

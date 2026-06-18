@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Search, ShieldAlert, Calendar, User, Eye, Layers } from 'lucide-react';
+import { apiFetch } from '../../services/api';
 
 const AuditLogs = () => {
   const [logs, setLogs] = useState([]);
@@ -15,7 +16,7 @@ const AuditLogs = () => {
   const loadAuditLogs = async () => {
     try {
       setLoading(true);
-      const res = await fetch("http://127.0.0.1:8000/audit-logs");
+      const res = await apiFetch("/audit-logs");
       const data = await res.json();
       setLogs(data);
     } catch (err) {

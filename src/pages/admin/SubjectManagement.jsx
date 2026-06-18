@@ -8,18 +8,20 @@ import {
     Search,
     Users
 } from 'lucide-react';
+import { apiFetch } from '../../services/api';
+
 const SubjectManagement = () => {
     const [subjects, setSubjects] = useState([]);
     const [departments, setDepartments] = useState([]);
     const [searchTerm, setSearchTerm] = useState("");
 
     useEffect(() => {
-        fetch("http://127.0.0.1:8000/api/subjects")
+        apiFetch("/subjects")
             .then((res) => res.json())
             .then((data) => setSubjects(data))
             .catch((err) => console.error(err));
 
-        fetch("http://127.0.0.1:8000/api/departments")
+        apiFetch("/departments")
             .then((res) => res.json())
             .then((data) => setDepartments(data))
             .catch((err) => console.error(err));
@@ -62,13 +64,10 @@ const SubjectManagement = () => {
         e.preventDefault();
 
         try {
-            await fetch(
-                "http://127.0.0.1:8000/api/subjects",
+            await apiFetch(
+                "/subjects",
                 {
                     method: "POST",
-                    headers: {
-                        "Content-Type": "application/json"
-                    },
                     body: JSON.stringify({
                         subject_code: formCode,
                         subject_name: formName,
@@ -79,10 +78,7 @@ const SubjectManagement = () => {
                 }
             );
 
-            const response = await fetch(
-                "http://127.0.0.1:8000/subjects"
-            );
-
+            const response = await apiFetch("/subjects");
             const data = await response.json();
             setSubjects(data);
             setShowAddModal(false);
@@ -92,18 +88,13 @@ const SubjectManagement = () => {
     };
 
     const handleSaveEdit = async (e) => {
-
         e.preventDefault();
 
         try {
-
-            await fetch(
-                `http://127.0.0.1:8000/subjects/${targetSubject.subject_id}`,
+            await apiFetch(
+                `/subjects/${targetSubject.subject_id}`,
                 {
                     method: "PUT",
-                    headers: {
-                        "Content-Type": "application/json"
-                    },
                     body: JSON.stringify({
                         subject_code: formCode,
                         subject_name: formName,
@@ -114,55 +105,35 @@ const SubjectManagement = () => {
                 }
             );
 
-            const response = await fetch(
-                "http://127.0.0.1:8000/subjects"
-            );
-
+            const response = await apiFetch("/subjects");
             const data = await response.json();
-
             setSubjects(data);
-
             setShowEditModal(false);
-
             setTargetSubject(null);
-
         }
         catch (err) {
-
             console.error(err);
-
         }
-
     };
 
     const handleDelete = async (subjectId) => {
-
         if (!window.confirm("Delete this subject?"))
             return;
 
         try {
-
-            await fetch(
-                `http://127.0.0.1:8000/subjects/${subjectId}`,
+            await apiFetch(
+                `/subjects/${subjectId}`,
                 {
                     method: "DELETE"
                 }
             );
 
-            const response = await fetch(
-                "http://127.0.0.1:8000/subjects"
-            );
-
+            const response = await apiFetch("/subjects");
             const data = await response.json();
-
             setSubjects(data);
-
         } catch (err) {
-
             console.error(err);
-
         }
-
     };
 
     const getDeptList = () => {

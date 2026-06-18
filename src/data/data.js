@@ -714,13 +714,72 @@ export const LEADERBOARD = [
 ];
 
 export const BADGES = [
-  { id: "b1", name: "Welcome to NeuroLearn", description: "Successfully register and verify your profile.", unlocked: true, icon: "Award", color: "from-blue-500 to-indigo-600" },
-  { id: "b2", name: "Week of Fire", description: "Maintain a study streak of 7 consecutive days.", unlocked: true, icon: "Flame", color: "from-orange-500 to-red-600" },
-  { id: "b3", name: "Cyber Defender", description: "Complete the first node of the Cybersecurity track.", unlocked: false, icon: "Shield", color: "from-cyan-500 to-blue-600" },
-  { id: "b4", name: "ML Virtuoso", description: "Earn a score of 100% on the Generative AI & LLMs Quiz.", unlocked: false, icon: "Brain", color: "from-purple-500 to-pink-600" },
-  { id: "b5", name: "Docker Admiral", description: "Unlock the DevOps Containerization node.", unlocked: false, icon: "Box", color: "from-teal-500 to-emerald-600" },
-  { id: "b6", name: "Quiz Master", description: "Complete 5 quizzes with an average score of over 85%.", unlocked: false, icon: "CheckCircle", color: "from-yellow-400 to-orange-500" }
+  // Academic Excellence
+  { id: "b1", name: "Academic Topper", description: "Achieve the highest score in your department quiz.", category: "Academic Excellence", icon: "Trophy", xpReward: 500, unlockCondition: "Rank 1 in Department Quiz", unlocked: false, progress: { current: 0, target: 1 } },
+  { id: "b2", name: "Dean's List", description: "Maintain an academic CGPA of 9.0 or above.", category: "Academic Excellence", icon: "Award", xpReward: 400, unlockCondition: "CGPA >= 9.0", unlocked: false, progress: { current: 8.45, target: 9.0 } },
+  { id: "b3", name: "Subject Master", description: "Complete all quizzes in a single domain with >90% average.", category: "Academic Excellence", icon: "BookOpen", xpReward: 300, unlockCondition: "Average score > 90%", unlocked: false, progress: { current: 89, target: 90 } },
+  
+  // Attendance
+  { id: "b4", name: "Perfect Attendance", description: "Maintain a high attendance rate of 95% or higher.", category: "Attendance", icon: "CalendarCheck", xpReward: 250, unlockCondition: "Attendance >= 95%", unlocked: false, progress: { current: 88, target: 95 } },
+  { id: "b5", name: "Consistent Learner", description: "Maintain a study streak of 15 consecutive days.", category: "Attendance", icon: "Flame", xpReward: 200, unlockCondition: "15 Day Streak", unlocked: false, progress: { current: 7, target: 15 } },
+  { id: "b6", name: "Campus Regular", description: "Check in on campus for 30 consecutive days.", category: "Attendance", icon: "MapPin", xpReward: 150, unlockCondition: "30 Days Check-in", unlocked: true, progress: { current: 30, target: 30 } },
+
+  // Assignments
+  { id: "b7", name: "Assignment Warrior", description: "Complete 10 course assignments successfully.", category: "Assignments", icon: "FileText", xpReward: 300, unlockCondition: "10 Assignments Completed", unlocked: false, progress: { current: 7, target: 10 } },
+  { id: "b8", name: "Deadline Crusher", description: "Submit 5 assignments 24 hours before the deadline.", category: "Assignments", icon: "Clock", xpReward: 200, unlockCondition: "5 Early Submissions", unlocked: true, progress: { current: 5, target: 5 } },
+  { id: "b9", name: "Zero Backlog Shield", description: "Keep your backlog list completely clear for the semester.", category: "Assignments", icon: "Shield", xpReward: 250, unlockCondition: "No Pending Assignments", unlocked: true, progress: { current: 0, target: 0 } },
+
+  // Learning & Skills
+  { id: "b10", name: "Quiz Master", description: "Complete 5 quizzes with an average score of over 85%.", category: "Learning & Skills", icon: "CheckCircle", xpReward: 300, unlockCondition: "5 Quizzes with >85% Score", unlocked: false, progress: { current: 2, target: 5 } },
+  { id: "b11", name: "Knowledge Explorer", description: "Unlock and view 4 learning domains.", category: "Learning & Skills", icon: "Compass", xpReward: 150, unlockCondition: "4 Domains Visited", unlocked: true, progress: { current: 4, target: 4 } },
+  { id: "b12", name: "AI Enthusiast", description: "Earn a score of 100% on any AI/ML track quiz.", category: "Learning & Skills", icon: "Cpu", xpReward: 200, unlockCondition: "100% Score on AI Quiz", unlocked: false, progress: { current: 0, target: 1 } },
+
+  // Community & Events
+  { id: "b13", name: "Club Contributor", description: "Participate in 3 campus club technical events.", category: "Community & Events", icon: "Users", xpReward: 200, unlockCondition: "Attend 3 Events", unlocked: true, progress: { current: 3, target: 3 } },
+  { id: "b14", name: "Campus Ambassador", description: "Refer 5 other students to join the NeuroLearn portal.", category: "Community & Events", icon: "Megaphone", xpReward: 350, unlockCondition: "5 Referrals Registered", unlocked: false, progress: { current: 3, target: 5 } },
+
+  // Elite Achievements
+  { id: "b15", name: "Legend Rank", description: "Reach Level 10 and enter the elite Legend leaderboard.", category: "Elite Achievements", icon: "Crown", xpReward: 1000, unlockCondition: "Reach Level 10", unlocked: false, progress: { current: 4, target: 10 } }
 ];
+
+export const LEVEL_SYSTEM = [
+  { level: 1, name: "Freshman", minXp: 0, maxXp: 199 },
+  { level: 2, name: "Learner", minXp: 200, maxXp: 499 },
+  { level: 3, name: "Explorer", minXp: 500, maxXp: 999 },
+  { level: 4, name: "Scholar", minXp: 1000, maxXp: 1799 },
+  { level: 5, name: "Achiever", minXp: 1800, maxXp: 2799 },
+  { level: 6, name: "Innovator", minXp: 2800, maxXp: 3999 },
+  { level: 7, name: "Expert", minXp: 4000, maxXp: 5499 },
+  { level: 8, name: "Mentor", minXp: 5500, maxXp: 7499 },
+  { level: 9, name: "Elite", minXp: 7500, maxXp: 9999 },
+  { level: 10, name: "Legend", minXp: 10000, maxXp: 999999 }
+];
+
+export const BADGE_CATEGORIES = [
+  { id: "academic", name: "Academic Excellence", color: "from-blue-500 to-indigo-600", desc: "Top classroom and quiz performers" },
+  { id: "attendance", name: "Attendance", color: "from-orange-500 to-red-600", desc: "Consistency and presence in portal & lectures" },
+  { id: "assignments", name: "Assignments", color: "from-teal-500 to-emerald-600", desc: "Completing tasks, project submissions & timelines" },
+  { id: "skills", name: "Learning & Skills", color: "from-purple-500 to-pink-600", desc: "Expanding tech capabilities and knowledge bases" },
+  { id: "community", name: "Community & Events", color: "from-cyan-500 to-blue-600", desc: "Technical club participations & campus engagement" },
+  { id: "elite", name: "Elite Achievements", color: "from-yellow-500 to-amber-600", desc: "High-tier university prestige markers" }
+];
+
+export const XP_BREAKDOWN_TEMPLATE = [
+  { id: "attendance", name: "Attendance", xp: 120, percentage: 12.6, color: "bg-orange-500" },
+  { id: "assignments", name: "Assignments", xp: 250, percentage: 26.3, color: "bg-teal-500" },
+  { id: "quizzes", name: "Quizzes", xp: 180, percentage: 18.9, color: "bg-purple-500" },
+  { id: "courses", name: "Courses", xp: 300, percentage: 31.6, color: "bg-indigo-500" },
+  { id: "events", name: "Events", xp: 100, percentage: 10.5, color: "bg-cyan-500" }
+];
+
+export const LEADERBOARD_FILTERS = [
+  { id: "institution", name: "Institution" },
+  { id: "department", name: "Department" },
+  { id: "semester", name: "Semester" },
+  { id: "weekly", name: "Weekly" },
+  { id: "all_time", name: "All Time" }
+];
+
 
 export const RECOMMENDATIONS = {
   "ai-ml": [

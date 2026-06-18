@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Edit, Trash2, X, Calendar, Layers } from 'lucide-react';
+import { apiFetch } from '../../services/api';
 
 const AcademicStructure = () => {
   const [terms, setTerms] = useState([]);
@@ -18,7 +19,7 @@ const AcademicStructure = () => {
 
   const loadTerms = async () => {
     try {
-      const res = await fetch("http://127.0.0.1:8000/academic-terms");
+      const res = await apiFetch("/academic-terms");
       const data = await res.json();
       setTerms(data);
     } catch (err) {
@@ -42,9 +43,8 @@ const AcademicStructure = () => {
   const handleSaveAdd = async (e) => {
     e.preventDefault();
     try {
-      await fetch("http://127.0.0.1:8000/academic-terms", {
+      await apiFetch("/academic-terms", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           academic_year: formYear,
           semester: parseInt(formSemester)
@@ -60,9 +60,8 @@ const AcademicStructure = () => {
   const handleSaveEdit = async (e) => {
     e.preventDefault();
     try {
-      await fetch(`http://127.0.0.1:8000/academic-terms/${targetTerm.term_id}`, {
+      await apiFetch(`/academic-terms/${targetTerm.term_id}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           academic_year: formYear,
           semester: parseInt(formSemester)
@@ -80,7 +79,7 @@ const AcademicStructure = () => {
     if (!window.confirm("Remove this academic term structure?")) return;
 
     try {
-      await fetch(`http://127.0.0.1:8000/academic-terms/${id}`, {
+      await apiFetch(`/academic-terms/${id}`, {
         method: "DELETE"
       });
       await loadTerms();

@@ -11,6 +11,7 @@ import {
   Award,
   Users
 } from 'lucide-react';
+import { apiFetch } from '../../services/api';
 
 const CourseManagement = () => {
   const [courses, setCourses] = useState([]);
@@ -18,12 +19,12 @@ const CourseManagement = () => {
   const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
-    fetch("http://127.0.0.1:8000/api/courses")
+    apiFetch("/courses")
       .then((res) => res.json())
       .then((data) => setCourses(data))
       .catch((err) => console.error(err));
 
-    fetch("http://127.0.0.1:8000/api/departments")
+    apiFetch("/departments")
       .then((res) => res.json())
       .then((data) => setDepartments(data))
       .catch((err) => console.error(err));
@@ -64,13 +65,10 @@ const CourseManagement = () => {
     e.preventDefault();
 
     try {
-      await fetch(
-        "http://127.0.0.1:8000/api/courses",
+      await apiFetch(
+        "/courses",
         {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
           body: JSON.stringify({
             course_code: formCode,
             course_title: formTitle,
@@ -81,10 +79,7 @@ const CourseManagement = () => {
         }
       );
 
-      const response = await fetch(
-        "http://127.0.0.1:8000/api/courses"
-      );
-
+      const response = await apiFetch("/courses");
       const data = await response.json();
       setCourses(data);
       setShowAddModal(false);
@@ -94,18 +89,13 @@ const CourseManagement = () => {
   };
 
   const handleSaveEdit = async (e) => {
-
     e.preventDefault();
 
     try {
-
-      await fetch(
-        `http://127.0.0.1:8000/courses/${targetCourse.course_id}`,
+      await apiFetch(
+        `/courses/${targetCourse.course_id}`,
         {
           method: "PUT",
-          headers: {
-            "Content-Type": "application/json"
-          },
           body: JSON.stringify({
             course_code: formCode,
             course_title: formTitle,
@@ -116,46 +106,29 @@ const CourseManagement = () => {
         }
       );
 
-      const response = await fetch("http://127.0.0.1:8000/api/courses");
-
+      const response = await apiFetch("/courses");
       const data = await response.json();
-
       setCourses(data);
-
       setShowEditModal(false);
-
       setTargetCourse(null);
-
     }
     catch (err) {
-
       console.error(err);
-
     }
-
   };
 
   const handleDelete = async (courseId) => {
-
     if (!window.confirm("Delete this course?"))
       return;
 
     try {
-
-      await fetch(`http://127.0.0.1:8000/courses/${courseId}`,{ method: "DELETE" } );
-
-      const response = await fetch("http://127.0.0.1:8000/apicourses");
-
+      await apiFetch(`/courses/${courseId}`, { method: "DELETE" });
+      const response = await apiFetch("/courses");
       const data = await response.json();
-
       setCourses(data);
-
     } catch (err) {
-
       console.error(err);
-
     }
-
   };
 
   const getDeptList = () => {

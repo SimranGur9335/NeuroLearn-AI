@@ -16,48 +16,92 @@ import {
   Activity, 
   Terminal, 
   Zap, 
-  RefreshCw,
-  BellRing
+  RefreshCw
 } from 'lucide-react';
+import { apiFetch } from '../../services/api';
 import { SYSTEM_METRICS } from '../../data/academicData';
 
 const SystemMonitoring = () => {
-  const [logs, setLogs] = useState([
-    { text: "LMS Server connection established on port 5173", time: "10:01:22", type: "info" },
-    { text: "Seeded local context database with 520 Student entries successfully", time: "10:01:23", type: "success" },
-    { text: "Synchronized active courses lists from academicData registry", time: "10:01:24", type: "info" },
-    { text: "CPU temperature at 42°C. Fan speeds nominal", time: "10:01:30", type: "info" }
-  ]);
+  const [status, setStatus] = useState({
+    database_status: 'Checking...',
+    api_status: 'Checking...',
+    storage_status: 'Coming Soon',
+    active_users: 0
+  });
 
-  const [memoryMetric, setMemoryMetric] = useState(5.9);
-  const [loadMetric, setLoadMetric] = useState(65);
+  const [logs, setLogs] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  // Periodically add some fake system logs to make the monitoring look alive!
+  const fetchStatus = async () => {
+    try {
+      const res = await apiFetch("/v1/admin/monitoring/status");
+      if (res.ok) {
+        const data = await res.json();
+        setStatus(data);
+      } else {
+        setStatus(prev => ({
+          ...prev,
+          database_status: "Error",
+          api_status: "Error"
+        }));
+      }
+    } catch (err) {
+      console.error("Error fetching system status:", err);
+      setStatus(prev => ({
+        ...prev,
+        database_status: "Down",
+        api_status: "Offline"
+      }));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchLogs = async () => {
+    try {
+      const res = await apiFetch("/audit-logs");
+      if (res.ok) {
+        const data = await res.json();
+        const formatted = data.map(log => {
+          let timeStr = "00:00:00";
+          try {
+            const dateObj = new Date(log.created_at);
+            timeStr = dateObj.toTimeString().split(' ')[0];
+          } catch(e) {
+            const parts = log.created_at.split(' ');
+            if (parts.length > 1) {
+              timeStr = parts[1].split('.')[0];
+            } else {
+              timeStr = log.created_at.split('T')[1]?.split('.')[0] || "00:00:00";
+            }
+          }
+          return {
+            text: `${log.performed_by} performed ${log.action} on ${log.entity_type} (ID: ${log.entity_id})`,
+            time: timeStr,
+            type: log.action === "DELETE" ? "error" : (log.action === "CREATE" || log.action === "ENROLL" ? "success" : "info")
+          };
+        });
+        setLogs(formatted.slice(0, 15));
+      }
+    } catch (err) {
+      console.error("Error fetching audit logs for console:", err);
+    }
+  };
+
   useEffect(() => {
-    const interval = setInterval(() => {
-      const randomLogs = [
-        { text: "GET /api/student-profile - Status 200 OK (22ms)", type: "info" },
-        { text: "PUT /api/roadmap-node - State update completed", type: "success" },
-        { text: "Server telemetry load checked. Nominal load", type: "info" },
-        { text: "Synchronized LocalStorage credentials block successfully", type: "info" },
-        { text: "Memory cleanup: released 120MB cache space", type: "success" }
-      ];
-
-      const chosenLog = randomLogs[Math.floor(Math.random() * randomLogs.length)];
-      const now = new Date().toTimeString().split(' ')[0];
-      
-      setLogs(prev => [
-        { text: chosenLog.text, time: now, type: chosenLog.type },
-        ...prev.slice(0, 15) // keep last 15 logs
-      ]);
-
-      // slightly fluctuate memory and load metrics
-      setMemoryMetric(parseFloat((5.7 + Math.random() * 0.5).toFixed(1)));
-      setLoadMetric(Math.floor(55 + Math.random() * 20));
-    }, 4500);
-
-    return () => clearInterval(interval);
+    fetchStatus();
+    fetchLogs();
+    const statusInterval = setInterval(fetchStatus, 10000);
+    const logsInterval = setInterval(fetchLogs, 15000);
+    return () => {
+      clearInterval(statusInterval);
+      clearInterval(logsInterval);
+    };
   }, []);
+
+  const handleClearConsole = () => {
+    setLogs([]);
+  };
 
   return (
     <motion.div
@@ -69,7 +113,7 @@ const SystemMonitoring = () => {
       {/* Intro Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <p className="text-xs text-emerald-505 font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">Platform Telemetry</p>
+          <p className="text-xs text-emerald-500 font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">Platform Telemetry</p>
           <h2 className="text-2xl font-black text-slate-800 dark:text-white">Hardware Health & Sessions Monitoring</h2>
           <p className="text-slate-500 text-xs mt-1">
             Real-time visual records mapping system memory constraints, CPU workloads, and telemetry connection logs.
@@ -79,59 +123,74 @@ const SystemMonitoring = () => {
 
       {/* Grid of hardware parameters */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        {/* CPU Workload */}
+        {/* Database Engine */}
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 rounded-2xl shadow-sm flex items-center gap-4">
           <div className="p-3 bg-emerald-500/10 text-emerald-500 rounded-xl">
-            <Cpu size={22} />
+            <Server size={22} />
           </div>
           <div>
-            <span className="text-[10px] text-slate-400 block font-bold uppercase">CPU Core Workload</span>
-            <span className="text-xl font-extrabold text-slate-800 dark:text-white">{loadMetric}%</span>
+            <span className="text-[10px] text-slate-400 block font-bold uppercase">Database Engine</span>
+            <span className={`text-lg font-extrabold ${status.database_status === 'Operational' ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-500'}`}>
+              {status.database_status}
+            </span>
           </div>
         </div>
 
-        {/* Memory Allocation */}
+        {/* API Gateway */}
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 rounded-2xl shadow-sm flex items-center gap-4">
           <div className="p-3 bg-indigo-500/10 text-indigo-500 rounded-xl">
+            <Activity size={22} />
+          </div>
+          <div>
+            <span className="text-[10px] text-slate-400 block font-bold uppercase">API Gateway</span>
+            <span className={`text-lg font-extrabold ${status.api_status === 'Operational' ? 'text-indigo-600 dark:text-indigo-400' : 'text-rose-500'}`}>
+              {status.api_status}
+            </span>
+          </div>
+        </div>
+
+        {/* Object Storage */}
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 rounded-2xl shadow-sm flex items-center gap-4">
+          <div className="p-3 bg-amber-500/10 text-amber-500 rounded-xl">
             <HardDrive size={22} />
           </div>
           <div>
-            <span className="text-[10px] text-slate-400 block font-bold uppercase">Memory Usage</span>
-            <span className="text-xl font-extrabold text-slate-800 dark:text-white">{memoryMetric} GB</span>
-          </div>
-        </div>
-
-        {/* Latency Index */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 rounded-2xl shadow-sm flex items-center gap-4">
-          <div className="p-3 bg-yellow-500/10 text-yellow-600 dark:text-yellow-450 rounded-xl">
-            <Zap size={22} className="animate-pulse" />
-          </div>
-          <div>
-            <span className="text-[10px] text-slate-400 block font-bold uppercase">Endpoint Latency</span>
-            <span className="text-xl font-extrabold text-slate-800 dark:text-white">18 ms</span>
+            <span className="text-[10px] text-slate-400 block font-bold uppercase">Object Storage</span>
+            <span className="text-lg font-extrabold text-amber-600 dark:text-amber-400">
+              {status.storage_status}
+            </span>
           </div>
         </div>
 
         {/* Platform Active Sessions */}
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 rounded-2xl shadow-sm flex items-center gap-4">
           <div className="p-3 bg-blue-500/10 text-blue-500 rounded-xl">
-            <Activity size={22} />
+            <Zap size={22} />
           </div>
           <div>
-            <span className="text-[10px] text-slate-400 block font-bold uppercase">Active Connections</span>
-            <span className="text-xl font-extrabold text-slate-800 dark:text-white">495 Clients</span>
+            <span className="text-[10px] text-slate-400 block font-bold uppercase">Active Users (24h)</span>
+            <span className="text-lg font-extrabold text-blue-600 dark:text-blue-400">
+              {status.active_users !== undefined ? `${status.active_users} User(s)` : 'Loading...'}
+            </span>
           </div>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Area charts memory limits */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-3xl shadow-sm lg:col-span-2">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-3xl shadow-sm lg:col-span-2 relative overflow-hidden">
           <h3 className="font-extrabold text-slate-800 dark:text-white text-sm md:text-base mb-4 flex items-center gap-2">
             <Server size={18} className="text-emerald-500" />
             LMS Cluster Memory Consumption Profile (GB)
           </h3>
-          <div className="h-64">
+          <div className="h-64 relative">
+            {/* Glassmorphic Coming Soon Overlay */}
+            <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm rounded-2xl flex flex-col items-center justify-center border border-slate-800/20 z-10">
+              <Cpu size={32} className="text-indigo-400 mb-2 animate-pulse" />
+              <span className="text-sm font-extrabold text-white">Cluster Performance Telemetry</span>
+              <span className="text-[10px] text-indigo-200 mt-1">Coming Soon</span>
+            </div>
+            
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={SYSTEM_METRICS.memoryUsage}>
                 <defs>
@@ -152,26 +211,33 @@ const SystemMonitoring = () => {
 
         {/* Live console console monitor */}
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-3xl shadow-sm flex flex-col justify-between">
-          <div className="flex justify-between items-center mb-4 pb-2 border-b border-slate-100 dark:border-slate-850">
+          <div className="flex justify-between items-center mb-4 pb-2 border-b border-slate-100 dark:border-slate-800">
             <h3 className="font-extrabold text-slate-800 dark:text-white text-sm flex items-center gap-2">
               <Terminal size={16} className="text-emerald-500 animate-pulse" />
               Live Telemetry Console Logs
             </h3>
-            <button className="text-[10px] text-indigo-500 font-bold flex items-center gap-1.5 hover:underline cursor-pointer">
-              <RefreshCw size={10} className="animate-spin-slow" />
+            <button 
+              onClick={handleClearConsole}
+              className="text-[10px] text-indigo-500 font-bold flex items-center gap-1.5 hover:underline cursor-pointer"
+            >
+              <RefreshCw size={10} />
               Clear Console
             </button>
           </div>
 
-          <div className="bg-slate-950 font-mono text-[10px] text-indigo-300 p-4 rounded-2xl flex-1 overflow-y-auto space-y-2 max-h-[200px] leading-relaxed shadow-inner">
-            {logs.map((log, index) => (
-              <div key={index} className="flex gap-2.5">
-                <span className="text-slate-500">[{log.time}]</span>
-                <span className={log.type === "success" ? "text-emerald-400" : "text-indigo-300"}>
-                  {log.text}
-                </span>
-              </div>
-            ))}
+          <div className="bg-slate-950 font-mono text-[10px] text-indigo-300 p-4 rounded-2xl flex-1 overflow-y-auto space-y-2 max-h-[220px] leading-relaxed shadow-inner">
+            {logs.length > 0 ? (
+              logs.map((log, index) => (
+                <div key={index} className="flex gap-2.5">
+                  <span className="text-slate-500">[{log.time}]</span>
+                  <span className={log.type === "success" ? "text-emerald-400" : (log.type === "error" ? "text-rose-400" : "text-indigo-300")}>
+                    {log.text}
+                  </span>
+                </div>
+              ))
+            ) : (
+              <div className="text-slate-500 text-center py-4">No telemetry activity logs available</div>
+            )}
           </div>
         </div>
       </div>

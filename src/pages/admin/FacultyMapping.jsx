@@ -12,6 +12,7 @@ import {
   Sparkles,
   AlertTriangle
 } from 'lucide-react';
+import { apiFetch } from '../../services/api';
 
 const FacultyMapping = () => {
   const [faculty, setFaculty] = useState([]);
@@ -38,9 +39,9 @@ const FacultyMapping = () => {
     const fetchDependencies = async () => {
       try {
         const [facRes, subRes, classRes] = await Promise.all([
-          fetch("http://127.0.0.1:8000/api/faculty"),
-          fetch("http://127.0.0.1:8000/api/subjects"),
-          fetch("http://127.0.0.1:8000/api/classes")
+          apiFetch("/faculty"),
+          apiFetch("/subjects"),
+          apiFetch("/classes")
         ]);
 
         if (facRes.ok) {
@@ -74,7 +75,7 @@ const FacultyMapping = () => {
 
   const loadMappings = async () => {
     try {
-      const response = await fetch("http://127.0.0.1:8000/api/faculty-mapping");
+      const response = await apiFetch("/faculty-mapping");
       if (!response.ok) {
         throw new Error("Failed to load mappings");
       }
@@ -110,13 +111,10 @@ const FacultyMapping = () => {
     }
 
     try {
-      const res = await fetch(
-        "http://127.0.0.1:8000/api/faculty-mapping",
+      const res = await apiFetch(
+        "/faculty-mapping",
         {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
           body: JSON.stringify({
             faculty_id: Number(facultyId),
             subject_id: Number(subjectId),
@@ -146,13 +144,10 @@ const FacultyMapping = () => {
     }
 
     try {
-      const res = await fetch(
-        `http://127.0.0.1:8000/faculty-mapping/${targetMapping.mapping_id}`,
+      const res = await apiFetch(
+        `/faculty-mapping/${targetMapping.mapping_id}`,
         {
           method: "PUT",
-          headers: {
-            "Content-Type": "application/json"
-          },
           body: JSON.stringify({
             faculty_id: Number(facultyId),
             subject_id: Number(subjectId),
@@ -181,8 +176,8 @@ const FacultyMapping = () => {
     }
 
     try {
-      const res = await fetch(
-        `http://127.0.0.1:8000/faculty-mapping/${mappingId}`,
+      const res = await apiFetch(
+        `/faculty-mapping/${mappingId}`,
         {
           method: "DELETE"
         }

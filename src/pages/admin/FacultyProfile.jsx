@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowLeft, UserCheck, BookOpen, Briefcase, Mail, Award, Landmark, Layers } from 'lucide-react';
+import { apiFetch } from '../../services/api';
 
 const FacultyProfile = () => {
   const { id } = useParams();
@@ -16,7 +17,7 @@ const FacultyProfile = () => {
   const fetchFacultyProfile = async () => {
     try {
       setLoading(true);
-      const res = await fetch(`http://127.0.0.1:8000/faculty/${id}`);
+      const res = await apiFetch(`/faculty/${id}`);
       if (!res.ok) throw new Error("Faculty not found");
       const data = await res.json();
       setFaculty(data);

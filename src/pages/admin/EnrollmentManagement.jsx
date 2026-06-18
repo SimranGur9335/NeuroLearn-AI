@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Trash2, ArrowLeftRight, X, Search, UserCheck, Eye, Layers } from 'lucide-react';
+import { apiFetch } from '../../services/api';
 
 const EnrollmentManagement = () => {
   const [enrollments, setEnrollments] = useState([]);
@@ -25,15 +26,15 @@ const EnrollmentManagement = () => {
 
   const loadData = async () => {
     try {
-      const eRes = await fetch("http://127.0.0.1:8000/api/enrollments");
+      const eRes = await apiFetch("/enrollments");
       const eData = await eRes.json();
       setEnrollments(eData);
 
-      const sRes = await fetch("http://127.0.0.1:8000/api/students");
+      const sRes = await apiFetch("/students");
       const sData = await sRes.json();
       setStudents(Array.isArray(sData) ? sData : []);
 
-      const cRes = await fetch("http://127.0.0.1:8000/classes");
+      const cRes = await apiFetch("/classes");
       const cData = await cRes.json();
       setClasses(Array.isArray(cData) ? cData : []);
     } catch (err) {
@@ -61,9 +62,8 @@ const EnrollmentManagement = () => {
     }
 
     try {
-      const res = await fetch("http://127.0.0.1:8000/enrollments", {
+      const res = await apiFetch("/enrollments", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           student_id: parseInt(selectedStudentId),
           class_id: parseInt(selectedClassId)
@@ -86,9 +86,8 @@ const EnrollmentManagement = () => {
   const handleSaveTransfer = async (e) => {
     e.preventDefault();
     try {
-      const res = await fetch(`http://127.0.0.1:8000/enrollments/${targetEnrollment.enrollment_id}`, {
+      const res = await apiFetch(`/enrollments/${targetEnrollment.enrollment_id}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           student_id: targetEnrollment.student_id,
           class_id: parseInt(selectedClassId)
@@ -113,7 +112,7 @@ const EnrollmentManagement = () => {
     if (!window.confirm("Remove student enrollment?")) return;
 
     try {
-      await fetch(`http://127.0.0.1:8000/enrollments/${id}`, {
+      await apiFetch(`/enrollments/${id}`, {
         method: "DELETE"
       });
       await loadData();
@@ -125,7 +124,7 @@ const EnrollmentManagement = () => {
   const viewHistory = async (student) => {
     try {
       setHistoryStudent(student);
-      const res = await fetch(`http://127.0.0.1:8000/enrollments/history/${student.student_id}`);
+      const res = await apiFetch(`/enrollments/history/${student.student_id}`);
       if (res.ok) {
         const data = await res.json();
         setStudentHistory(data);

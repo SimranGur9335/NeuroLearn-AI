@@ -8,17 +8,36 @@ export const useAuth = () => useContext(AuthContext);
 // Global fetch interceptor to automatically attach authorization header
 const originalFetch = window.fetch;
 window.fetch = async function (url, options = {}) {
+  let targetUrl = url;
+  const apiBase = import.meta.env.VITE_API_URL || '';
+
   const isBackend = typeof url === 'string' && (
     url.includes('localhost:8000') ||
     url.includes('127.0.0.1:8000') ||
     url.startsWith('/api/') ||
-    url.startsWith('/admin/')
+    url.startsWith('/admin/') ||
+    url.startsWith('/class/') ||
+    url.startsWith('/teacher/') ||
+    url.startsWith('/assignments') ||
+    url.startsWith('/attendance/') ||
+    url.startsWith('/marks') ||
+    url.startsWith('/submissions/') ||
+    url.startsWith('/announcements')
   );
 
   if (isBackend) {
-    let targetUrl = url;
-    if (url.includes('127.0.0.1:8000')) {
-      targetUrl = url.replace('127.0.0.1:8000', 'localhost:8000');
+    if (url.includes('localhost:8000') || url.includes('127.0.0.1:8000')) {
+      if (apiBase) {
+        const cleanApiBase = apiBase.endsWith('/') ? apiBase.slice(0, -1) : apiBase;
+        targetUrl = url.replace(/^https?:\/\/(localhost|127\.0\.0\.1):8000/, cleanApiBase);
+      } else if (url.includes('127.0.0.1:8000')) {
+        targetUrl = url.replace('127.0.0.1:8000', 'localhost:8000');
+      }
+    } else if (url.startsWith('/')) {
+      if (apiBase && (apiBase.startsWith('http://') || apiBase.startsWith('https://'))) {
+        const cleanApiBase = apiBase.endsWith('/') ? apiBase.slice(0, -1) : apiBase;
+        targetUrl = `${cleanApiBase}${url}`;
+      }
     }
 
     options.headers = options.headers || {};

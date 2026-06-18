@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Edit, Trash2, X, Search, Landmark, Users, BookOpen } from 'lucide-react';
+import { apiFetch } from "../../services/api";
 
 const DepartmentManagement = () => {
   const [departments, setDepartments] = useState([]);
@@ -19,7 +20,7 @@ const DepartmentManagement = () => {
 
   const loadDepartmentStats = async () => {
     try {
-      const res = await fetch("http://127.0.0.1:8000/departments/stats");
+      const res = await apiFetch("/departments/stats");
       const data = await res.json();
       setDepartments(data);
     } catch (err) {
@@ -48,7 +49,7 @@ const DepartmentManagement = () => {
     }
 
     try {
-      await fetch("http://127.0.0.1:8000/departments", {
+      await apiFetch("/departments", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -66,7 +67,7 @@ const DepartmentManagement = () => {
   const handleSaveEdit = async (e) => {
     e.preventDefault();
     try {
-      await fetch(`http://127.0.0.1:8000/departments/${targetDept.department_id}`, {
+      await apiFetch(`/departments/${targetDept.department_id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -86,7 +87,7 @@ const DepartmentManagement = () => {
     if (!window.confirm("Delete this department?")) return;
 
     try {
-      await fetch(`http://127.0.0.1:8000/departments/${id}`, {
+      await apiFetch(`/departments/${id}`, {
         method: "DELETE"
       });
       await loadDepartmentStats();

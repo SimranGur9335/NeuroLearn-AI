@@ -3,71 +3,8 @@ import { validateInstitutionalEmail } from '../utils/validation';
 
 const API_BASE_URL = "/api/v1/auth"; // Placeholder for future backend connection
 
-// Default mock credentials
-export const DEMO_ACCOUNTS = {
-  student: {
-    email: "student@neurolearn.ai",
-    password: "Password123",
-    name: "Aarav Singh",
-    role: "student",
-    branch: "B.Tech Computer Science",
-    year: "3rd Year",
-    rollNumber: "2023CS8094",
-    college: "COEP Technological University",
-    avatar: "🚀"
-  },
-  faculty: {
-    email: "teacher@neurolearn.ai",
-    password: "Password123",
-    name: "Dr. Alok Verma",
-    role: "faculty",
-    branch: "Computer Engineering",
-    designation: "Professor & Head",
-    college: "COEP Technological University",
-    avatar: "👨‍🏫"
-  },
-  admin: {
-    email: "admin@neurolearn.ai",
-    password: "Password123",
-    name: "System Administrator",
-    role: "admin",
-    college: "COEP Technological University",
-    avatar: "🛡️"
-  }
-};
 
-/**
- * Mocks access and refresh token generation (simulating JSON Web Tokens).
- */
-const generateMockTokens = (user) => {
-  // Simple payload coding simulation
-  const header = btoa(JSON.stringify({ alg: "HS256", typ: "JWT" }));
-  const payload = btoa(JSON.stringify({
-    sub: user.email,
-    name: user.name,
-    role: user.role,
-    exp: Math.floor(Date.now() / 1000) + (60 * 15) // 15 mins expiry
-  }));
-  const signature = "mock_signature_hash";
-  
-  const accessToken = `${header}.${payload}.${signature}`;
-  const refreshToken = `mock_refresh_token_${btoa(user.email)}`;
 
-  return { accessToken, refreshToken };
-};
-
-const logSecurityAlert = (email, actionType) => {
-  const alerts = JSON.parse(localStorage.getItem("neurolearn_security_alerts") || "[]");
-  const newAlert = {
-    id: `alert_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
-    email: email || "unknown",
-    timestamp: new Date().toISOString(),
-    actionType: actionType, // 'LOGIN' | 'REGISTER'
-    status: 'BLOCKED'
-  };
-  alerts.unshift(newAlert);
-  localStorage.setItem("neurolearn_security_alerts", JSON.stringify(alerts));
-};
 
 export const authService = {
   /**

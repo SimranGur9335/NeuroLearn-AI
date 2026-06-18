@@ -11,6 +11,7 @@ import {
   RefreshCw,
   SearchCode
 } from 'lucide-react';
+import { apiFetch } from '../../services/api';
 
 const SecurityCenter = () => {
   const [alerts, setAlerts] = useState([]);
@@ -21,7 +22,7 @@ const SecurityCenter = () => {
   // Load alerts from DB
   const loadAlerts = async () => {
     try {
-      const res = await fetch("http://localhost:8000/api/v1/security/events");
+      const res = await apiFetch("/v1/security/events");
       if (res.ok) {
         const data = await res.json();
         setAlerts(data);
@@ -38,7 +39,7 @@ const SecurityCenter = () => {
   const handleClearLogs = async () => {
     if (window.confirm("Are you sure you want to permanently clear the institutional security alerts logs?")) {
       try {
-        const res = await fetch("http://localhost:8000/api/v1/security/events", {
+        const res = await apiFetch("/v1/security/events", {
           method: "DELETE"
         });
         if (res.ok) {
