@@ -139,7 +139,7 @@ const TeacherDashboard = () => {
             </p>
           </div>
           <button
-            onClick={() => navigate('/teacher/select-class')}
+            onClick={() => navigate('/faculty/select-class')}
             className="bg-white hover:bg-slate-100 text-purple-950 font-extrabold px-5 py-3 rounded-xl transition-all shadow-lg text-xs cursor-pointer shrink-0"
           >
             Switch Workspace

@@ -46,16 +46,16 @@ import GradesPage from './pages/student-hub/GradesPage';
 import AnnouncementsPage from './pages/student-hub/AnnouncementsPage';
 import CalendarPage from './pages/student-hub/CalendarPage';
 
-// Teacher Portal Pages
-import TeacherDashboard from './pages/teacher/TeacherDashboard';
-import StudentPerformance from './pages/teacher/StudentPerformance';
-import TeacherAnalytics from './pages/teacher/TeacherAnalytics';
-import RiskPrediction from './pages/teacher/RiskPrediction';
-import AttendanceTracking from './pages/teacher/AttendanceTracking';
-import ClassSelection from './pages/teacher/ClassSelection';
-import TeacherAnnouncement from "./pages/teacher/TeacherAnnouncement";
-import AssignmentManagement from "./pages/teacher/AssignmentManagement";
-import MarksGradebook from "./pages/teacher/MarksGradebook";
+// Faculty Portal Pages
+import TeacherDashboard from './pages/faculty/TeacherDashboard';
+import StudentPerformance from './pages/faculty/StudentPerformance';
+import TeacherAnalytics from './pages/faculty/TeacherAnalytics';
+import RiskPrediction from './pages/faculty/RiskPrediction';
+import AttendanceTracking from './pages/faculty/AttendanceTracking';
+import ClassSelection from './pages/faculty/ClassSelection';
+import TeacherAnnouncement from "./pages/faculty/TeacherAnnouncement";
+import AssignmentManagement from "./pages/faculty/AssignmentManagement";
+import MarksGradebook from "./pages/faculty/MarksGradebook";
 
 // Admin Portal Pages
 import AdminDashboard from './pages/admin/AdminDashboard';
@@ -135,7 +135,7 @@ function App() {
 
             {/* Class Selection Page */}
             <Route
-              path="/teacher/select-class"
+              path="/faculty/select-class"
               element={
                 <ProtectedRoute allowedRoles={['faculty']}>
                   <ClassSelection />
@@ -149,14 +149,14 @@ function App() {
                 <TeacherLayout />
               </ProtectedRoute>
             }>
-              <Route path="/teacher/dashboard" element={<TeacherDashboard />} />
-              <Route path="/teacher/performance" element={<StudentPerformance />} />
-              <Route path="/teacher/analytics" element={<TeacherAnalytics />} />
-              <Route path="/teacher/risk" element={<RiskPrediction />} />
-              <Route path="/teacher/attendance" element={<AttendanceTracking />} />
-              <Route path="/teacher/teacherAnnouncement" element={<TeacherAnnouncement />} />
-              <Route path="/teacher/assignments" element={<AssignmentManagement />} />
-              <Route path="/teacher/gradebook" element={<MarksGradebook />} />
+              <Route path="/faculty/dashboard" element={<TeacherDashboard />} />
+              <Route path="/faculty/performance" element={<StudentPerformance />} />
+              <Route path="/faculty/analytics" element={<TeacherAnalytics />} />
+              <Route path="/faculty/risk" element={<RiskPrediction />} />
+              <Route path="/faculty/attendance" element={<AttendanceTracking />} />
+              <Route path="/faculty/teacherAnnouncement" element={<TeacherAnnouncement />} />
+              <Route path="/faculty/assignments" element={<AssignmentManagement />} />
+              <Route path="/faculty/gradebook" element={<MarksGradebook />} />
             </Route>
 
             {/* Admin Portal Layout & Routes */}
