@@ -13,7 +13,7 @@ export const StudentProvider = ({ children }) => {
   // --- Active Persona Role ---
   const [role, setRole] = useState(() => {
     const saved = localStorage.getItem('neurolearn_role');
-    return saved !== null ? saved : 'student'; // 'student' | 'teacher' | 'admin'
+    return saved !== null ? saved : 'student'; // 'student' | 'faculty' | 'admin'
   });
 
   const [institution, setInstitution] = useState(() => {

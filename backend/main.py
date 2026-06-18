@@ -77,7 +77,7 @@ def require_role(allowed_roles: list):
         return payload
     return dependency
 
-def verify_teacher_access(db, faculty_id: int, class_id: int, subject_id: Optional[int] = None):
+def verify_faculty_access(db, faculty_id: int, class_id: int, subject_id: Optional[int] = None):
     # Lookup faculty institution
     f = db.execute(
         text("SELECT institution_id FROM faculty WHERE faculty_id = :fid"),
@@ -329,7 +329,7 @@ def log_audit(db, action: str, entity_type: str, entity_id: Optional[int] = None
         if institution_id is None:
             # Try to infer from performed_by user
             if performed_by:
-                match = re.search(r'(Admin|Faculty|Student|User|Teacher|SuperAdmin|super_admin)\s+(\d+)', performed_by, re.I)
+                match = re.search(r'(Admin|Faculty|Student|User|SuperAdmin|super_admin)\s+(\d+)', performed_by, re.I)
                 if match:
                     u_id = int(match.group(2))
                     # Check users table
@@ -861,8 +861,8 @@ def predict_student_performance(data: StudentPerformanceInput):
 
 # --- faculty Telemetry Routes ---
 
-@app.get("/teacher/{faculty_id}/classes")
-def get_teacher_classes(
+@app.get("/faculty/{faculty_id}/classes")
+def get_faculty_classes(
     faculty_id: int,
     current_user: dict = Depends(get_current_user)
 ):
@@ -898,7 +898,7 @@ def get_class_students(
 
     try:
         if current_user["role"] == "faculty":
-            verify_teacher_access(
+            verify_faculty_access(
                 db,
                 current_user["faculty_id"],
                 class_id
@@ -947,7 +947,7 @@ def get_class_student_metrics(
 
     try:
         if current_user["role"] == "faculty":
-            verify_teacher_access(
+            verify_faculty_access(
                 db,
                 current_user["faculty_id"],
                 class_id
@@ -1009,7 +1009,7 @@ def get_dashboard_summary(
         )
 
     if current_user["role"] == "faculty":
-        verify_teacher_access(
+        verify_faculty_access(
             db,
             current_user["faculty_id"],
             class_id
@@ -1062,7 +1062,7 @@ def get_class_attendance(
             )
 
         if current_user["role"] == "faculty":
-            verify_teacher_access(
+            verify_faculty_access(
                 db,
                 current_user["faculty_id"],
                 class_id
@@ -1117,7 +1117,7 @@ def get_attendance_summary(
         )
 
     if current_user["role"] == "faculty":
-        verify_teacher_access(
+        verify_faculty_access(
             db,
             current_user["faculty_id"],
             class_id
@@ -1178,7 +1178,7 @@ def mark_attendance(
             )
 
         if role == "faculty":
-            verify_teacher_access(
+            verify_faculty_access(
                 db,
                 current_user["faculty_id"],
                 data.class_id
@@ -1236,7 +1236,7 @@ def get_attendance_registry(
     db = SessionLocal()
     try:
         if role == "faculty":
-            verify_teacher_access(db, current_user["faculty_id"], class_id)
+            verify_faculty_access(db, current_user["faculty_id"], class_id)
         elif role == "admin":
             cls = db.execute(text("SELECT institution_id FROM classes WHERE class_id = :cid"), {"cid": class_id}).fetchone()
             if not cls or cls.institution_id != current_user["institution_id"]:
@@ -1285,7 +1285,7 @@ def get_today_attendance(
     db = SessionLocal()
     try:
         if role == "faculty":
-            verify_teacher_access(db, current_user["faculty_id"], class_id)
+            verify_faculty_access(db, current_user["faculty_id"], class_id)
         elif role == "admin":
             cls = db.execute(text("SELECT institution_id FROM classes WHERE class_id = :cid"), {"cid": class_id}).fetchone()
             if not cls or cls.institution_id != current_user["institution_id"]:
@@ -2340,7 +2340,7 @@ def create_enrollment(
             )
 
         if role == "faculty":
-            verify_teacher_access(
+            verify_faculty_access(
                 db,
                 current_user["faculty_id"],
                 data.class_id
@@ -2423,8 +2423,8 @@ def transfer_enrollment(
             raise HTTPException(status_code=404, detail="Enrollment record not found")
 
         if role == "faculty":
-            verify_teacher_access(db, current_user["faculty_id"], enrollment.class_id)
-            verify_teacher_access(db, current_user["faculty_id"], data.class_id)
+            verify_faculty_access(db, current_user["faculty_id"], enrollment.class_id)
+            verify_faculty_access(db, current_user["faculty_id"], data.class_id)
         elif role == "admin":
             # Verify enrollment class institution
             cls_src = db.execute(
@@ -2493,7 +2493,7 @@ def delete_enrollment(
             raise HTTPException(status_code=404, detail="Enrollment record not found")
 
         if role == "faculty":
-            verify_teacher_access(db, current_user["faculty_id"], enrollment.class_id)
+            verify_faculty_access(db, current_user["faculty_id"], enrollment.class_id)
         elif role == "admin":
             cls_src = db.execute(
                 text("SELECT institution_id FROM classes WHERE class_id = :cid"),
@@ -3613,7 +3613,7 @@ class RunRiskEngineInput(BaseModel):
     faculty_id: int
 
 
-# --- Teacher Portal V1 Endpoints ---
+# --- faculty Portal V1 Endpoints ---
 
 @app.get("/faculty/by-email/{email}")
 def get_faculty_by_email(email: str, current_user: dict = Depends(get_current_user)):
@@ -3637,11 +3637,11 @@ def get_faculty_by_email(email: str, current_user: dict = Depends(get_current_us
                 
         if not faculty:
             # If default demo account or specific domain, auto-create to ensure login flows
-            if email == "teacher@neurolearn.ai":
+            if email == "faculty@neurolearn.ai":
                 new_id = db.execute(
                     text("""
                         INSERT INTO faculty (faculty_code, full_name, email, department, designation, created_at)
-                        VALUES ('FAC100', 'Dr. Alok Verma', 'teacher@neurolearn.ai', 'Computer Engineering', 'Professor & Head', NOW())
+                        VALUES ('FAC100', 'Dr. Alok Verma', 'faculty@neurolearn.ai', 'Computer Engineering', 'Professor & Head', NOW())
                         RETURNING faculty_id
                     """)
                 ).scalar()
@@ -3769,7 +3769,7 @@ def get_attendance_records(class_id: int, subject_id: int, date: str, current_us
     db = SessionLocal()
     try:
         if current_user["role"] == "faculty":
-            verify_teacher_access(db, current_user["faculty_id"], class_id, subject_id)
+            verify_faculty_access(db, current_user["faculty_id"], class_id, subject_id)
         elif current_user["role"] == "admin":
             c = db.execute(text("SELECT institution_id FROM classes WHERE class_id = :cid"), {"cid": class_id}).fetchone()
             if not c or c.institution_id != current_user["institution_id"]:
@@ -3812,7 +3812,7 @@ def save_attendance(data: AttendanceSaveInput, current_user: dict = Depends(get_
     try:
         faculty_id = current_user["faculty_id"] if current_user["role"] == "faculty" else data.faculty_id
         if current_user["role"] == "faculty":
-            verify_teacher_access(db, faculty_id, data.class_id, data.subject_id)
+            verify_faculty_access(db, faculty_id, data.class_id, data.subject_id)
         elif current_user["role"] == "admin":
             c = db.execute(text("SELECT institution_id FROM classes WHERE class_id = :cid"), {"cid": data.class_id}).fetchone()
             if not c or c.institution_id != current_user["institution_id"]:
@@ -3859,7 +3859,7 @@ def get_attendance_history(class_id: int, subject_id: int, current_user: dict = 
     db = SessionLocal()
     try:
         if current_user["role"] == "faculty":
-            verify_teacher_access(db, current_user["faculty_id"], class_id, subject_id)
+            verify_faculty_access(db, current_user["faculty_id"], class_id, subject_id)
         elif current_user["role"] == "admin":
             c = db.execute(text("SELECT institution_id FROM classes WHERE class_id = :cid"), {"cid": class_id}).fetchone()
             if not c or c.institution_id != current_user["institution_id"]:
@@ -3894,7 +3894,7 @@ def get_monthly_attendance_report(class_id: int, subject_id: int, month: int, ye
     db = SessionLocal()
     try:
         if current_user["role"] == "faculty":
-            verify_teacher_access(db, current_user["faculty_id"], class_id, subject_id)
+            verify_faculty_access(db, current_user["faculty_id"], class_id, subject_id)
         elif current_user["role"] == "admin":
             c = db.execute(text("SELECT institution_id FROM classes WHERE class_id = :cid"), {"cid": class_id}).fetchone()
             if not c or c.institution_id != current_user["institution_id"]:
@@ -3958,8 +3958,8 @@ def get_monthly_attendance_report(class_id: int, subject_id: int, month: int, ye
         db.close()
 
 
-@app.get("/teacher/{faculty_id}/students")
-def get_teacher_students(faculty_id: int, current_user: dict = Depends(get_current_user)):
+@app.get("/faculty/{faculty_id}/students")
+def get_faculty_students(faculty_id: int, current_user: dict = Depends(get_current_user)):
     if current_user["role"] == "faculty" and current_user["faculty_id"] != faculty_id:
         raise HTTPException(status_code=403, detail="Access denied: Faculty ID mismatch")
     db = SessionLocal()
@@ -4099,7 +4099,7 @@ def get_assignments(class_id: int, subject_id: int, current_user: dict = Depends
     db = SessionLocal()
     try:
         if current_user["role"] == "faculty":
-            verify_teacher_access(db, current_user["faculty_id"], class_id, subject_id)
+            verify_faculty_access(db, current_user["faculty_id"], class_id, subject_id)
         elif current_user["role"] == "student":
             q = text("SELECT 1 FROM enrollments WHERE student_id = :sid AND class_id = :cid")
             res = db.execute(q, {"sid": current_user["student_id"], "cid": class_id}).fetchone()
@@ -4132,7 +4132,7 @@ def create_assignment(data: AssignmentCreateInput, current_user: dict = Depends(
     db = SessionLocal()
     try:
         faculty_id = current_user["faculty_id"] if current_user["role"] == "faculty" else data.faculty_id
-        verify_teacher_access(db, faculty_id, data.class_id, data.subject_id)
+        verify_faculty_access(db, faculty_id, data.class_id, data.subject_id)
             
         new_id = db.execute(text("""
             INSERT INTO assignments (subject_id, class_id, title, description, due_date, total_marks, created_at)
@@ -4181,7 +4181,7 @@ def update_assignment(assignment_id: int, data: AssignmentCreateInput, current_u
             raise HTTPException(status_code=404, detail="Assignment not found")
             
         faculty_id = current_user["faculty_id"] if current_user["role"] == "faculty" else data.faculty_id
-        verify_teacher_access(db, faculty_id, assign.class_id, assign.subject_id)
+        verify_faculty_access(db, faculty_id, assign.class_id, assign.subject_id)
             
         db.execute(text("""
             UPDATE assignments
@@ -4214,7 +4214,7 @@ def delete_assignment(assignment_id: int, faculty_id: int, current_user: dict = 
             raise HTTPException(status_code=404, detail="Assignment not found")
             
         fid = current_user["faculty_id"] if current_user["role"] == "faculty" else faculty_id
-        verify_teacher_access(db, fid, assign.class_id, assign.subject_id)
+        verify_faculty_access(db, fid, assign.class_id, assign.subject_id)
             
         db.execute(text("DELETE FROM assignment_submissions WHERE assignment_id = :id"), {"id": assignment_id})
         db.execute(text("DELETE FROM assignments WHERE assignment_id = :id"), {"id": assignment_id})
@@ -4238,7 +4238,7 @@ def get_assignment_submissions(assignment_id: int, current_user: dict = Depends(
             raise HTTPException(status_code=404, detail="Assignment not found")
             
         if current_user["role"] == "faculty":
-            verify_teacher_access(db, current_user["faculty_id"], assign.class_id, assign.subject_id)
+            verify_faculty_access(db, current_user["faculty_id"], assign.class_id, assign.subject_id)
 
         submissions = db.execute(text("""
             SELECT asub.submission_id, asub.assignment_id, asub.student_id, asub.submission_url,
@@ -4282,7 +4282,7 @@ def grade_submission(submission_id: int, data: GradeSubmissionInput, current_use
             raise HTTPException(status_code=404, detail="Submission not found")
             
         faculty_id = current_user["faculty_id"] if current_user["role"] == "faculty" else data.faculty_id
-        verify_teacher_access(db, faculty_id, sub.class_id, sub.subject_id)
+        verify_faculty_access(db, faculty_id, sub.class_id, sub.subject_id)
             
         db.execute(text("""
             UPDATE assignment_submissions
@@ -4364,7 +4364,7 @@ def get_student_marks(class_id: int, subject_id: int, current_user: dict = Depen
     db = SessionLocal()
     try:
         if current_user["role"] == "faculty":
-            verify_teacher_access(db, current_user["faculty_id"], class_id, subject_id)
+            verify_faculty_access(db, current_user["faculty_id"], class_id, subject_id)
         elif current_user["role"] == "student":
             q = text("SELECT 1 FROM enrollments WHERE student_id = :sid AND class_id = :cid")
             res = db.execute(q, {"sid": current_user["student_id"], "cid": class_id}).fetchone()
@@ -4411,7 +4411,7 @@ def save_student_marks_bulk(data: BulkMarksInput, current_user: dict = Depends(g
     db = SessionLocal()
     try:
         faculty_id = current_user["faculty_id"] if current_user["role"] == "faculty" else data.faculty_id
-        verify_teacher_access(db, faculty_id, data.class_id, data.subject_id)
+        verify_faculty_access(db, faculty_id, data.class_id, data.subject_id)
             
         class_info = db.execute(text("SELECT term_id FROM classes WHERE class_id = :id"), {"id": data.class_id}).fetchone()
         term_id = class_info.term_id if class_info else None
@@ -4480,7 +4480,7 @@ def run_risk_engine(data: RunRiskEngineInput, current_user: dict = Depends(get_c
     db = SessionLocal()
     try:
         faculty_id = current_user["faculty_id"] if current_user["role"] == "faculty" else data.faculty_id
-        verify_teacher_access(db, faculty_id, data.class_id)
+        verify_faculty_access(db, faculty_id, data.class_id)
         
         # Load students in class
         students = db.execute(text("""

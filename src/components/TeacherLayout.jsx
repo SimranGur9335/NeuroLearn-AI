@@ -53,14 +53,14 @@ const TeacherLayout = () => {
   const navigate = useNavigate();
 
   const menuItems = [
-    { name: 'Teacher Hub', path: '/teacher/dashboard', icon: LayoutDashboard },
-    { name: 'Attendance Registry', path: '/teacher/attendance', icon: CalendarDays },
-    { name: 'Student Monitoring', path: '/teacher/performance', icon: Users },
-    { name: 'Assignment Management', path: '/teacher/assignments', icon: ClipboardList },
-    { name: 'Marks & Gradebook', path: '/teacher/gradebook', icon: FileSpreadsheet },
-    { name: 'LMS Analytics', path: '/teacher/analytics', icon: TrendingUp },
-    { name: 'Risk Predictions', path: '/teacher/risk', icon: AlertTriangle },
-    { name: "Announcements", path: "/teacher/teacherAnnouncement", icon: Bell }
+    { name: 'Faculty Hub', path: '/faculty/dashboard', icon: LayoutDashboard },
+    { name: 'Attendance Registry', path: '/faculty/attendance', icon: CalendarDays },
+    { name: 'Student Monitoring', path: '/faculty/performance', icon: Users },
+    { name: 'Assignment Management', path: '/faculty/assignments', icon: ClipboardList },
+    { name: 'Marks & Gradebook', path: '/faculty/gradebook', icon: FileSpreadsheet },
+    { name: 'LMS Analytics', path: '/faculty/analytics', icon: TrendingUp },
+    { name: 'Risk Predictions', path: '/faculty/risk', icon: AlertTriangle },
+    { name: "Announcements", path: "/faculty/teacherAnnouncement", icon: Bell }
   ];
 
   const handleLogout = () => {
