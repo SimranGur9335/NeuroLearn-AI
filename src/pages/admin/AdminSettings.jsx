@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Save, Settings, Landmark, Mail, Phone, Palette, HelpCircle, LayoutGrid } from 'lucide-react';
 import { useStudent } from '../../context/StudentContext';
+import { apiFetch } from '../../services/api';
 
 const AdminSettings = () => {
   const { setProfile } = useStudent();
@@ -24,7 +25,7 @@ const AdminSettings = () => {
   const fetchSettings = async () => {
     try {
       setLoading(true);
-      const res = await fetch("/admin/settings");
+      const res = await apiFetch("/admin/settings");
       const data = await res.json();
       setSettings(data);
     } catch (err) {
@@ -38,9 +39,8 @@ const AdminSettings = () => {
     e.preventDefault();
     try {
       setSaving(true);
-      const res = await fetch("/admin/settings", {
+      const res = await apiFetch("/admin/settings", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(settings)
       });
       if (res.ok) {

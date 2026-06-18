@@ -22,6 +22,7 @@ import {
   ShieldCheck,
   FileText
 } from 'lucide-react';
+import { apiFetch } from '../../services/api';
 
 
 
@@ -39,7 +40,7 @@ const AdminDashboard = () => {
   const fetchDashboardStats = async () => {
     try {
       setLoading(true);
-      const res = await fetch("http://127.0.0.1:8000/admin/dashboard-stats");
+      const res = await apiFetch("/admin/dashboard-stats");
       const data = await res.json();
       setStats(data);
     } catch (err) {

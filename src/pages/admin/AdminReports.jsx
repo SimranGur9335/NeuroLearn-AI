@@ -24,6 +24,7 @@ import {
   Sparkles,
   RefreshCw
 } from 'lucide-react';
+import { apiFetch } from '../../services/api';
 
 const AdminReports = () => {
   const [departmentData, setDepartmentData] = useState([]);
@@ -35,9 +36,9 @@ const AdminReports = () => {
     setLoading(true);
     try {
       const [resDept, resEnroll, resSessions] = await Promise.all([
-        fetch("http://localhost:8000/api/v1/admin/reports/departments"),
-        fetch("http://localhost:8000/api/v1/admin/reports/enrollments"),
-        fetch("http://localhost:8000/api/v1/admin/reports/active-sessions")
+        apiFetch("/v1/admin/reports/departments"),
+        apiFetch("/v1/admin/reports/enrollments"),
+        apiFetch("/v1/admin/reports/active-sessions")
       ]);
       
       if (resDept.ok) {

@@ -20,6 +20,7 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import ChangePassword from './pages/ChangePassword';
 import Profile from './pages/Profile';
+import ApplyInstitution from './pages/ApplyInstitution';
 
 // Student Portal Pages
 import Dashboard from './pages/Dashboard';
@@ -88,9 +89,15 @@ function App() {
             <Route path="/" element={<LandingPage />} />
 
             {/* Public Authentication Screens */}
+            <Route path="/login" element={<Login />} />
             <Route path="/select-institution" element={<Login />} />
             <Route path="/register" element={<Register />} />
-            <Route path="/change-password" element={<ChangePassword />} />
+            <Route path="/apply-institution" element={<ApplyInstitution />} />
+            <Route path="/change-password" element={
+              <ProtectedRoute allowedRoles={['student', 'faculty', 'admin', 'super_admin']}>
+                <ChangePassword />
+              </ProtectedRoute>
+            } />
 
             {/* Role Selection Screen */}
             <Route path="/select-role" element={<RoleSelection />} />
@@ -147,37 +154,43 @@ function App() {
               <Route path="/teacher/analytics" element={<TeacherAnalytics />} />
               <Route path="/teacher/risk" element={<RiskPrediction />} />
               <Route path="/teacher/attendance" element={<AttendanceTracking />} />
-              <Route path="teacher/teacherAnnouncement" element={<TeacherAnnouncement />} />
+              <Route path="/teacher/teacherAnnouncement" element={<TeacherAnnouncement />} />
               <Route path="/teacher/assignments" element={<AssignmentManagement />} />
               <Route path="/teacher/gradebook" element={<MarksGradebook />} />
             </Route>
 
             {/* Admin Portal Layout & Routes */}
-            <Route element={
-              <ProtectedRoute allowedRoles={['admin']}>
-                <AdminLayout />
-              </ProtectedRoute>
-            }>
-              <Route path="/admin/dashboard" element={<AdminDashboard />} />
-              <Route path="/admin/users" element={<UserManagement />} />
-              <Route path="/admin/courses" element={<CourseManagement />} />
-              <Route path="/admin/subjects" element={<SubjectManagement />} />
-              <Route path="/admin/faculty-mapping" element={<FacultyMapping />} />
-              <Route path="/admin/students/:id" element={<StudentProfile />} />
-              <Route path="/admin/faculty/:id" element={<FacultyProfile />} />
-              <Route path="/admin/departments" element={<DepartmentManagement />} />
-              <Route path="/admin/classes" element={<ClassManagement />} />
-              <Route path="/admin/enrollments" element={<EnrollmentManagement />} />
-              <Route path="/admin/course-subject" element={<CourseSubjectMapping />} />
-              <Route path="/admin/announcements" element={<AnnouncementCenter />} />
-              <Route path="/admin/academic-structure" element={<AcademicStructure />} />
-              <Route path="/admin/workload" element={<FacultyWorkload />} />
-              <Route path="/admin/audit-logs" element={<AuditLogs />} />
-              <Route path="/admin/settings" element={<AdminSettings />} />
-              <Route path="/admin/reports" element={<AdminReports />} />
-              <Route path="/admin/system" element={<SystemMonitoring />} />
-              <Route path="/admin/security" element={<SecurityCenter />} />
-            </Route>
+<Route
+  path="/admin"
+  element={
+    <ProtectedRoute allowedRoles={['admin']}>
+      <AdminLayout />
+    </ProtectedRoute>
+  }
+>
+  <Route index element={<Navigate to="dashboard" replace />} />
+
+  <Route path="dashboard" element={<AdminDashboard />} />
+  <Route path="users" element={<UserManagement />} />
+  <Route path="courses" element={<CourseManagement />} />
+  <Route path="subjects" element={<SubjectManagement />} />
+  <Route path="faculty-mapping" element={<FacultyMapping />} />
+  <Route path="departments" element={<DepartmentManagement />} />
+  <Route path="classes" element={<ClassManagement />} />
+  <Route path="enrollments" element={<EnrollmentManagement />} />
+  <Route path="course-subject" element={<CourseSubjectMapping />} />
+  <Route path="announcements" element={<AnnouncementCenter />} />
+  <Route path="academic-structure" element={<AcademicStructure />} />
+  <Route path="workload" element={<FacultyWorkload />} />
+  <Route path="audit-logs" element={<AuditLogs />} />
+  <Route path="settings" element={<AdminSettings />} />
+  <Route path="reports" element={<AdminReports />} />
+  <Route path="system" element={<SystemMonitoring />} />
+  <Route path="security" element={<SecurityCenter />} />
+
+  <Route path="students/:id" element={<StudentProfile />} />
+  <Route path="faculty/:id" element={<FacultyProfile />} />
+</Route>
 
             {/* Platform Admin Layout & Routes */}
             <Route element={

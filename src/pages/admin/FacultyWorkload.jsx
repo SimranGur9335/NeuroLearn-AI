@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Layers, User, Award, CheckCircle, AlertTriangle, HelpCircle } from 'lucide-react';
+import { apiFetch } from '../../services/api';
 
 const FacultyWorkload = () => {
   const [facultyList, setFacultyList] = useState([]);
@@ -14,7 +15,7 @@ const FacultyWorkload = () => {
 
   const loadFaculty = async () => {
     try {
-      const res = await fetch("http://127.0.0.1:8000/api/faculty");
+      const res = await apiFetch("/faculty");
       const data = await res.json();
       setFacultyList(data);
       if (data.length > 0) {
@@ -37,7 +38,7 @@ const FacultyWorkload = () => {
   const fetchWorkload = async (facultyId) => {
     try {
       setLoading(true);
-      const res = await fetch(`http://127.0.0.1:8000/faculty/${facultyId}/workload`);
+      const res = await apiFetch(`/faculty/${facultyId}/workload`);
       const data = await res.json();
       setWorkload(data);
     } catch (err) {

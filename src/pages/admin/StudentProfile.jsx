@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowLeft, User, BookOpen, Calendar, MapPin, School, Mail, Hash } from 'lucide-react';
+import { apiFetch } from '../../services/api';
 
 const StudentProfile = () => {
   const { id } = useParams();
@@ -17,12 +18,12 @@ const StudentProfile = () => {
   const fetchStudentProfile = async () => {
     try {
       setLoading(true);
-      const res = await fetch(`http://127.0.0.1:8000/students/${id}`);
+      const res = await apiFetch(`/students/${id}`);
       if (!res.ok) throw new Error("Student not found");
       const data = await res.json();
       setStudent(data);
 
-      const histRes = await fetch(`http://127.0.0.1:8000/enrollments/history/${id}`);
+      const histRes = await apiFetch(`/enrollments/history/${id}`);
       if (histRes.ok) {
         const histData = await histRes.json();
         setHistory(histData);

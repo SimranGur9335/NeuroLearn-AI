@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Trash2, X, BookOpen, Layers, Award, Landmark } from 'lucide-react';
+import { apiFetch } from '../../services/api';
 
 const CourseSubjectMapping = () => {
   const [courses, setCourses] = useState([]);
@@ -18,18 +19,18 @@ const CourseSubjectMapping = () => {
 
   const loadData = async () => {
     try {
-      const cRes = await fetch("http://127.0.0.1:8000/api/courses");
+      const cRes = await apiFetch("/courses");
       const cData = await cRes.json();
       setCourses(cData);
       if (cData.length > 0 && !selectedCourse) {
         setSelectedCourse(cData[0]);
       }
 
-      const sRes = await fetch("http://127.0.0.1:8000/api/subjects");
+      const sRes = await apiFetch("/subjects");
       const sData = await sRes.json();
       setSubjects(sData);
 
-      const mRes = await fetch("http://127.0.0.1:8000/api/course-subject-mappings");
+      const mRes = await apiFetch("/course-subject-mappings");
       const mData = await mRes.json();
       setMappings(mData);
     } catch (err) {
@@ -50,9 +51,8 @@ const CourseSubjectMapping = () => {
     }
 
     try {
-      const res = await fetch("http://127.0.0.1:8000/course-subject-mappings", {
+      const res = await apiFetch("/course-subject-mappings", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           course_id: selectedCourse.course_id,
           subject_id: parseInt(selectedSubjectId)
@@ -76,7 +76,7 @@ const CourseSubjectMapping = () => {
     if (!window.confirm("Remove subject from this curriculum structure?")) return;
 
     try {
-      await fetch(`http://127.0.0.1:8000/course-subject-mappings/${mappingId}`, {
+      await apiFetch(`/course-subject-mappings/${mappingId}`, {
         method: "DELETE"
       });
       await loadData();

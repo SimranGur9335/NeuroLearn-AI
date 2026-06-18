@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Edit, Trash2, X, Search, Landmark, Calendar, Hash } from 'lucide-react';
+import { apiFetch } from '../../services/api';
 
 const ClassManagement = () => {
   const [classesList, setClassesList] = useState([]);
@@ -24,18 +25,18 @@ const ClassManagement = () => {
 
   const loadData = async () => {
     try {
-      const cRes = await fetch("http://127.0.0.1:8000/api/classes");
+      const cRes = await apiFetch("/classes");
       const cData = await cRes.json();
       setClassesList(cData);
 
-      const dRes = await fetch("http://127.0.0.1:8000/api/departments");
+      const dRes = await apiFetch("/departments");
       const dData = await dRes.json();
       setDepartments(dData);
       if (dData.length > 0 && !formDept) {
         setFormDept(dData[0].department_code);
       }
 
-      const tRes = await fetch("http://127.0.0.1:8000/academic-terms");
+      const tRes = await apiFetch("/academic-terms");
       const tData = await tRes.json();
       setAcademicTerms(tData);
       if (tData.length > 0 && !formTermId) {
@@ -73,9 +74,8 @@ const ClassManagement = () => {
     }
 
     try {
-      await fetch("http://127.0.0.1:8000/classes", {
+      await apiFetch("/classes", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           class_name: formName,
           division: formDivision,
@@ -94,9 +94,8 @@ const ClassManagement = () => {
   const handleSaveEdit = async (e) => {
     e.preventDefault();
     try {
-      await fetch(`http://127.0.0.1:8000/classes/${targetClass.class_id}`, {
+      await apiFetch(`/classes/${targetClass.class_id}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           class_name: formName,
           division: formDivision,
@@ -117,7 +116,7 @@ const ClassManagement = () => {
     if (!window.confirm("Delete this class? This will remove related enrollments and assignments.")) return;
 
     try {
-      await fetch(`http://127.0.0.1:8000/classes/${id}`, {
+      await apiFetch(`/classes/${id}`, {
         method: "DELETE"
       });
       await loadData();

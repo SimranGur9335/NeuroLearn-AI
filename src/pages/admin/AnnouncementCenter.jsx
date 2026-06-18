@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Edit, Trash2, X, Bell, Megaphone, Target, Calendar } from 'lucide-react';
+import { apiFetch } from '../../services/api';
 
 const AnnouncementCenter = () => {
   const [announcements, setAnnouncements] = useState([]);
@@ -26,9 +27,9 @@ const AnnouncementCenter = () => {
   const loadAnnouncements = async () => {
     try {
       const url = filterTarget
-        ? `http://127.0.0.1:8000/announcements?target_type=${encodeURIComponent(filterTarget)}`
-        : "http://127.0.0.1:8000/announcements";
-      const res = await fetch(url);
+        ? `/announcements?target_type=${encodeURIComponent(filterTarget)}`
+        : "/announcements";
+      const res = await apiFetch(url);
       const data = await res.json();
       setAnnouncements(data);
     } catch (err) {
@@ -38,7 +39,7 @@ const AnnouncementCenter = () => {
 
   const loadDepartments = async () => {
     try {
-      const res = await fetch("http://127.0.0.1:8000/departments");
+      const res = await apiFetch("/departments");
       const data = await res.json();
       setDepartments(data);
     } catch (err) {
@@ -56,7 +57,6 @@ const AnnouncementCenter = () => {
     setFormDesc("");
     setFormTargetType("All");
     setShowAddModal(true);
-
   };
 
   const handleOpenEdit = (ann) => {
@@ -68,18 +68,14 @@ const AnnouncementCenter = () => {
   };
 
   const loadClasses = async () => {
-  try {
-    const res = await fetch(
-      "http://127.0.0.1:8000/classes"
-    );
-
-    const data = await res.json();
-
-    setClasses(data);
-  } catch (err) {
-    console.error(err);
-  }
-};
+    try {
+      const res = await apiFetch("/classes");
+      const data = await res.json();
+      setClasses(data);
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   const handleSaveAdd = async (e) => {
     e.preventDefault();
@@ -89,16 +85,13 @@ const AnnouncementCenter = () => {
     }
 
     try {
-      await fetch("http://127.0.0.1:8000/announcements", {
+      await apiFetch("/announcements", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title: formTitle,
           description: formDesc,
-
           sender_type: "ADMIN",
           sender_id: 1,
-
           target_type: formTargetType,
           target_id: formTargetId
         })
@@ -113,16 +106,13 @@ const AnnouncementCenter = () => {
   const handleSaveEdit = async (e) => {
     e.preventDefault();
     try {
-      await fetch(`http://127.0.0.1:8000/announcements/${targetAnn.announcement_id}`, {
+      await apiFetch(`/announcements/${targetAnn.announcement_id}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title: formTitle,
           description: formDesc,
-
           sender_type: targetAnn.sender_type || "ADMIN",
           sender_id: targetAnn.sender_id || 1,
-
           target_type: formTargetType,
           target_id: formTargetId
         })
@@ -139,7 +129,7 @@ const AnnouncementCenter = () => {
     if (!window.confirm("Delete this announcement?")) return;
 
     try {
-      await fetch(`http://127.0.0.1:8000/announcements/${id}`, {
+      await apiFetch(`/announcements/${id}`, {
         method: "DELETE"
       });
       await loadAnnouncements();
