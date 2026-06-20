@@ -1,0 +1,155 @@
+| Line | Method | Route | Function | Protection |
+| --- | --- | --- | --- | --- |
+| 381 | GET | / | home | None |
+| 387 | POST | /api/v1/auth/login | login_route | None |
+| 521 | POST | /api/v1/auth/refresh | refresh_token_route | None |
+| 623 | POST | /api/v1/auth/register | register_route | None |
+| 763 | GET | /api/v1/institutions | get_institutions_list | None |
+| 798 | GET | /api/v1/security/events | get_security_events | require_role(["admin"] |
+| 825 | DELETE | /api/v1/security/events | clear_security_events | require_role(["admin"] |
+| 840 | GET | /model-status | model_status | None |
+| 844 | GET | /predict-test | predict_test | None |
+| 848 | POST | /predict/student-performance | predict_student_performance | None |
+| 864 | GET | /faculty/{faculty_id}/classes | get_faculty_classes | get_current_user |
+| 892 | GET | /class/{class_id}/students | get_class_students | get_current_user |
+| 941 | GET | /class/{class_id}/student-metrics | get_class_student_metrics | get_current_user |
+| 998 | GET | /class/{class_id}/dashboard-summary | get_dashboard_summary | get_current_user |
+| 1050 | GET | /class/{class_id}/attendance | get_class_attendance | get_current_user |
+| 1106 | GET | /class/{class_id}/attendance-summary | get_attendance_summary | get_current_user |
+| 1146 | GET | /student/{student_id}/attendance-history | get_student_attendance_history | get_current_user |
+| 1166 | POST | /attendance/mark | mark_attendance | get_current_user |
+| 1224 | GET | /class/{class_id}/attendance-registry | get_attendance_registry | get_current_user |
+| 1273 | GET | /class/{class_id}/today-attendance | get_today_attendance | get_current_user |
+| 1307 | GET | /api/students | get_students | require_role(["admin", "faculty"] |
+| 1330 | GET | /api/students/{student_id} | get_student_profile | get_current_user |
+| 1331 | GET | /students/{student_id} | get_student_profile | get_current_user |
+| 1378 | POST | /api/students | create_student | require_role(["admin"] |
+| 1399 | PUT | /api/students/{student_id} | update_student | require_role(["admin"] |
+| 1400 | PUT | /students/{student_id} | update_student | require_role(["admin"] |
+| 1423 | DELETE | /api/students/{student_id} | delete_student | require_role(["admin"] |
+| 1424 | DELETE | /students/{student_id} | delete_student | require_role(["admin"] |
+| 1443 | GET | /api/faculty | get_faculty | require_role(["admin", "faculty"] |
+| 1465 | GET | /api/faculty/{faculty_id} | get_faculty_profile | get_current_user |
+| 1466 | GET | /faculty/{faculty_id} | get_faculty_profile | get_current_user |
+| 1531 | POST | /api/faculty | create_faculty | require_role(["admin"] |
+| 1552 | PUT | /api/faculty/{faculty_id} | update_faculty | require_role(["admin"] |
+| 1553 | PUT | /faculty/{faculty_id} | update_faculty | require_role(["admin"] |
+| 1584 | DELETE | /api/faculty/{faculty_id} | delete_faculty | require_role(["admin"] |
+| 1585 | DELETE | /faculty/{faculty_id} | delete_faculty | require_role(["admin"] |
+| 1610 | GET | /api/faculty-mapping | get_mappings | require_role(["admin", "super_admin", "faculty"] |
+| 1673 | POST | /api/faculty-mapping | create_mapping | require_role(["admin", "super_admin"] |
+| 1726 | PUT | /api/faculty-mapping/{mapping_id} | update_mapping | require_role(["admin", "super_admin"] |
+| 1727 | PUT | /faculty-mapping/{mapping_id} | update_mapping | require_role(["admin", "super_admin"] |
+| 1791 | DELETE | /api/faculty-mapping/{mapping_id} | delete_mapping | require_role(["admin", "super_admin"] |
+| 1792 | DELETE | /faculty-mapping/{mapping_id} | delete_mapping | require_role(["admin", "super_admin"] |
+| 1825 | GET | /api/courses | get_courses | get_current_user |
+| 1848 | POST | /api/courses | create_course | require_role(["admin"] |
+| 1869 | PUT | /api/courses/{course_id} | update_course | require_role(["admin"] |
+| 1870 | PUT | /courses/{course_id} | update_course | require_role(["admin"] |
+| 1901 | DELETE | /api/courses/{course_id} | delete_course | require_role(["admin"] |
+| 1902 | DELETE | /courses/{course_id} | delete_course | require_role(["admin"] |
+| 1929 | GET | /api/subjects | get_subjects | get_current_user |
+| 1951 | POST | /api/subjects | create_subject | require_role(["admin"] |
+| 1972 | PUT | /api/subjects/{subject_id} | update_subject | require_role(["admin"] |
+| 1973 | PUT | /subjects/{subject_id} | update_subject | require_role(["admin"] |
+| 2004 | DELETE | /api/subjects/{subject_id} | delete_subject | require_role(["admin"] |
+| 2005 | DELETE | /subjects/{subject_id} | delete_subject | require_role(["admin"] |
+| 2033 | GET | /api/classes | get_classes | get_current_user |
+| 2055 | POST | /api/classes | create_class | require_role(["admin"] |
+| 2076 | PUT | /api/classes/{class_id} | update_class | require_role(["admin"] |
+| 2077 | PUT | /classes/{class_id} | update_class | require_role(["admin"] |
+| 2108 | DELETE | /api/classes/{class_id} | delete_class | require_role(["admin"] |
+| 2109 | DELETE | /classes/{class_id} | delete_class | require_role(["admin"] |
+| 2137 | GET | /api/departments | get_departments | get_current_user |
+| 2156 | POST | /api/departments | create_department | require_role(["admin"] |
+| 2177 | PUT | /api/departments/{dept_id} | update_department | require_role(["admin"] |
+| 2178 | PUT | /departments/{dept_id} | update_department | require_role(["admin"] |
+| 2208 | DELETE | /api/departments/{dept_id} | delete_department | require_role(["admin"] |
+| 2209 | DELETE | /departments/{dept_id} | delete_department | require_role(["admin"] |
+| 2232 | GET | /api/departments/stats | get_department_stats | require_role(["admin", "super_admin"] |
+| 2277 | GET | /api/enrollments | get_enrollments | get_current_user |
+| 2328 | POST | /api/enrollments | create_enrollment | get_current_user |
+| 2404 | PUT | /api/enrollments/{enrollment_id} | transfer_enrollment | get_current_user |
+| 2405 | PUT | /enrollments/{enrollment_id} | transfer_enrollment | get_current_user |
+| 2476 | DELETE | /api/enrollments/{enrollment_id} | delete_enrollment | get_current_user |
+| 2477 | DELETE | /enrollments/{enrollment_id} | delete_enrollment | get_current_user |
+| 2517 | GET | /api/enrollments/history/{student_id} | get_enrollment_history | get_current_user |
+| 2518 | GET | /enrollments/history/{student_id} | get_enrollment_history | get_current_user |
+| 2550 | GET | /api/course-subject-mappings | get_course_subject_mappings | get_current_user |
+| 2603 | POST | /api/course-subject-mappings | create_course_subject_mapping | require_role(["admin", "super_admin"] |
+| 2642 | DELETE | /api/course-subject-mappings/{mapping_id} | delete_course_subject_mapping | require_role(["admin", "super_admin"] |
+| 2643 | DELETE | /course-subject-mappings/{mapping_id} | delete_course_subject_mapping | require_role(["admin", "super_admin"] |
+| 2679 | GET | /api/announcements | get_announcements | get_current_user |
+| 2680 | GET | /announcements | get_announcements | get_current_user |
+| 2775 | POST | /announcements/{announcement_id}/read | mark_announcement_as_read | get_current_user |
+| 2798 | POST | /api/announcements | create_announcement | require_role(["admin", "faculty"] |
+| 2799 | POST | /announcements | create_announcement | require_role(["admin", "faculty"] |
+| 2839 | PUT | /api/announcements/{announcement_id} | update_announcement | require_role(["admin", "faculty"] |
+| 2840 | PUT | /announcements/{announcement_id} | update_announcement | require_role(["admin", "faculty"] |
+| 2881 | DELETE | /api/announcements/{announcement_id} | delete_announcement | require_role(["admin", "faculty"] |
+| 2882 | DELETE | /announcements/{announcement_id} | delete_announcement | require_role(["admin", "faculty"] |
+| 2909 | GET | /api/faculty/{faculty_id}/workload | get_faculty_workload | get_current_user |
+| 2910 | GET | /faculty/{faculty_id}/workload | get_faculty_workload | get_current_user |
+| 2971 | GET | /api/audit-logs | get_audit_logs | require_role(["admin", "super_admin"] |
+| 2972 | GET | /audit-logs | get_audit_logs | require_role(["admin", "super_admin"] |
+| 3008 | GET | /api/admin/dashboard-stats | get_admin_dashboard_stats | require_role(["admin", "super_admin"] |
+| 3009 | GET | /admin/dashboard-stats | get_admin_dashboard_stats | require_role(["admin", "super_admin"] |
+| 3092 | GET | /api/academic-terms | get_academic_terms | get_current_user |
+| 3093 | GET | /academic-terms | get_academic_terms | get_current_user |
+| 3109 | POST | /api/academic-terms | create_academic_term | require_role(["admin", "super_admin"] |
+| 3110 | POST | /academic-terms | create_academic_term | require_role(["admin", "super_admin"] |
+| 3128 | PUT | /api/academic-terms/{term_id} | update_academic_term | require_role(["admin", "super_admin"] |
+| 3129 | PUT | /academic-terms/{term_id} | update_academic_term | require_role(["admin", "super_admin"] |
+| 3147 | DELETE | /api/academic-terms/{term_id} | delete_academic_term | require_role(["admin", "super_admin"] |
+| 3148 | DELETE | /academic-terms/{term_id} | delete_academic_term | require_role(["admin", "super_admin"] |
+| 3162 | GET | /api/admin/settings | get_admin_settings | require_role(["admin"] |
+| 3163 | GET | /admin/settings | get_admin_settings | require_role(["admin"] |
+| 3187 | POST | /api/admin/settings | update_admin_settings | require_role(["admin"] |
+| 3188 | POST | /admin/settings | update_admin_settings | require_role(["admin"] |
+| 3223 | GET | /api/v1/branding | get_branding | None |
+| 3246 | POST | /api/v1/admin/branding | update_branding | require_role(["admin"] |
+| 3260 | GET | /api/v1/profile | get_my_profile | get_current_user |
+| 3303 | POST | /api/v1/profile/update | update_my_profile | get_current_user |
+| 3350 | POST | /api/v1/profile/avatar | update_my_avatar | get_current_user |
+| 3368 | POST | /api/v1/profile/change-password | change_my_password | get_current_user |
+| 3421 | GET | /api/v1/admin/reports/departments | get_report_departments | require_role(["admin"] |
+| 3460 | GET | /api/v1/admin/reports/enrollments | get_report_enrollments | require_role(["admin"] |
+| 3516 | GET | /api/v1/admin/reports/active-sessions | get_report_active_sessions | require_role(["admin"] |
+| 3618 | GET | /faculty/by-email/{email} | get_faculty_by_email | get_current_user |
+| 3679 | GET | /faculty/mapping-audit | get_mapping_audit | require_role(["admin", "super_admin"] |
+| 3765 | GET | /attendance/records | get_attendance_records | get_current_user |
+| 3807 | POST | /attendance/save | save_attendance | get_current_user |
+| 3855 | GET | /attendance/history | get_attendance_history | get_current_user |
+| 3890 | GET | /attendance/monthly-report | get_monthly_attendance_report | get_current_user |
+| 3961 | GET | /faculty/{faculty_id}/students | get_faculty_students | get_current_user |
+| 4005 | GET | /student/{student_id}/profile | get_student_profile_v1 | get_current_user |
+| 4097 | GET | /assignments | get_assignments | get_current_user |
+| 4128 | POST | /assignments | create_assignment | get_current_user |
+| 4172 | PUT | /assignments/{assignment_id} | update_assignment | get_current_user |
+| 4206 | DELETE | /assignments/{assignment_id} | delete_assignment | get_current_user |
+| 4230 | GET | /assignments/{assignment_id}/submissions | get_assignment_submissions | get_current_user |
+| 4269 | POST | /submissions/{submission_id}/grade | grade_submission | get_current_user |
+| 4323 | POST | /assignments/{assignment_id}/submit | submit_assignment | get_current_user |
+| 4362 | GET | /marks | get_student_marks | get_current_user |
+| 4407 | POST | /marks/bulk-entry | save_student_marks_bulk | get_current_user |
+| 4476 | POST | /faculty/run-risk-engine | run_risk_engine | get_current_user |
+| 4588 | GET | /faculty/{faculty_id}/analytics | get_faculty_analytics | get_current_user |
+| 4694 | POST | /api/v1/institution/apply | apply_institution | None |
+| 4761 | GET | /api/v1/platform-admin/institution-requests | get_institution_requests | require_role(["super_admin"] |
+| 4803 | POST | /api/v1/platform-admin/approve/{request_id} | approve_institution | require_role(["super_admin"] |
+| 4913 | GET | /api/v1/platform-admin/dashboard-stats | get_platform_admin_stats | require_role(["super_admin"] |
+| 4945 | POST | /api/v1/platform-admin/reject/{request_id} | reject_institution | require_role(["super_admin"] |
+| 4973 | GET | /api/v1/platform-admin/institutions | get_all_institutions | require_role(["super_admin"] |
+| 5009 | GET | /api/v1/platform-admin/users | get_all_users | require_role(["super_admin"] |
+| 5040 | POST | /api/v1/admin/create-faculty | create_faculty | require_role(["admin"] |
+| 5135 | POST | /api/v1/admin/create-student | create_student | require_role(["admin"] |
+| 5230 | POST | /api/v1/auth/change-password | change_password | get_current_user |
+| 5270 | POST | /api/v1/auth/forgot-password | forgot_password | None |
+| 5280 | GET | /api/student-hub/dashboard-summary | get_student_hub_dashboard_summary | get_current_user |
+| 5402 | GET | /api/student-hub/courses | get_student_hub_courses | get_current_user |
+| 5433 | GET | /api/student-hub/assignments | get_student_hub_assignments | get_current_user |
+| 5473 | GET | /api/student-hub/attendance | get_student_hub_attendance | get_current_user |
+| 5538 | GET | /api/student-hub/grades | get_student_hub_grades | get_current_user |
+| 5584 | GET | /api/student-hub/announcements | get_student_hub_announcements_api | get_current_user |
+| 5588 | GET | /api/student-hub/calendar | get_student_hub_calendar | get_current_user |
+| 5640 | GET | /api/v1/admin/monitoring/status | get_monitoring_status | require_role(["admin", "super_admin"] |
