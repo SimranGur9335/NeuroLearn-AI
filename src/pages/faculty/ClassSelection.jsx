@@ -94,7 +94,7 @@ const ClassSelection = () => {
 
                         <motion.div
                             whileHover={{ y: -6 }}
-                            key={cls.class_id}
+                            key={`${cls.class_id}-${cls.subject_id}`}
                             onClick={() => handleSelect(cls)}
                             className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 cursor-pointer shadow-sm hover:shadow-xl transition-all"
                         >

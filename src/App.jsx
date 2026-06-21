@@ -154,7 +154,7 @@ function App() {
               <Route path="/faculty/analytics" element={<FacultyAnalytics />} />
               <Route path="/faculty/risk" element={<RiskPrediction />} />
               <Route path="/faculty/attendance" element={<AttendanceTracking />} />
-              <Route path="/faculty/faculty-announcement" element={<FacultyAnnouncement />} />
+              <Route path="/faculty/announcements" element={<FacultyAnnouncement />} />
               <Route path="/faculty/assignments" element={<AssignmentManagement />} />
               <Route path="/faculty/gradebook" element={<MarksGradebook />} />
             </Route>
