@@ -27,17 +27,17 @@ const RoleSelection = () => {
       path: '/dashboard'
     },
     {
-      id: 'teacher',
+      id: 'faculty',
       title: 'Faculty Member',
       description: 'Monitor class analytics, check attendance ratios, audit at-risk lists, and review AI student grade forecasts.',
       icon: Users,
       color: 'from-purple-500 to-pink-600',
-      path: '/teacher/dashboard'
+      path: '/faculty/dashboard'
     },
     {
       id: 'admin',
       title: 'Platform Admin',
-      description: 'Manage teacher/student registries, publish and configure courses, inspect server load logs, and database health.',
+      description: 'Manage Faculty/Faculty registries, publish and configure courses, inspect server load logs, and database health.',
       icon: Settings,
       color: 'from-emerald-500 to-teal-600',
       path: '/admin/dashboard'

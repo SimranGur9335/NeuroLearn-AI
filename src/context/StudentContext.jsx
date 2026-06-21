@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { BADGES as INITIAL_BADGES, DOMAINS } from '../data/data';
-import { generateStudents, TEACHERS, COURSES } from '../data/academicData';
+import { generateStudents, faculty, COURSES } from '../data/academicData';
 import { useAuth } from './AuthContext';
 
 const StudentContext = createContext();
@@ -27,9 +27,9 @@ export const StudentProvider = ({ children }) => {
     return saved !== null ? JSON.parse(saved) : generateStudents();
   });
 
-  const [teachersList, setTeachersList] = useState(() => {
-    const saved = localStorage.getItem('neurolearn_teachers');
-    return saved !== null ? JSON.parse(saved) : TEACHERS;
+  const [facultyList, setFacultyList] = useState(() => {
+    const saved = localStorage.getItem('neurolearn_faculty');
+    return saved !== null ? JSON.parse(saved) : faculty;
   });
 
   const [coursesList, setCoursesList] = useState(() => {
@@ -169,8 +169,8 @@ export const StudentProvider = ({ children }) => {
   }, [studentsList]);
 
   useEffect(() => {
-    localStorage.setItem('neurolearn_teachers', JSON.stringify(teachersList));
-  }, [teachersList]);
+    localStorage.setItem('neurolearn_faculty', JSON.stringify(facultyList));
+  }, [facultyList]);
 
   useEffect(() => {
     localStorage.setItem('neurolearn_courses', JSON.stringify(coursesList));
@@ -277,17 +277,17 @@ export const StudentProvider = ({ children }) => {
     setStudentsList(prev => prev.filter(s => s.id !== id));
   };
 
-  // --- CRUD Operations: Teacher Registry ---
-  const addTeacher = (teacher) => {
-    setTeachersList(prev => [teacher, ...prev]);
+  // --- CRUD Operations: Faculty Registry ---
+  const addFaculty = (faculty) => {
+    setFacultyList(prev => [faculty, ...prev]);
   };
 
-  const updateTeacher = (id, updatedFields) => {
-    setTeachersList(prev => prev.map(t => t.id === id ? { ...t, ...updatedFields } : t));
+  const updateFaculty = (id, updatedFields) => {
+    setFacultyList(prev => prev.map(t => t.id === id ? { ...t, ...updatedFields } : t));
   };
 
-  const deleteTeacher = (id) => {
-    setTeachersList(prev => prev.filter(t => t.id !== id));
+  const deleteFaculty = (id) => {
+    setFacultyList(prev => prev.filter(t => t.id !== id));
   };
 
   // --- CRUD Operations: Course Curriculum ---
@@ -310,7 +310,7 @@ export const StudentProvider = ({ children }) => {
       institution,
       setInstitution,
       studentsList,
-      teachersList,
+      facultyList,
       coursesList,
       profile,
       setProfile,
@@ -335,9 +335,9 @@ export const StudentProvider = ({ children }) => {
       addStudent,
       updateStudent,
       deleteStudent,
-      addTeacher,
-      updateTeacher,
-      deleteTeacher,
+      addFaculty,
+      updateFaculty,
+      deleteFaculty,
       addCourse,
       updateCourse,
       deleteCourse

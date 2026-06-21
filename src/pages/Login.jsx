@@ -160,7 +160,7 @@ const Login = () => {
         navigate('/change-password');
       } else {
         if (user.role === 'student') navigate('/dashboard');
-        else if (user.role === 'faculty') navigate('/teacher/select-class');
+        else if (user.role === 'faculty') navigate('/faculty/select-class');
         else if (user.role === 'admin') navigate('/admin/dashboard');
         else if (user.role === 'super_admin') navigate('/platform-admin/dashboard');
       }

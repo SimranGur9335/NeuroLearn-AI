@@ -164,7 +164,7 @@ const AdminSettings = () => {
         <div className="space-y-6">
           {/* Branding Settings */}
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-3xl shadow-sm space-y-4">
-            <h3 className="font-extrabold text-slate-850 dark:text-white text-sm pb-2 border-b border-slate-100 dark:border-slate-850 flex items-center gap-2">
+            <h3 className="font-extrabold text-slate-850 dark:text-slate-200 text-sm pb-2 border-b border-slate-100 dark:border-slate-850 flex items-center gap-2">
               <Palette size={16} className="text-emerald-500" />
               Theme & Branding
             </h3>
@@ -190,7 +190,7 @@ const AdminSettings = () => {
                 <select
                   value={settings.theme_preference}
                   onChange={(e) => setSettings({ ...settings, theme_preference: e.target.value })}
-                  className="w-full bg-slate-50 dark:bg-slate-955 border border-slate-200 dark:border-slate-850 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-slate-800 dark:text-slate-200"
+                  className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-slate-800 dark:text-slate-200"
                 >
                   <option value="dark">Dark Theme</option>
                   <option value="light">Light Theme</option>

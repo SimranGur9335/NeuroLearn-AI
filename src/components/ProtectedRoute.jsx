@@ -34,7 +34,7 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
     // Authenticated but wrong credentials: route to authorized workspace
     console.warn(`[ProtectedRoute] Access denied for role: ${role}. Expected: ${allowedRoles}`);
     if (role === 'student') return <Navigate to="/dashboard" replace />;
-    if (role === 'faculty') return <Navigate to="/teacher/dashboard" replace />;
+    if (role === 'faculty') return <Navigate to="/faculty/dashboard" replace />;
     if (role === 'admin') return <Navigate to="/admin/dashboard" replace />;
     return <Navigate to="/login" replace />;
   }

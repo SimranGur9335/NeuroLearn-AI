@@ -138,7 +138,7 @@ const Register = () => {
         department: dept,
         roll_no: role === 'student' ? `ROLL${Math.floor(100000 + Math.random() * 900000)}` : undefined,
         semester: role === 'student' ? 1 : undefined,
-        designation: role === 'teacher' ? 'Assistant Professor' : undefined
+        designation: role === 'faculty' ? 'Assistant Professor' : undefined
       };
 
       await register(userData, selectedInstitution?.domain_name || 'neurolearn.ai');

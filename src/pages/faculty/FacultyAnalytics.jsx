@@ -30,7 +30,7 @@ import {
   RefreshCw
 } from 'lucide-react';
 
-const TeacherAnalytics = () => {
+const FacultyAnalytics = () => {
   const selectedClass = JSON.parse(localStorage.getItem("selectedClass") || "{}");
   const facultyId = Number(localStorage.getItem("faculty_id") || "7");
 
@@ -40,7 +40,7 @@ const TeacherAnalytics = () => {
   const fetchAnalytics = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`http://127.0.0.1:8000/teacher/${facultyId}/analytics`);
+      const res = await fetch(`http://127.0.0.1:8000/faculty/${facultyId}/analytics`);
       const data = await res.json();
       setAnalytics(data);
     } catch (err) {
@@ -223,4 +223,4 @@ const TeacherAnalytics = () => {
   );
 };
 
-export default TeacherAnalytics;
+export default FacultyAnalytics;

@@ -7,7 +7,7 @@ import {
     Megaphone
 } from "lucide-react";
 
-const TeacherAnnouncements = () => {
+const FacultyAnnouncements = () => {
     const [activeTab, setActiveTab] =
         useState("received");
 
@@ -36,7 +36,7 @@ const TeacherAnnouncements = () => {
             );
 
             const sent = data.filter(
-              (ann) => ann.sender_type === "FACULTY" || ann.sender_type === "teacher"
+              (ann) => ann.sender_type === "FACULTY" || ann.sender_type === "faculty"
             );
 
             setAnnouncements(received);
@@ -133,7 +133,7 @@ const TeacherAnnouncements = () => {
                 </p>
 
                 <h2 className="text-2xl font-black text-slate-800 dark:text-white">
-                    Teacher Announcements
+                    Faculty Announcements
                 </h2>
 
                 <p className="text-slate-500 text-sm mt-1">
@@ -355,4 +355,4 @@ const TeacherAnnouncements = () => {
     );
 };
 
-export default TeacherAnnouncements;
+export default FacultyAnnouncements;

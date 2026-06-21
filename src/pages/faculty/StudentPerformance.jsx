@@ -45,15 +45,15 @@ const StudentPerformance = () => {
 
   const branches = ["All", "CS", "IT"];
 
-  // Fetch teacher classes mapping and overall students roster
+  // Fetch faculty classes mapping and overall students roster
   useEffect(() => {
     const fetchMetadataAndStudents = async () => {
       try {
-        const classesRes = await fetch(`http://127.0.0.1:8000/teacher/${facultyId}/classes`);
+        const classesRes = await fetch(`http://127.0.0.1:8000/faculty/${facultyId}/classes`);
         const classesData = await classesRes.json();
         setAssignedClasses(classesData);
 
-        const studentsRes = await fetch(`http://127.0.0.1:8000/teacher/${facultyId}/students`);
+        const studentsRes = await fetch(`http://127.0.0.1:8000/faculty/${facultyId}/students`);
         const studentsData = await studentsRes.json();
         setStudents(studentsData);
       } catch (err) {

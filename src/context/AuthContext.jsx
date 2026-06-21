@@ -17,7 +17,7 @@ window.fetch = async function (url, options = {}) {
     url.startsWith('/api/') ||
     url.startsWith('/admin/') ||
     url.startsWith('/class/') ||
-    url.startsWith('/teacher/') ||
+    url.startsWith('/faculty/') ||
     url.startsWith('/assignments') ||
     url.startsWith('/attendance/') ||
     url.startsWith('/marks') ||

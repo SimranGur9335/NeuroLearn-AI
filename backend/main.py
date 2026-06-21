@@ -1426,8 +1426,25 @@ def delete_student(student_id: int, current_user: dict = Depends(require_role(["
     verify_student_access(current_user, student_id)
     db = SessionLocal()
     try:
-        db.execute(text("DELETE FROM enrollments WHERE student_id = :id"), {"id": student_id})
-        db.execute(text("DELETE FROM students WHERE student_id = :id"), {"id": student_id})
+        db.execute(
+            text("DELETE FROM enrollments WHERE student_id = :id"),
+            {"id": student_id}
+        )
+
+        db.execute(
+            text("DELETE FROM student_metrics WHERE student_id = :id"),
+            {"id": student_id}
+        )
+
+        db.execute(
+            text("DELETE FROM users WHERE student_id = :id"),
+            {"id": student_id}
+        )
+
+        db.execute(
+            text("DELETE FROM students WHERE student_id = :id"),
+            {"id": student_id}
+        )
         db.commit()
         log_audit(db, "DELETE", "Student", student_id, performed_by=f"Admin {current_user['user_id']}")
         return {"message": "Student deleted successfully"}
@@ -1594,8 +1611,11 @@ def delete_faculty(faculty_id: int, current_user: dict = Depends(require_role(["
             raise HTTPException(status_code=403, detail="Access denied: Faculty belongs to another institution.")
             
         db.execute(text("DELETE FROM faculty_assignments WHERE faculty_id = :id"), {"id": faculty_id})
+        db.execute(text("DELETE FROM users WHERE faculty_id = :id"), {"id": faculty_id})
         db.execute(text("DELETE FROM faculty WHERE faculty_id = :id"), {"id": faculty_id})
         db.commit()
+
+
         log_audit(db, "DELETE", "Faculty", faculty_id, performed_by=f"Admin {current_user['user_id']}")
         return {"message": "Faculty deleted successfully"}
     except Exception as e:
@@ -3094,7 +3114,15 @@ def get_admin_dashboard_stats(current_user: dict = Depends(require_role(["admin"
 def get_academic_terms(current_user: dict = Depends(get_current_user)):
     db = SessionLocal()
     try:
-        result = db.execute(text("SELECT * FROM academic_terms ORDER BY academic_year DESC, semester ASC"))
+        result = db.execute(
+    text("""
+        SELECT *
+        FROM academic_terms
+        WHERE institution_id = :iid
+        ORDER BY academic_year DESC, semester ASC
+    """),
+    {"iid": current_user["institution_id"]}
+)
         terms = []
         for r in result:
             terms.append({
@@ -3113,12 +3141,26 @@ def create_academic_term(data: AcademicTermInput, current_user: dict = Depends(r
     try:
         new_id = db.execute(
             text("""
-                INSERT INTO academic_terms (academic_year, semester, created_at)
-                VALUES (:academic_year, :semester, NOW())
-                RETURNING term_id
-            """),
-            data.dict()
-        ).scalar()
+INSERT INTO academic_terms (
+            academic_year,
+            semester,
+            institution_id,
+            created_at
+        )
+        VALUES (
+            :academic_year,
+            :semester,
+            :iid,
+            NOW()
+        )
+        RETURNING term_id
+    """),
+    {
+        "academic_year": data.academic_year,
+        "semester": data.semester,
+        "iid": current_user["institution_id"]
+    }
+).scalar()
         db.commit()
         log_audit(db, "CREATE", "AcademicTerm", new_id)
         return {"message": "Academic term created successfully", "term_id": new_id}
@@ -3135,8 +3177,9 @@ def update_academic_term(term_id: int, data: AcademicTermInput, current_user: di
                 UPDATE academic_terms
                 SET academic_year = :academic_year, semester = :semester
                 WHERE term_id = :term_id
+AND institution_id = :iid
             """),
-            {**data.dict(), "term_id": term_id}
+            {**data.dict(), "term_id": term_id, "iid": current_user["institution_id"]}
         )
         db.commit()
         log_audit(db, "UPDATE", "AcademicTerm", term_id)
@@ -3149,7 +3192,7 @@ def update_academic_term(term_id: int, data: AcademicTermInput, current_user: di
 def delete_academic_term(term_id: int, current_user: dict = Depends(require_role(["admin", "super_admin"]))):
     db = SessionLocal()
     try:
-        db.execute(text("DELETE FROM academic_terms WHERE term_id = :id"), {"id": term_id})
+        db.execute(text("DELETE FROM academic_terms WHERE term_id = :id  AND institution_id = :iid"), {"id": term_id, "iid": current_user["institution_id"]})
         db.commit()
         log_audit(db, "DELETE", "AcademicTerm", term_id)
         return {"message": "Academic term deleted successfully"}

@@ -54,8 +54,8 @@ const Header = () => {
   const getPageTitle = () => {
     const path = location.pathname;
     
-    // Teacher Portal Paths
-    if (path.startsWith('/teacher')) {
+    // Faculty Portal Paths
+    if (path.startsWith('/faculty')) {
       if (path.includes('dashboard')) return 'Faculty Analytics Console';
       if (path.includes('performance')) return 'Student Performance Monitoring';
       if (path.includes('analytics')) return 'LMS Academic Analytics';
@@ -162,7 +162,7 @@ const Header = () => {
               <span>{hearts}</span>
             </button>
           </>
-        ) : role === 'teacher' ? (
+        ) : role === 'faculty' ? (
           <>
             {/* Academic Year Badge */}
             <div className="hidden lg:flex items-center gap-1.5 bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 px-3 py-1.5 rounded-full border border-indigo-500/20 text-xs font-extrabold tracking-wide uppercase">
