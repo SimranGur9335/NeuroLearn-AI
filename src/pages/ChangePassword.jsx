@@ -49,7 +49,7 @@ const ChangePassword = () => {
       // Navigate to dashboard after 2 seconds
       setTimeout(() => {
         if (user?.role === 'student') navigate('/dashboard');
-        else if (user?.role === 'faculty') navigate('/teacher/select-class');
+        else if (user?.role === 'faculty') navigate('/faculty/select-class');
         else if (user?.role === 'admin') navigate('/admin/dashboard');
         else navigate('/login');
       }, 2000);

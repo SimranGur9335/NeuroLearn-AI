@@ -445,7 +445,7 @@ const UserManagement = () => {
             <table className="w-full text-left border-collapse text-xs">
               <thead>
                 <tr className="border-b border-slate-850 text-slate-400 font-black uppercase text-[9px] tracking-wider bg-slate-950/40">
-                  <th className="py-4 pl-5">Teacher Faculty</th>
+                  <th className="py-4 pl-5"> Faculty</th>
                   <th className="py-4">Department</th>
                   <th className="py-4">Designation Title</th>
                   <th className="py-4">Institution Email</th>
@@ -459,30 +459,30 @@ const UserManagement = () => {
                     <td colSpan={6} className="p-8 text-center text-slate-500">No faculty members registered.</td>
                   </tr>
                 ) : (
-                  paginatedList.map(teacher => (
-                    <tr key={teacher.faculty_id} className="border-b border-slate-900/50 hover:bg-slate-900/20 transition-colors">
-                      <td className="py-3.5 pl-5 font-bold text-white">{teacher.full_name}</td>
-                      <td className="py-3.5 text-indigo-400 font-semibold">{teacher.department}</td>
-                      <td className="py-3.5 text-white">{teacher.designation || "Assistant Professor"} </td>
-                      <td className="py-3.5 text-white font-bold">{teacher.email}</td>
-                      <td className="py-3.5 text-center text-slate-300 font-bold">{teacher.faculty_code}</td>
+                  paginatedList.map(faculty => (
+                    <tr key={faculty.faculty_id} className="border-b border-slate-900/50 hover:bg-slate-900/20 transition-colors">
+                      <td className="py-3.5 pl-5 font-bold text-white">{faculty.full_name}</td>
+                      <td className="py-3.5 text-indigo-400 font-semibold">{faculty.department}</td>
+                      <td className="py-3.5 text-white">{faculty.designation || "Assistant Professor"} </td>
+                      <td className="py-3.5 text-white font-bold">{faculty.email}</td>
+                      <td className="py-3.5 text-center text-slate-300 font-bold">{faculty.faculty_code}</td>
                       <td className="py-3.5 text-right pr-5 space-x-1.5 whitespace-nowrap">
                         <button
-                          onClick={() => navigate(`/admin/faculty/${teacher.faculty_id}`)}
+                          onClick={() => navigate(`/admin/faculty/${faculty.faculty_id}`)}
                           className="p-1.5 border border-slate-800 hover:bg-slate-950/60 inline-flex items-center rounded-lg text-blue-400"
                           title="View analytics"
                         >
                           <Eye size={13} />
                         </button>
                         <button
-                          onClick={() => handleOpenEdit(teacher)}
+                          onClick={() => handleOpenEdit(faculty)}
                           className="p-1.5 border border-slate-800 hover:bg-slate-955/60 rounded-lg text-slate-400 hover:text-white transition-all cursor-pointer inline-flex"
                           title="Edit Info"
                         >
                           <Edit size={13} />
                         </button>
                         <button
-                          onClick={() => handleDelete(teacher.faculty_id)}
+                          onClick={() => handleDelete(faculty.faculty_id)}
                           className="p-1.5 border border-slate-800 hover:bg-red-500/10 hover:text-red-400 rounded-lg text-red-500 transition-all cursor-pointer inline-flex"
                           title="Delete Record"
                         >

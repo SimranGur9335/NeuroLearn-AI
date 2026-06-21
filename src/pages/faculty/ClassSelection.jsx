@@ -8,7 +8,7 @@ const ClassSelection = () => {
     const [classes, setClasses] = useState([]);
     const navigate = useNavigate();
     const { user } = useAuth();
-    const email = user?.email || "teacher@neurolearn.ai";
+    const email = user?.email || "[EMAIL_ADDRESS]";
 
     useEffect(() => {
         const resolveAndFetch = async () => {
@@ -20,7 +20,7 @@ const ClassSelection = () => {
                 localStorage.setItem("faculty_name", data.full_name);
                 localStorage.setItem("faculty_email", data.email);
 
-                const classesRes = await fetch(`http://127.0.0.1:8000/teacher/${data.faculty_id}/classes`);
+                const classesRes = await fetch(`http://127.0.0.1:8000/faculty/${data.faculty_id}/classes`);
                 const classesData = await classesRes.json();
                 setClasses(classesData);
             } catch (err) {
@@ -41,7 +41,7 @@ const ClassSelection = () => {
             localStorage.getItem("selectedClass")
         );
 
-        navigate("/teacher/dashboard");
+        navigate("/faculty/dashboard");
     };
 
     return (

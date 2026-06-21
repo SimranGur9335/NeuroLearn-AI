@@ -43,7 +43,7 @@ const AttendanceTracking = () => {
   useEffect(() => {
     const fetchClasses = async () => {
       try {
-        const res = await fetch(`http://localhost:8000/teacher/${facultyId}/classes`);
+        const res = await fetch(`http://localhost:8000/faculty/${facultyId}/classes`);
         if (res.ok) {
           const data = await res.json();
           setClasses(data);

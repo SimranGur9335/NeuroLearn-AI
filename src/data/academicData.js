@@ -15,7 +15,7 @@ export const COURSES = [
   { id: "c-12", code: "ME-202", title: "Fluid Mechanics & Machines", department: "ME", category: "Mechanical", duration: "40 Hours", enrollment: 90 }
 ];
 
-export const TEACHERS = [
+export const faculty = [
   { id: "t-1", name: "Dr. Alok Verma", department: "CS", designation: "Professor & Head", email: "alok.verma@apex.edu", courses: ["CEN-301", "CEN-306"] },
   { id: "t-2", name: "Prof. Sarah Jenkins", department: "CS", designation: "Professor", email: "sarah.j@apex.edu", courses: ["CEN-302"] },
   { id: "t-3", name: "Dr. Manish Roy", department: "CS", designation: "Associate Professor", email: "manish.roy@apex.edu", courses: ["CEN-303"] },

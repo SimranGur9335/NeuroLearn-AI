@@ -46,7 +46,7 @@ const GRADIENT_THEMES = {
   }
 };
 
-const TeacherLayout = () => {
+const FacultyLayout = () => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const { profile } = useStudent();
   const { logout } = useAuth();
@@ -60,7 +60,7 @@ const TeacherLayout = () => {
     { name: 'Marks & Gradebook', path: '/faculty/gradebook', icon: FileSpreadsheet },
     { name: 'LMS Analytics', path: '/faculty/analytics', icon: TrendingUp },
     { name: 'Risk Predictions', path: '/faculty/risk', icon: AlertTriangle },
-    { name: "Announcements", path: "/faculty/teacherAnnouncement", icon: Bell }
+    { name: "Announcements", path: "/faculty/facultyAnnouncement", icon: Bell }
   ];
 
   const handleLogout = () => {
@@ -188,4 +188,4 @@ const TeacherLayout = () => {
   );
 };
 
-export default TeacherLayout;
+export default FacultyLayout;

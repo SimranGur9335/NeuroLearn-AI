@@ -24,7 +24,7 @@ const RiskPrediction = () => {
     if (!selectedClass.class_id) return;
     setLoading(true);
     try {
-      const res = await fetch(`http://127.0.0.1:8000/teacher/${facultyId}/students`);
+      const res = await fetch(`http://127.0.0.1:8000/faculty/${facultyId}/students`);
       if (!res.ok) throw new Error("Failed to fetch student data");
       const data = await res.json();
       setStudents(data);
@@ -43,7 +43,7 @@ const RiskPrediction = () => {
     if (!selectedClass.class_id) return;
     setEngineRunning(true);
     try {
-      const res = await fetch("http://127.0.0.1:8000/teacher/run-risk-engine", {
+      const res = await fetch("http://127.0.0.1:8000/faculty/run-risk-engine", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

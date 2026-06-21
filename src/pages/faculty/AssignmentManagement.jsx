@@ -281,7 +281,7 @@ const AssignmentManagement = () => {
           Please select a classroom first in your workspace menu to view or manage academic assignments.
         </p>
         <button
-          onClick={() => navigate('/teacher/select-class')}
+          onClick={() => navigate('/faculty/select-class')}
           className="bg-purple-600 hover:bg-purple-500 text-white font-extrabold px-6 py-3 rounded-xl transition-all shadow-lg"
         >
           Select Workspace Class

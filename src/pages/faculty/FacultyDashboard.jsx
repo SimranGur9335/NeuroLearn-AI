@@ -28,7 +28,7 @@ import {
   Plus
 } from 'lucide-react';
 
-const TeacherDashboard = () => {
+const FacultyDashboard = () => {
   const navigate = useNavigate();
   const selectedClass = JSON.parse(localStorage.getItem("selectedClass") || "{}");
   const facultyId = Number(localStorage.getItem("faculty_id") || "7");
@@ -54,7 +54,7 @@ const TeacherDashboard = () => {
         setDashboardData(summaryData);
 
         // 2. Classes list
-        const classesRes = await fetch(`http://localhost:8000/teacher/${facultyId}/classes`);
+        const classesRes = await fetch(`http://localhost:8000/faculty/${facultyId}/classes`);
         const classesData = await classesRes.json();
         setClassesList(classesData);
 
@@ -64,7 +64,7 @@ const TeacherDashboard = () => {
         setAnnouncements(annData.slice(0, 4));
 
         // 4. Assigned students (filter at-risk)
-        const studentsRes = await fetch(`http://localhost:8000/teacher/${facultyId}/students`);
+        const studentsRes = await fetch(`http://localhost:8000/faculty/${facultyId}/students`);
         const studentsData = await studentsRes.json();
         
         // Filter students in current class
@@ -103,14 +103,14 @@ const TeacherDashboard = () => {
   // Handle Quick Actions
   const handleRunRiskEngine = async () => {
     try {
-      const res = await fetch("http://localhost:8000/teacher/run-risk-engine", {
+      const res = await fetch("http://localhost:8000/faculty/run-risk-engine", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ class_id: selectedClass.class_id, faculty_id: facultyId })
       });
       if (!res.ok) throw new Error();
       alert("Risk Engine computed current student warning tiers!");
-      navigate("/teacher/risk");
+      navigate("/faculty/risk");
     } catch {
       alert("Failed to execute Risk Calculations.");
     }
@@ -238,21 +238,21 @@ const TeacherDashboard = () => {
           
           <div className="flex-1 flex flex-col justify-center space-y-2.5">
             <button
-              onClick={() => navigate("/teacher/attendance")}
+              onClick={() => navigate("/faculty/attendance")}
               className="w-full py-3 bg-purple-600 hover:bg-purple-500 text-white font-extrabold rounded-xl text-xs transition-all shadow cursor-pointer text-left pl-4 flex items-center gap-2"
             >
               <Calendar size={14} />
               Record Student Attendance
             </button>
             <button
-              onClick={() => navigate("/teacher/assignments")}
+              onClick={() => navigate("/faculty/assignments")}
               className="w-full py-3 bg-slate-50 hover:bg-slate-100 dark:bg-slate-950 dark:hover:bg-slate-850 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 font-bold rounded-xl text-xs transition-all cursor-pointer text-left pl-4 flex items-center gap-2"
             >
               <Plus size={14} />
               Create Class Assignment
             </button>
             <button
-              onClick={() => navigate("/teacher/gradebook")}
+              onClick={() => navigate("/faculty/gradebook")}
               className="w-full py-3 bg-slate-50 hover:bg-slate-100 dark:bg-slate-950 dark:hover:bg-slate-850 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 font-bold rounded-xl text-xs transition-all cursor-pointer text-left pl-4 flex items-center gap-2"
             >
               <ClipboardCheck size={14} />
@@ -283,7 +283,7 @@ const TeacherDashboard = () => {
             {atRiskStudents.map(student => (
               <div
                 key={student.student_id}
-                onClick={() => navigate("/teacher/performance")}
+                onClick={() => navigate("/faculty/performance")}
                 className="flex items-center justify-between p-3 rounded-xl border border-slate-100 dark:border-slate-850 hover:bg-purple-500/5 transition-all cursor-pointer"
               >
                 <div>
@@ -314,7 +314,7 @@ const TeacherDashboard = () => {
             {assignments.map(a => (
               <div
                 key={a.assignment_id}
-                onClick={() => navigate("/teacher/assignments")}
+                onClick={() => navigate("/faculty/assignments")}
                 className="p-3 rounded-xl border border-slate-100 dark:border-slate-850 hover:bg-purple-500/5 transition-all cursor-pointer space-y-1.5"
               >
                 <div className="flex justify-between items-start">
@@ -369,4 +369,4 @@ const TeacherDashboard = () => {
   );
 };
 
-export default TeacherDashboard;
+export default FacultyDashboard;
