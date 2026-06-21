@@ -26,7 +26,7 @@ const FacultyAnnouncements = () => {
     const loadAnnouncements = async () => {
         try {
             const res = await fetch(
-                "http://127.0.0.1:8000/announcements"
+                "http://127.0.0.1:8000/faculty/announcements"
             );
 
             const data = await res.json();
@@ -54,7 +54,7 @@ const FacultyAnnouncements = () => {
 
     const handleMarkAsRead = async (announcementId) => {
         try {
-            const res = await fetch(`http://127.0.0.1:8000/announcements/${announcementId}/read`, {
+            const res = await fetch(`http://127.0.0.1:8000/faculty/announcements/${announcementId}/read`, {
                 method: "POST"
             });
             if (res.ok) {
@@ -90,7 +90,7 @@ const FacultyAnnouncements = () => {
     const handlePublish = async () => {
         try {
             const res = await fetch(
-                "http://127.0.0.1:8000/announcements",
+                "http://127.0.0.1:8000/faculty/announcements",
                 {
                     method: "POST",
                     headers: {
