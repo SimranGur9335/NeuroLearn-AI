@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { useStudent } from '../context/StudentContext';
 import { useAuth } from '../context/AuthContext';
+import image from "../assets/image.png";
 
 const THEME_ACCENT_MAP = {
   violet: { accent: 'bg-violet-600 hover:bg-violet-500', hoverText: 'group-hover:text-violet-400', activeTab: 'bg-violet-600 text-white font-semibold shadow-lg shadow-violet-600/30', glow: 'from-violet-400 to-fuchsia-400' },
@@ -69,7 +70,7 @@ const Sidebar = () => {
               className="flex items-center gap-2"
             >
               {profile.logo_url ? (
-                <img src={profile.logo_url} alt="Logo" className="w-8 h-8 object-contain rounded-lg bg-slate-950 p-0.5 shrink-0" />
+                <img src={image} alt="Logo" className="w-8 h-8 object-contain rounded-lg bg-slate-950 p-0.5 shrink-0" />
               ) : (
                 <div className={`${theme.accent} p-1.5 rounded-lg text-white shrink-0`}>
                   <Sparkles size={20} className="animate-pulse" />
@@ -84,7 +85,7 @@ const Sidebar = () => {
 
         {isCollapsed && (
           profile.logo_url ? (
-            <img src={profile.logo_url} alt="Logo" className="w-8 h-8 object-contain rounded-lg mx-auto bg-slate-950 p-0.5" />
+            <img src={image} alt="Logo" className="w-8 h-8 object-contain rounded-lg mx-auto bg-slate-950 p-0.5" />
           ) : (
             <div className={`${theme.accent} p-1.5 rounded-lg text-white mx-auto`}>
               <Sparkles size={20} />
