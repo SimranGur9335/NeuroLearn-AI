@@ -60,7 +60,7 @@ const FacultyLayout = () => {
     { name: 'Marks & Gradebook', path: '/faculty/gradebook', icon: FileSpreadsheet },
     { name: 'LMS Analytics', path: '/faculty/analytics', icon: TrendingUp },
     { name: 'Risk Predictions', path: '/faculty/risk', icon: AlertTriangle },
-    { name: "Announcements", path: '/faculty/FacultyAnnouncement', icon: Bell }
+    { name: "Announcements", path: '/faculty/announcements', icon: Bell }
   ];
 
   const handleLogout = () => {
