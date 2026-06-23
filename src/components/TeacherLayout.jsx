@@ -14,7 +14,9 @@ import {
   LogOut,
   Bell,
   ClipboardList,
-  FileSpreadsheet
+  FileSpreadsheet,
+  GraduationCap,
+  User
 } from 'lucide-react';
 import Header from './Header';
 import { useStudent } from '../context/StudentContext';
@@ -60,7 +62,9 @@ const FacultyLayout = () => {
     { name: 'Marks & Gradebook', path: '/faculty/gradebook', icon: FileSpreadsheet },
     { name: 'LMS Analytics', path: '/faculty/analytics', icon: TrendingUp },
     { name: 'Risk Predictions', path: '/faculty/risk', icon: AlertTriangle },
-    { name: "Announcements", path: '/faculty/announcements', icon: Bell }
+    { name: 'Remedial Sessions', path: '/faculty/remedial', icon: GraduationCap },
+    { name: "Announcements", path: '/faculty/announcements', icon: Bell },
+    { name: 'My Profile', path: '/faculty/profile', icon: User }
   ];
 
   const handleLogout = () => {

@@ -29,10 +29,12 @@ import {
   AlertTriangle,
   RefreshCw
 } from 'lucide-react';
+import { useAuth } from "../../context/AuthContext";
 
 const FacultyAnalytics = () => {
   const selectedClass = JSON.parse(localStorage.getItem("selectedClass") || "{}");
-  const facultyId = Number(localStorage.getItem("faculty_id") || "7");
+  const { user } = useAuth();
+  const facultyId = user?.faculty_id;
 
   const [analytics, setAnalytics] = useState(null);
   const [loading, setLoading] = useState(true);

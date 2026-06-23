@@ -247,11 +247,11 @@ class AnnouncementInput(BaseModel):
     title: str
     description: str
 
-    sender_type: str
-    sender_id: int
-
     target_type: str
     target_id: Optional[int] = None
+    priority: Optional[str] = "Normal"  # Normal, Important, Urgent
+    attachment_url: Optional[str] = None
+    attachment_name: Optional[str] = None
 
 class AcademicTermInput(BaseModel):
     academic_year: str
@@ -2698,6 +2698,7 @@ def delete_course_subject_mapping(
 
 @app.get("/api/announcements")
 @app.get("/announcements")
+@app.get("/faculty/announcements")
 def get_announcements(current_user: dict = Depends(get_current_user)):
     db = SessionLocal()
     try:
@@ -2786,13 +2787,18 @@ def get_announcements(current_user: dict = Depends(get_current_user)):
                 "target_type": r.target_type,
                 "target_id": r.target_id,
                 "created_at": str(r.created_at),
-                "is_read": r.announcement_id in read_set
+                "is_read": r.announcement_id in read_set,
+                "priority": getattr(r, 'priority', 'Normal') or 'Normal',
+                "attachment_url": getattr(r, 'attachment_url', None),
+                "attachment_name": getattr(r, 'attachment_name', None)
             })
         return announcements
     finally:
         db.close()
 
 @app.post("/announcements/{announcement_id}/read")
+@app.post("/faculty/announcements/{announcement_id}/read")
+@app.post("/api/announcements/{announcement_id}/read")
 def mark_announcement_as_read(announcement_id: int, current_user: dict = Depends(get_current_user)):
     db = SessionLocal()
     try:
@@ -2817,6 +2823,7 @@ def mark_announcement_as_read(announcement_id: int, current_user: dict = Depends
 
 @app.post("/api/announcements")
 @app.post("/announcements")
+@app.post("/faculty/announcements")
 def create_announcement(data: AnnouncementInput, current_user: dict = Depends(require_role(["admin", "faculty"]))):
     db = SessionLocal()
     try:
@@ -2824,24 +2831,54 @@ def create_announcement(data: AnnouncementInput, current_user: dict = Depends(re
         sender_id = current_user["faculty_id"] if sender_type == "faculty" else current_user["user_id"]
         iid = current_user["institution_id"]
         
-        new_id = db.execute(
-            text("""
-                INSERT INTO announcements
-                (title, description, sender_type, sender_id, target_type, target_id, institution_id, created_at)
-                VALUES
-                (:title, :description, :sender_type, :sender_id, :target_type, :target_id, :iid, CURRENT_TIMESTAMP)
-                RETURNING announcement_id
-            """),
-            {
-                "title": data.title,
-                "description": data.description,
-                "sender_type": sender_type,
-                "sender_id": sender_id,
-                "target_type": data.target_type,
-                "target_id": data.target_id,
-                "iid": iid
-            }
-        ).scalar()
+        # Check if priority/attachment columns exist (graceful fallback)
+        priority = getattr(data, 'priority', 'Normal') or 'Normal'
+        attachment_url = getattr(data, 'attachment_url', None)
+        attachment_name = getattr(data, 'attachment_name', None)
+
+        try:
+            new_id = db.execute(
+                text("""
+                    INSERT INTO announcements
+                    (title, description, sender_type, sender_id, target_type, target_id, institution_id, priority, attachment_url, attachment_name, created_at)
+                    VALUES
+                    (:title, :description, :sender_type, :sender_id, :target_type, :target_id, :iid, :priority, :attachment_url, :attachment_name, CURRENT_TIMESTAMP)
+                    RETURNING announcement_id
+                """),
+                {
+                    "title": data.title,
+                    "description": data.description,
+                    "sender_type": sender_type,
+                    "sender_id": sender_id,
+                    "target_type": data.target_type,
+                    "target_id": data.target_id,
+                    "iid": iid,
+                    "priority": priority,
+                    "attachment_url": attachment_url,
+                    "attachment_name": attachment_name
+                }
+            ).scalar()
+        except Exception:
+            # Fallback: insert without new columns if they don't exist yet
+            db.rollback()
+            new_id = db.execute(
+                text("""
+                    INSERT INTO announcements
+                    (title, description, sender_type, sender_id, target_type, target_id, institution_id, created_at)
+                    VALUES
+                    (:title, :description, :sender_type, :sender_id, :target_type, :target_id, :iid, CURRENT_TIMESTAMP)
+                    RETURNING announcement_id
+                """),
+                {
+                    "title": data.title,
+                    "description": data.description,
+                    "sender_type": sender_type,
+                    "sender_id": sender_id,
+                    "target_type": data.target_type,
+                    "target_id": data.target_id,
+                    "iid": iid
+                }
+            ).scalar()
 
         db.commit()
         log_audit(db, "CREATE", "Announcement", new_id, performed_by=f"{sender_type.capitalize()} {sender_id}")
@@ -3327,12 +3364,66 @@ def get_my_profile(current_user: dict = Depends(get_current_user)):
         elif role == "faculty" and current_user["faculty_id"]:
             f = db.execute(text("SELECT * FROM faculty WHERE faculty_id = :fid"), {"fid": current_user["faculty_id"]}).fetchone()
             if f:
+                # Fetch assigned classes and subjects
+                assignments = db.execute(
+                    text("""
+                        SELECT fa.assignment_id, c.class_id, c.class_name, s.subject_id, s.subject_name, s.subject_code, fa.role, fa.academic_year
+                        FROM faculty_assignments fa
+                        JOIN classes c ON fa.class_id = c.class_id
+                        JOIN subjects s ON fa.subject_id = s.subject_id
+                        WHERE fa.faculty_id = :faculty_id
+                    """),
+                    {"faculty_id": current_user["faculty_id"]}
+                ).fetchall()
+
+                assigned_classes = []
+                assigned_subjects = []
+                seen_classes = set()
+                seen_subjects = set()
+
+                for row in assignments:
+                    if row.class_id not in seen_classes:
+                        seen_classes.add(row.class_id)
+                        assigned_classes.append({
+                            "class_id": row.class_id,
+                            "class_name": row.class_name
+                        })
+                    if row.subject_id not in seen_subjects:
+                        seen_subjects.add(row.subject_id)
+                        assigned_subjects.append({
+                            "subject_id": row.subject_id,
+                            "subject_code": row.subject_code,
+                            "subject_name": row.subject_name
+                        })
+
+                # Fetch institution name
+                institution_name = "COEP Technological University"
+                if f.institution_id:
+                    inst = db.execute(
+                        text("SELECT institution_name FROM institutions WHERE institution_id = :iid"),
+                        {"iid": f.institution_id}
+                    ).fetchone()
+                    if inst:
+                        institution_name = inst.institution_name
+
+                # Fetch account status & change password status
+                u = db.execute(
+                    text("SELECT must_change_password FROM users WHERE user_id = :uid"),
+                    {"uid": uid}
+                ).fetchone()
+                must_change_password = bool(u.must_change_password) if u else False
+
                 profile_data.update({
                     "name": f.full_name,
                     "faculty_code": f.faculty_code,
                     "branch": f.department,
                     "designation": f.designation,
-                    "avatar": f.avatar_url or "👨‍🏫"
+                    "avatar": f.avatar_url or "👨‍🏫",
+                    "assigned_classes": assigned_classes,
+                    "assigned_subjects": assigned_subjects,
+                    "institution_name": institution_name,
+                    "must_change_password": must_change_password,
+                    "account_status": "Active"
                 })
         else:
             profile_data.update({
@@ -3627,6 +3718,31 @@ class AssignmentCreateInput(BaseModel):
     description: str
     due_date: str
     total_marks: int
+    faculty_id: int
+    due_time: Optional[str] = "23:59"
+    attachment_url: Optional[str] = None
+
+class StudentInterventionUpdateInput(BaseModel):
+    faculty_notes: Optional[str] = None
+    intervention_status: Optional[str] = None
+    faculty_id: int
+
+class CloseAssignmentInput(BaseModel):
+    faculty_id: int
+
+class RemedialSessionCreateInput(BaseModel):
+    class_id: int
+    subject_id: int
+    topic: str
+    description: Optional[str] = None
+    session_date: str
+    session_time: str
+    location: str
+    student_ids: List[int]
+    faculty_id: int
+
+class UpdateInvitationStatusInput(BaseModel):
+    status: str
     faculty_id: int
 
 class GradeSubmissionInput(BaseModel):
@@ -4019,7 +4135,8 @@ def get_faculty_students(faculty_id: int, current_user: dict = Depends(get_curre
         # Get students in these classes
         students = db.execute(text("""
             SELECT DISTINCT s.student_id, s.roll_no, s.full_name, s.department, s.semester, s.division,
-                   sm.attendance, sm.quiz_score, sm.risk_level, sm.predicted_cgpa, sm.xp_points
+                   sm.attendance, sm.quiz_score, sm.risk_level, sm.predicted_cgpa, sm.xp_points,
+                   sm.faculty_notes, sm.intervention_status
             FROM students s
             JOIN enrollments e ON s.student_id = e.student_id
             LEFT JOIN student_metrics sm ON s.student_id = sm.student_id
@@ -4039,7 +4156,9 @@ def get_faculty_students(faculty_id: int, current_user: dict = Depends(get_curre
                 "quiz_score": float(row.quiz_score) if row.quiz_score else 0.0,
                 "risk_level": row.risk_level or "Low",
                 "predicted_cgpa": float(row.predicted_cgpa) if row.predicted_cgpa else 0.0,
-                "xp_points": row.xp_points or 0
+                "xp_points": row.xp_points or 0,
+                "faculty_notes": row.faculty_notes if hasattr(row, 'faculty_notes') and row.faculty_notes else "",
+                "intervention_status": row.intervention_status if hasattr(row, 'intervention_status') and row.intervention_status else "Not Contacted"
             } for row in students
         ]
     finally:
@@ -4085,6 +4204,34 @@ def get_student_profile_v1(student_id: int, current_user: dict = Depends(get_cur
             WHERE student_id = :id ORDER BY created_at DESC LIMIT 5
         """), {"id": student_id}).fetchall()
 
+        # Attendance history
+        attendance_history = db.execute(text("""
+            SELECT ar.attendance_date, ar.status, sub.subject_name
+            FROM attendance_records ar
+            JOIN subjects sub ON ar.subject_id = sub.subject_id
+            WHERE ar.student_id = :id
+            ORDER BY ar.attendance_date DESC
+            LIMIT 15
+        """), {"id": student_id}).fetchall()
+
+        # Remedial invitations
+        remedial_history = db.execute(text("""
+            SELECT ri.status, rs.topic, rs.session_date, rs.session_time, rs.location
+            FROM remedial_invitations ri
+            JOIN remedial_sessions rs ON ri.session_id = rs.session_id
+            WHERE ri.student_id = :id
+            ORDER BY rs.session_date DESC
+        """), {"id": student_id}).fetchall()
+
+        # Detailed Assignments List
+        detailed_assignments = db.execute(text("""
+            SELECT a.title, a.due_date, sub.status as submission_status, sub.submitted_at, sub.marks_obtained, a.total_marks
+            FROM assignment_submissions sub
+            JOIN assignments a ON sub.assignment_id = a.assignment_id
+            WHERE sub.student_id = :id
+            ORDER BY a.due_date DESC
+        """), {"id": student_id}).fetchall()
+
         return {
             "student": {
                 "student_id": student.student_id,
@@ -4100,12 +4247,15 @@ def get_student_profile_v1(student_id: int, current_user: dict = Depends(get_cur
                 "quiz_score": float(metrics.quiz_score) if metrics and metrics.quiz_score else 0.0,
                 "risk_level": metrics.risk_level if metrics else "Low",
                 "predicted_cgpa": float(metrics.predicted_cgpa) if metrics and metrics.predicted_cgpa else 0.0,
-                "xp_points": metrics.xp_points if metrics else 0
+                "xp_points": metrics.xp_points if metrics else 0,
+                "faculty_notes": metrics.faculty_notes if metrics and hasattr(metrics, 'faculty_notes') and metrics.faculty_notes else "",
+                "intervention_status": metrics.intervention_status if metrics and hasattr(metrics, 'intervention_status') and metrics.intervention_status else "Not Contacted"
             },
             "assignment_stats": {
                 "submitted": sub_stats.get("Submitted", 0),
                 "pending": sub_stats.get("Pending", 0),
-                "late": sub_stats.get("Late", 0)
+                "late": sub_stats.get("Late", 0),
+                "missing": sub_stats.get("Missing", 0)
             },
             "quizzes": [
                 {
@@ -4131,6 +4281,32 @@ def get_student_profile_v1(student_id: int, current_user: dict = Depends(get_cur
                     "reason": r.prediction_reason,
                     "date": str(r.created_at)
                 } for r in risk_hist
+            ],
+            "attendance_history": [
+                {
+                    "date": str(a.attendance_date),
+                    "status": a.status,
+                    "subject": a.subject_name
+                } for a in attendance_history
+            ],
+            "remedial_history": [
+                {
+                    "topic": r.topic,
+                    "date": str(r.session_date),
+                    "time": r.session_time,
+                    "location": r.location,
+                    "status": r.status
+                } for r in remedial_history
+            ],
+            "detailed_assignments": [
+                {
+                    "title": da.title,
+                    "due_date": str(da.due_date),
+                    "status": da.submission_status,
+                    "submitted_at": str(da.submitted_at) if da.submitted_at else None,
+                    "marks_obtained": da.marks_obtained,
+                    "total_marks": da.total_marks
+                } for da in detailed_assignments
             ]
         }
     finally:
@@ -4162,6 +4338,9 @@ def get_assignments(class_id: int, subject_id: int, current_user: dict = Depends
                 "description": a.description,
                 "due_date": str(a.due_date),
                 "total_marks": a.total_marks,
+                "due_time": a.due_time if hasattr(a, 'due_time') and a.due_time else "23:59",
+                "attachment_url": a.attachment_url if hasattr(a, 'attachment_url') else None,
+                "status": a.status if hasattr(a, 'status') and a.status else "Open",
                 "created_at": str(a.created_at)
             } for a in assignments
         ]
@@ -4178,8 +4357,8 @@ def create_assignment(data: AssignmentCreateInput, current_user: dict = Depends(
         verify_faculty_access(db, faculty_id, data.class_id, data.subject_id)
             
         new_id = db.execute(text("""
-            INSERT INTO assignments (subject_id, class_id, title, description, due_date, total_marks, created_at)
-            VALUES (:sid, :cid, :title, :desc, :due, :marks, CURRENT_TIMESTAMP)
+            INSERT INTO assignments (subject_id, class_id, title, description, due_date, total_marks, due_time, attachment_url, status, created_at)
+            VALUES (:sid, :cid, :title, :desc, :due, :marks, :due_time, :attachment_url, 'Open', CURRENT_TIMESTAMP)
             RETURNING assignment_id
         """), {
             "sid": data.subject_id,
@@ -4187,7 +4366,9 @@ def create_assignment(data: AssignmentCreateInput, current_user: dict = Depends(
             "title": data.title,
             "desc": data.description,
             "due": data.due_date,
-            "marks": data.total_marks
+            "marks": data.total_marks,
+            "due_time": data.due_time or "23:59",
+            "attachment_url": data.attachment_url
         }).scalar()
         
         # Seed default pending submissions for all students in this class
@@ -4228,13 +4409,15 @@ def update_assignment(assignment_id: int, data: AssignmentCreateInput, current_u
             
         db.execute(text("""
             UPDATE assignments
-            SET title = :title, description = :desc, due_date = :due, total_marks = :marks
+            SET title = :title, description = :desc, due_date = :due, total_marks = :marks, due_time = :due_time, attachment_url = :attachment_url
             WHERE assignment_id = :id
         """), {
             "title": data.title,
             "desc": data.description,
             "due": data.due_date,
             "marks": data.total_marks,
+            "due_time": data.due_time or "23:59",
+            "attachment_url": data.attachment_url,
             "id": assignment_id
         })
         db.commit()
@@ -4629,19 +4812,35 @@ def run_risk_engine(data: RunRiskEngineInput, current_user: dict = Depends(get_c
         db.close()
 
 @app.get("/faculty/{faculty_id}/analytics")
-def get_faculty_analytics(faculty_id: int, current_user: dict = Depends(get_current_user)):
+def get_faculty_analytics(
+    faculty_id: int, 
+    class_id: Optional[int] = None,
+    subject_id: Optional[int] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    current_user: dict = Depends(get_current_user)
+):
     if current_user["role"] == "faculty" and current_user["faculty_id"] != faculty_id:
         raise HTTPException(status_code=403, detail="Access denied: Faculty ID mismatch")
     db = SessionLocal()
     try:
-        # Load classes assigned to faculty
-        classes = db.execute(text("""
+        # Load classes assigned to faculty with filters
+        query_str = """
             SELECT fa.class_id, fa.subject_id, c.class_name, s.subject_name
             FROM faculty_assignments fa
             JOIN classes c ON fa.class_id = c.class_id
             JOIN subjects s ON fa.subject_id = s.subject_id
             WHERE fa.faculty_id = :fid
-        """), {"fid": faculty_id}).fetchall()
+        """
+        params = {"fid": faculty_id}
+        if class_id:
+            query_str += " AND fa.class_id = :cid"
+            params["cid"] = class_id
+        if subject_id:
+            query_str += " AND fa.subject_id = :sid"
+            params["sid"] = subject_id
+
+        classes = db.execute(text(query_str), params).fetchall()
         
         class_ids = [c.class_id for c in classes]
         if not class_ids:
@@ -4650,19 +4849,36 @@ def get_faculty_analytics(faculty_id: int, current_user: dict = Depends(get_curr
                 "performance_trend": [],
                 "top_students": [],
                 "weak_students": [],
-                "subject_averages": []
+                "subject_averages": [],
+                "risk_distribution": {"High": 0, "Medium": 0, "Low": 0},
+                "engagement_metrics": {"avg_xp": 0.0, "total_students": 0},
+                "assignment_metrics": {"total_assignments": 0, "submission_rate": 0.0, "avg_score": 0.0}
             }
             
         # 1. Attendance Trend
-        att_trend = db.execute(text("""
+        att_query = """
             SELECT attendance_date,
                    ROUND(AVG(CASE WHEN status = 'Present' THEN 100.0 ELSE 0.0 END), 2) as attendance_rate
             FROM attendance_records
             WHERE class_id IN :cids
+        """
+        att_params = {"cids": tuple(class_ids)}
+        if start_date:
+            att_query += " AND attendance_date >= :sdate"
+            att_params["sdate"] = start_date
+        if end_date:
+            att_query += " AND attendance_date <= :edate"
+            att_params["edate"] = end_date
+        if subject_id:
+            att_query += " AND subject_id = :subid"
+            att_params["subid"] = subject_id
+            
+        att_query += """
             GROUP BY attendance_date
             ORDER BY attendance_date DESC
             LIMIT 10
-        """).bindparams(cids=tuple(class_ids))).fetchall()
+        """
+        att_trend = db.execute(text(att_query), att_params).fetchall()
         
         # 2. Performance Trend
         perf_trend = db.execute(text("""
@@ -4711,6 +4927,62 @@ def get_faculty_analytics(faculty_id: int, current_user: dict = Depends(get_curr
                 "average": float(avg_score) if avg_score else 75.0
             })
 
+        # 6. Risk Distribution
+        risk_dist = db.execute(text("""
+            SELECT sm.risk_level, COUNT(*) as count
+            FROM students s
+            JOIN enrollments e ON s.student_id = e.student_id
+            JOIN student_metrics sm ON s.student_id = sm.student_id
+            WHERE e.class_id IN :cids
+            GROUP BY sm.risk_level
+        """).bindparams(cids=tuple(class_ids))).fetchall()
+        risk_counts = {"High": 0, "Medium": 0, "Low": 0}
+        for r in risk_dist:
+            if r.risk_level in risk_counts:
+                risk_counts[r.risk_level] = r.count
+
+        # 7. Student Engagement Metrics
+        avg_xp = db.execute(text("""
+            SELECT AVG(sm.xp_points)
+            FROM students s
+            JOIN enrollments e ON s.student_id = e.student_id
+            JOIN student_metrics sm ON s.student_id = sm.student_id
+            WHERE e.class_id IN :cids
+        """).bindparams(cids=tuple(class_ids))).scalar() or 0.0
+        
+        total_students = db.execute(text("""
+            SELECT COUNT(DISTINCT s.student_id)
+            FROM students s
+            JOIN enrollments e ON s.student_id = e.student_id
+            WHERE e.class_id IN :cids
+        """).bindparams(cids=tuple(class_ids))).scalar() or 0
+
+        # 8. Assignment Metrics
+        total_assignments = db.execute(text("""
+            SELECT COUNT(*) FROM assignments
+            WHERE class_id IN :cids
+        """).bindparams(cids=tuple(class_ids))).scalar() or 0
+        
+        enrollment_count = db.execute(text("""
+            SELECT COUNT(*) FROM enrollments WHERE class_id IN :cids
+        """).bindparams(cids=tuple(class_ids))).scalar() or 0
+        
+        expected_submissions = total_assignments * enrollment_count
+        submitted_count = db.execute(text("""
+            SELECT COUNT(*) FROM assignment_submissions sub
+            JOIN assignments a ON sub.assignment_id = a.assignment_id
+            WHERE a.class_id IN :cids AND sub.status IN ('Submitted', 'Late')
+        """).bindparams(cids=tuple(class_ids))).scalar() or 0
+        
+        submission_rate = round((submitted_count / expected_submissions) * 100.0, 2) if expected_submissions > 0 else 100.0
+        
+        avg_assign_score = db.execute(text("""
+            SELECT AVG(sub.marks_obtained * 100.0 / a.total_marks)
+            FROM assignment_submissions sub
+            JOIN assignments a ON sub.assignment_id = a.assignment_id
+            WHERE a.class_id IN :cids AND sub.status IN ('Submitted', 'Late') AND a.total_marks > 0
+        """).bindparams(cids=tuple(class_ids))).scalar() or 80.0
+
         return {
             "attendance_trend": [
                 {"date": str(a.attendance_date), "rate": float(a.attendance_rate)}
@@ -4728,7 +5000,17 @@ def get_faculty_analytics(faculty_id: int, current_user: dict = Depends(get_curr
                 {"name": w.full_name, "score": float(w.score) if w.score else 0.0, "roll": w.roll_no, "branch": w.department, "risk": w.risk_level}
                 for w in weak_students
             ],
-            "subject_averages": subj_perf
+            "subject_averages": subj_perf,
+            "risk_distribution": risk_counts,
+            "engagement_metrics": {
+                "avg_xp": float(avg_xp),
+                "total_students": total_students
+            },
+            "assignment_metrics": {
+                "total_assignments": total_assignments,
+                "submission_rate": float(submission_rate),
+                "avg_score": float(avg_assign_score)
+            }
         }
     finally:
         db.close()
@@ -5734,5 +6016,340 @@ def get_monitoring_status(current_user: dict = Depends(require_role(["admin", "s
             "storage_status": "Coming Soon",
             "active_users": active_users
         }
+    finally:
+        db.close()
+
+
+# --- Faculty Portal Command Center Additions (Sprint 1 & 2) ---
+
+@app.post("/faculty/student/{student_id}/intervention")
+def post_student_intervention(
+    student_id: int, 
+    data: StudentInterventionUpdateInput, 
+    current_user: dict = Depends(get_current_user)
+):
+    if current_user["role"] not in ["admin", "faculty"]:
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    db = SessionLocal()
+    try:
+        # Security validation: make sure faculty has access to student
+        verify_student_access(current_user, student_id)
+        
+        # Check if student metrics row exists
+        row = db.execute(
+            text("SELECT 1 FROM student_metrics WHERE student_id = :sid"),
+            {"sid": student_id}
+        ).fetchone()
+        
+        if not row:
+            # Seed standard metrics row for student if somehow missing
+            db.execute(text("""
+                INSERT INTO student_metrics (student_id, attendance_percentage, average_quiz_score, predicted_gpa, risk_level, warnings_count, last_updated)
+                VALUES (:sid, 80.0, 70.0, 3.0, 'Low', 0, CURRENT_TIMESTAMP)
+            """), {"sid": student_id})
+            db.commit()
+
+        # Update notes and status
+        db.execute(text("""
+            UPDATE student_metrics
+            SET faculty_notes = :notes,
+                intervention_status = :status,
+                last_updated = CURRENT_TIMESTAMP
+            WHERE student_id = :sid
+        """), {
+            "notes": data.faculty_notes,
+            "status": data.intervention_status or "Not Contacted",
+            "sid": student_id
+        })
+        db.commit()
+        log_audit(db, "STUDENT_INTERVENTION_UPDATE", "student_metrics", student_id, f"Faculty {data.faculty_id}")
+        return {"message": "Intervention details updated successfully"}
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        db.close()
+
+@app.post("/assignments/{assignment_id}/close")
+def close_assignment(
+    assignment_id: int, 
+    data: CloseAssignmentInput, 
+    current_user: dict = Depends(get_current_user)
+):
+    if current_user["role"] not in ["admin", "faculty"]:
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    db = SessionLocal()
+    try:
+        assign = db.execute(
+            text("SELECT class_id, subject_id FROM assignments WHERE assignment_id = :aid"),
+            {"aid": assignment_id}
+        ).fetchone()
+        if not assign:
+            raise HTTPException(status_code=404, detail="Assignment not found")
+        
+        verify_faculty_access(db, data.faculty_id, assign.class_id, assign.subject_id)
+        
+        db.execute(
+            text("UPDATE assignments SET status = 'Closed' WHERE assignment_id = :aid"),
+            {"aid": assignment_id}
+        )
+        db.commit()
+        log_audit(db, "CLOSE_ASSIGNMENT", "assignments", assignment_id, f"Faculty {data.faculty_id}")
+        return {"message": "Assignment manually closed successfully."}
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        db.close()
+
+@app.get("/assignments/{assignment_id}/submissions-analytics")
+def get_assignment_submissions_analytics(
+    assignment_id: int,
+    faculty_id: int,
+    current_user: dict = Depends(get_current_user)
+):
+    if current_user["role"] not in ["admin", "faculty"]:
+        raise HTTPException(status_code=403, detail="Access denied")
+        
+    db = SessionLocal()
+    try:
+        assign = db.execute(
+            text("SELECT class_id, subject_id, total_marks FROM assignments WHERE assignment_id = :aid"),
+            {"aid": assignment_id}
+        ).fetchone()
+        if not assign:
+            raise HTTPException(status_code=404, detail="Assignment not found")
+            
+        verify_faculty_access(db, faculty_id, assign.class_id, assign.subject_id)
+        
+        # Calculate analytics
+        # 1. Total Enrolled Students
+        total_enrolled = db.execute(
+            text("SELECT COUNT(*) FROM enrollments WHERE class_id = :cid"),
+            {"cid": assign.class_id}
+        ).scalar() or 0
+        
+        # 2. Status counts
+        submissions = db.execute(
+            text("SELECT status, submitted_at FROM assignment_submissions WHERE assignment_id = :aid"),
+            {"aid": assignment_id}
+        ).fetchall()
+        
+        submitted_count = 0
+        pending_count = 0
+        late_count = 0
+        missing_count = 0
+        
+        for sub in submissions:
+            if sub.status == 'Submitted':
+                submitted_count += 1
+            elif sub.status == 'Late':
+                late_count += 1
+            elif sub.status == 'Pending':
+                pending_count += 1
+            elif sub.status == 'Missing':
+                missing_count += 1
+                
+        # Fill gaps: if submission records are fewer than enrolled, the rest are pending
+        total_records = len(submissions)
+        if total_records < total_enrolled:
+            pending_count += (total_enrolled - total_records)
+            
+        submission_rate = round((submitted_count + late_count) / total_enrolled * 100, 1) if total_enrolled > 0 else 0.0
+        
+        return {
+            "total_enrolled": total_enrolled,
+            "submitted_count": submitted_count,
+            "pending_count": pending_count,
+            "late_count": late_count,
+            "missing_count": missing_count,
+            "submission_rate": submission_rate
+        }
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        db.close()
+
+@app.post("/remedial/sessions")
+def create_remedial_session(
+    data: RemedialSessionCreateInput,
+    current_user: dict = Depends(get_current_user)
+):
+    if current_user["role"] not in ["admin", "faculty"]:
+        raise HTTPException(status_code=403, detail="Access denied")
+        
+    db = SessionLocal()
+    try:
+        verify_faculty_access(db, data.faculty_id, data.class_id, data.subject_id)
+        
+        # Insert session
+        res = db.execute(text("""
+            INSERT INTO remedial_sessions (faculty_id, class_id, subject_id, topic, description, session_date, session_time, location, created_at)
+            VALUES (:fid, :cid, :sid, :topic, :desc, :date, :time, :loc, CURRENT_TIMESTAMP)
+            RETURNING session_id
+        """), {
+            "fid": data.faculty_id,
+            "cid": data.class_id,
+            "sid": data.subject_id,
+            "topic": data.topic,
+            "desc": data.description,
+            "date": data.session_date,
+            "time": data.session_time,
+            "loc": data.location
+        })
+        session_id = res.scalar()
+        
+        # Validate student enrollment & insert invitations
+        for student_id in data.student_ids:
+            # Verify student is in this class
+            enr = db.execute(
+                text("SELECT 1 FROM enrollments WHERE student_id = :sid AND class_id = :cid"),
+                {"sid": student_id, "cid": data.class_id}
+            ).fetchone()
+            if enr:
+                db.execute(text("""
+                    INSERT INTO remedial_invitations (session_id, student_id, status, created_at)
+                    VALUES (:sess_id, :stud_id, 'Invited', CURRENT_TIMESTAMP)
+                    ON CONFLICT (session_id, student_id) DO NOTHING
+                """), {"sess_id": session_id, "stud_id": student_id})
+                
+        db.commit()
+        log_audit(db, "CREATE_REMEDIAL_SESSION", "remedial_sessions", session_id, f"Faculty {data.faculty_id}")
+        return {"message": "Remedial session scheduled successfully", "session_id": session_id}
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        db.close()
+
+@app.get("/remedial/sessions")
+def get_remedial_sessions(
+    faculty_id: int,
+    current_user: dict = Depends(get_current_user)
+):
+    if current_user["role"] not in ["admin", "faculty"]:
+        raise HTTPException(status_code=403, detail="Access denied")
+        
+    db = SessionLocal()
+    try:
+        # Return all remedial sessions created by the faculty
+        # Include subject name and class name
+        sessions = db.execute(text("""
+            SELECT rs.*, c.class_name, sub.subject_name
+            FROM remedial_sessions rs
+            JOIN classes c ON rs.class_id = c.class_id
+            JOIN subjects sub ON rs.subject_id = sub.subject_id
+            WHERE rs.faculty_id = :fid
+            ORDER BY rs.session_date DESC, rs.session_time DESC
+        """), {"fid": faculty_id}).fetchall()
+        
+        result = []
+        for s in sessions:
+            result.append({
+                "session_id": s.session_id,
+                "class_id": s.class_id,
+                "class_name": s.class_name,
+                "subject_id": s.subject_id,
+                "subject_name": s.subject_name,
+                "topic": s.topic,
+                "description": s.description,
+                "session_date": str(s.session_date),
+                "session_time": s.session_time,
+                "location": s.location,
+                "created_at": str(s.created_at)
+            })
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        db.close()
+
+@app.get("/remedial/sessions/{session_id}/invitations")
+def get_remedial_session_invitations(
+    session_id: int,
+    faculty_id: int,
+    current_user: dict = Depends(get_current_user)
+):
+    if current_user["role"] not in ["admin", "faculty"]:
+        raise HTTPException(status_code=403, detail="Access denied")
+        
+    db = SessionLocal()
+    try:
+        # Validate faculty owns session
+        sess = db.execute(
+            text("SELECT faculty_id FROM remedial_sessions WHERE session_id = :sid"),
+            {"sid": session_id}
+        ).fetchone()
+        if not sess or sess.faculty_id != faculty_id:
+            raise HTTPException(status_code=403, detail="Access denied: You do not own this remedial session.")
+            
+        invitations = db.execute(text("""
+            SELECT ri.*, s.full_name, s.roll_no, s.email
+            FROM remedial_invitations ri
+            JOIN students s ON ri.student_id = s.student_id
+            WHERE ri.session_id = :sid
+        """), {"sid": session_id}).fetchall()
+        
+        return [
+            {
+                "invitation_id": ri.invitation_id,
+                "session_id": ri.session_id,
+                "student_id": ri.student_id,
+                "student_name": ri.full_name,
+                "roll_no": ri.roll_no,
+                "email": ri.email,
+                "status": ri.status,
+                "created_at": str(ri.created_at)
+            } for ri in invitations
+        ]
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        db.close()
+
+@app.post("/remedial/invitations/{invitation_id}/status")
+def update_remedial_invitation_status(
+    invitation_id: int,
+    data: UpdateInvitationStatusInput,
+    current_user: dict = Depends(get_current_user)
+):
+    if current_user["role"] not in ["admin", "faculty"]:
+        raise HTTPException(status_code=403, detail="Access denied")
+        
+    db = SessionLocal()
+    try:
+        # Validate that faculty owns the associated session
+        sess = db.execute(text("""
+            SELECT rs.faculty_id FROM remedial_sessions rs
+            JOIN remedial_invitations ri ON rs.session_id = ri.session_id
+            WHERE ri.invitation_id = :iid
+        """), {"iid": invitation_id}).fetchone()
+        if not sess or sess.faculty_id != data.faculty_id:
+            raise HTTPException(status_code=403, detail="Access denied: You do not own this remedial session.")
+            
+        db.execute(text("""
+            UPDATE remedial_invitations
+            SET status = :status
+            WHERE invitation_id = :iid
+        """), {"status": data.status, "iid": invitation_id})
+        db.commit()
+        return {"message": "Invitation status updated successfully"}
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
     finally:
         db.close()

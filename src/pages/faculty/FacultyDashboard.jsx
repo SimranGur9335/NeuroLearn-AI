@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import React, { useEffect, useState } from 'react';
+import { useAuth } from '../../context/AuthContext';
 import {
   ResponsiveContainer,
   AreaChart,
@@ -25,14 +26,17 @@ import {
   Bell,
   BookOpen,
   ClipboardCheck,
-  Plus
+  Plus,
+  Shield,
+  Briefcase,
+  Layers
 } from 'lucide-react';
 
 const FacultyDashboard = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const selectedClass = JSON.parse(localStorage.getItem("selectedClass") || "{}");
-  const facultyId = Number(localStorage.getItem("faculty_id") || "7");
-
+  const facultyId = user?.faculty_id;
   // State data
   const [dashboardData, setDashboardData] = useState(null);
   const [classesList, setClassesList] = useState([]);
@@ -40,7 +44,9 @@ const FacultyDashboard = () => {
   const [atRiskStudents, setAtRiskStudents] = useState([]);
   const [assignments, setAssignments] = useState([]);
   const [attHistory, setAttHistory] = useState([]);
-  
+  const [facultyInfo, setFacultyInfo] = useState(null);
+  const [allStudents, setAllStudents] = useState([]);
+
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -48,6 +54,19 @@ const FacultyDashboard = () => {
       if (!selectedClass.class_id) return;
       setLoading(true);
       try {
+        // 0. Faculty Profile
+        if (user?.email) {
+          try {
+            const facRes = await fetch(`http://localhost:8000/faculty/by-email/${user.email}`);
+            if (facRes.ok) {
+              const facData = await facRes.json();
+              setFacultyInfo(facData);
+            }
+          } catch (err) {
+            console.error("Failed to fetch faculty info", err);
+          }
+        }
+
         // 1. Dashboard summary counts
         const summaryRes = await fetch(`http://localhost:8000/class/${selectedClass.class_id}/dashboard-summary`);
         const summaryData = await summaryRes.json();
@@ -66,9 +85,10 @@ const FacultyDashboard = () => {
         // 4. Assigned students (filter at-risk)
         const studentsRes = await fetch(`http://localhost:8000/faculty/${facultyId}/students`);
         const studentsData = await studentsRes.json();
-        
+        setAllStudents(studentsData);
+
         // Filter students in current class
-        const currentClassStudents = studentsData.filter(s => 
+        const currentClassStudents = studentsData.filter(s =>
           s.division === (selectedClass.class_name.includes(" A") ? "A" : selectedClass.class_name.includes(" B") ? "B" : "")
         );
         const atRisk = currentClassStudents.filter(s => s.risk_level === "High" || s.risk_level === "Medium");
@@ -92,7 +112,7 @@ const FacultyDashboard = () => {
     };
 
     fetchDashboardTelemetry();
-  }, [selectedClass.class_id, facultyId]);
+  }, [selectedClass.class_id, facultyId, user]);
 
   // Transform attendance history for charts
   const attendanceChartData = attHistory.map(h => ({
@@ -123,81 +143,129 @@ const FacultyDashboard = () => {
       transition={{ duration: 0.4 }}
       className="space-y-6 font-sans text-slate-800 dark:text-slate-200"
     >
-      {/* Workspace Banner */}
-      <div className="bg-gradient-to-r from-purple-900 via-purple-950 to-slate-900 border border-purple-900/50 p-6 rounded-3xl relative overflow-hidden shadow-xl text-white">
-        <div className="absolute right-0 top-0 w-64 h-64 bg-radial-gradient(circle,rgba(168,85,247,0.15)_0%,transparent_70%) pointer-events-none" />
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 relative z-10">
-          <div>
-            <span className="text-[10px] text-emerald-450 font-bold uppercase tracking-wider bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20">
-              Active Workspace
-            </span>
-            <h1 className="text-3xl md:text-4xl font-black mt-3">
-              {selectedClass.subject_name || "Database Systems"}
-            </h1>
-            <p className="text-slate-300 mt-1.5 text-xs font-semibold">
-              {selectedClass.class_name || "TE Computer A"} • {selectedClass.role || "Theory"}
-            </p>
+      {/* Faculty Command Center Identity Header */}
+      <div className="bg-gradient-to-r from-slate-900 via-purple-950 to-slate-900 border border-purple-900/40 p-8 rounded-3xl relative overflow-hidden shadow-2xl text-white">
+        {/* Ambient background glows */}
+        <div className="absolute right-0 top-0 w-96 h-96 bg-[radial-gradient(circle,rgba(168,85,247,0.15)_0%,transparent_70%)] pointer-events-none" />
+        <div className="absolute left-1/3 bottom-0 w-72 h-72 bg-[radial-gradient(circle,rgba(59,130,246,0.1)_0%,transparent_70%)] pointer-events-none" />
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 relative z-10 items-center">
+          {/* Faculty Identity */}
+          <div className="lg:col-span-2 space-y-4">
+            <div className="flex items-center gap-3">
+              <span className="text-[10px] text-purple-300 font-extrabold uppercase tracking-wider bg-purple-500/20 px-3 py-1 rounded-full border border-purple-500/30 flex items-center gap-1.5">
+                <Shield size={10} className="text-purple-400" />
+                Faculty Command Center
+              </span>
+              <span className="text-[10px] text-emerald-400 font-extrabold uppercase tracking-wider bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20">
+                Authorized Session
+              </span>
+            </div>
+
+            <div className="space-y-1">
+              <h1 className="text-3xl md:text-4.5xl font-black tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white via-slate-100 to-purple-250">
+                Welcome, {facultyInfo?.full_name || user?.name || "Professor"}
+              </h1>
+              <p className="text-purple-200 text-sm font-semibold flex items-center gap-2 flex-wrap">
+                <Briefcase size={14} className="text-purple-400 shrink-0" />
+                <span>{facultyInfo?.designation || "Faculty Member"}</span>
+                <span className="text-purple-600">•</span>
+                <Layers size={14} className="text-purple-400 shrink-0" />
+                <span>Dept. of {facultyInfo?.department || "Computer Engineering"}</span>
+                <span className="text-purple-600">•</span>
+                <span className="font-mono text-purple-300 bg-purple-950/60 px-2 py-0.5 rounded border border-purple-800/40 text-xs">
+                  {facultyInfo?.faculty_code || "FAC-LOAD"}
+                </span>
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2 text-xs text-slate-300 bg-slate-950/40 px-4 py-2.5 rounded-xl border border-slate-800/60 w-fit">
+              <span className="font-bold text-slate-400 uppercase text-[9px] tracking-wider">Institution:</span>
+              <span className="font-extrabold text-slate-200">{user?.college || "COEP Technological University"}</span>
+            </div>
           </div>
-          <button
-            onClick={() => navigate('/faculty/select-class')}
-            className="bg-white hover:bg-slate-100 text-purple-950 font-extrabold px-5 py-3 rounded-xl transition-all shadow-lg text-xs cursor-pointer shrink-0"
-          >
-            Switch Workspace
-          </button>
+
+          {/* Active Workspace Context */}
+          <div className="bg-slate-950/50 backdrop-blur-md p-6 rounded-2xl border border-purple-950/40 space-y-4">
+            <div>
+              <span className="text-[9px] text-emerald-400 font-extrabold uppercase tracking-widest block">
+                Active Workspace
+              </span>
+              <h3 className="text-xl font-bold text-white mt-1 leading-tight line-clamp-1">
+                {selectedClass.subject_name || "Database Systems"}
+              </h3>
+              <p className="text-slate-400 text-xs mt-1 font-semibold">
+                Class: {selectedClass.class_name || "TE Computer A"} • {selectedClass.role || "Theory"}
+              </p>
+            </div>
+
+            <button
+              onClick={() => navigate('/faculty/select-class')}
+              className="w-full py-2.5 bg-purple-600 hover:bg-purple-500 text-white font-extrabold rounded-xl transition-all shadow-lg text-xs cursor-pointer flex items-center justify-center gap-2"
+            >
+              Switch Class Workspace
+              <ArrowRight size={14} />
+            </button>
+          </div>
         </div>
       </div>
 
       {/* KPI Stats cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-        {/* Total Students */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 rounded-2xl shadow-sm">
-          <div className="flex justify-between items-center text-slate-450 mb-2">
-            <span className="text-[10px] uppercase font-bold">Students Enrolled</span>
-            <Users size={16} />
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Card 1: Assigned Classes */}
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 rounded-2xl shadow-sm flex items-center gap-4 transition-all hover:translate-y-[-2px]">
+          <div className="p-3 bg-purple-500/10 rounded-xl text-purple-500">
+            <BookOpen size={20} />
           </div>
-          <span className="text-2xl font-black text-slate-800 dark:text-white">{dashboardData?.total_students || 0}</span>
+          <div>
+            <span className="text-[10px] uppercase font-bold text-slate-450 block">Assigned Classes</span>
+            <span className="text-2xl font-black text-slate-800 dark:text-white">{classesList.length || 0}</span>
+          </div>
         </div>
 
-        {/* Classes Assigned */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 rounded-2xl shadow-sm">
-          <div className="flex justify-between items-center text-slate-450 mb-2">
-            <span className="text-[10px] uppercase font-bold">Assigned Classes</span>
-            <BookOpen size={16} />
+        {/* Card 2: Assigned Students */}
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 rounded-2xl shadow-sm flex items-center gap-4 transition-all hover:translate-y-[-2px]">
+          <div className="p-3 bg-blue-500/10 rounded-xl text-blue-500">
+            <Users size={20} />
           </div>
-          <span className="text-2xl font-black text-slate-800 dark:text-white">{classesList.length || 0}</span>
+          <div>
+            <span className="text-[10px] uppercase font-bold text-slate-450 block">Assigned Students</span>
+            <span className="text-2xl font-black text-slate-800 dark:text-white">{allStudents.length || 0}</span>
+          </div>
         </div>
 
-        {/* Average Attendance */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 rounded-2xl shadow-sm">
-          <div className="flex justify-between items-center text-slate-450 mb-2">
-            <span className="text-[10px] uppercase font-bold">Avg Attendance</span>
-            <Calendar size={16} />
+        {/* Card 3: High Risk Students */}
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 rounded-2xl shadow-sm flex items-center gap-4 transition-all hover:translate-y-[-2px]">
+          <div className="p-3 bg-red-500/10 rounded-xl text-red-500">
+            <AlertTriangle size={20} />
           </div>
-          <span className="text-2xl font-black text-slate-800 dark:text-white">{dashboardData?.average_attendance || 0}%</span>
+          <div>
+            <span className="text-[10px] uppercase font-bold text-slate-450 block">High Risk Students</span>
+            <span className="text-2xl font-black text-red-500">
+              {allStudents.filter(s =>
+                s.division === (selectedClass.class_name?.includes(" A") ? "A" : selectedClass.class_name?.includes(" B") ? "B" : "")
+              ).filter(s => s.risk_level === 'High').length}
+            </span>
+          </div>
         </div>
 
-        {/* Average Quiz Score */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 rounded-2xl shadow-sm">
-          <div className="flex justify-between items-center text-slate-450 mb-2">
-            <span className="text-[10px] uppercase font-bold">Avg Grades</span>
-            <GraduationCap size={16} />
+        {/* Card 4: Pending Assignments */}
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 rounded-2xl shadow-sm flex items-center gap-4 transition-all hover:translate-y-[-2px]">
+          <div className="p-3 bg-amber-500/10 rounded-xl text-amber-500">
+            <ClipboardCheck size={20} />
           </div>
-          <span className="text-2xl font-black text-slate-800 dark:text-white">{dashboardData?.average_quiz_score || 0}%</span>
-        </div>
-
-        {/* Students At Risk */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 rounded-2xl shadow-sm col-span-2 lg:col-span-1">
-          <div className="flex justify-between items-center text-slate-450 mb-2">
-            <span className="text-[10px] uppercase font-bold">Students at Risk</span>
-            <AlertTriangle size={16} className="text-red-500" />
+          <div>
+            <span className="text-[10px] uppercase font-bold text-slate-450 block">Pending Assignments</span>
+            <span className="text-2xl font-black text-slate-800 dark:text-white">
+              {assignments.filter(a => a.status !== 'Closed').length}
+            </span>
           </div>
-          <span className="text-2xl font-black text-red-500">{dashboardData?.students_at_risk || 0}</span>
         </div>
       </div>
 
       {/* Main Grid Section */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
+
         {/* Attendance Trend Area Chart */}
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-3xl shadow-sm lg:col-span-2 space-y-4">
           <h3 className="font-extrabold text-slate-850 dark:text-white text-sm flex items-center gap-2">
@@ -210,8 +278,8 @@ const FacultyDashboard = () => {
                 <AreaChart data={attendanceChartData}>
                   <defs>
                     <linearGradient id="colorAtt" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#a855f7" stopOpacity={0.2}/>
-                      <stop offset="95%" stopColor="#a855f7" stopOpacity={0}/>
+                      <stop offset="5%" stopColor="#a855f7" stopOpacity={0.2} />
+                      <stop offset="95%" stopColor="#a855f7" stopOpacity={0} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.15} />
@@ -235,7 +303,7 @@ const FacultyDashboard = () => {
             <h3 className="font-black text-slate-850 dark:text-white text-sm">Quick Workspace Actions</h3>
             <p className="text-[10px] text-slate-450 font-bold uppercase mt-0.5">Frequent administrative tasks</p>
           </div>
-          
+
           <div className="flex-1 flex flex-col justify-center space-y-2.5">
             <button
               onClick={() => navigate("/faculty/attendance")}
@@ -271,7 +339,7 @@ const FacultyDashboard = () => {
 
       {/* Analytics & Alerts Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
+
         {/* At-Risk Students list */}
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-3xl shadow-sm space-y-4">
           <div>

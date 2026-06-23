@@ -18,12 +18,13 @@ import {
   TrendingUp,
   FileText
 } from 'lucide-react';
+import { useAuth } from "../../context/AuthContext";
 
 const MarksGradebook = () => {
   const navigate = useNavigate();
   const selectedClass = JSON.parse(localStorage.getItem("selectedClass") || "{}");
-  const facultyId = Number(localStorage.getItem("faculty_id") || "7");
-
+const { user } = useAuth();
+const facultyId = user?.faculty_id;
   // State data
   const [studentsMarks, setStudentsMarks] = useState([]);
   const [loading, setLoading] = useState(true);

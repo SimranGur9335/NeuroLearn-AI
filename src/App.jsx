@@ -56,6 +56,8 @@ import ClassSelection from './pages/faculty/ClassSelection';
 import FacultyAnnouncement from "./pages/faculty/FacultyAnnouncement";
 import AssignmentManagement from "./pages/faculty/AssignmentManagement";
 import MarksGradebook from "./pages/faculty/MarksGradebook";
+import RemedialSessions from "./pages/faculty/RemedialSessions";
+import FacultySelfProfile from './pages/faculty/FacultyProfile';
 
 // Admin Portal Pages
 import AdminDashboard from './pages/admin/AdminDashboard';
@@ -157,6 +159,8 @@ function App() {
               <Route path="/faculty/announcements" element={<FacultyAnnouncement />} />
               <Route path="/faculty/assignments" element={<AssignmentManagement />} />
               <Route path="/faculty/gradebook" element={<MarksGradebook />} />
+              <Route path="/faculty/remedial" element={<RemedialSessions />} />
+              <Route path="/faculty/profile" element={<FacultySelfProfile />} />
             </Route>
 
             {/* Admin Portal Layout & Routes */}

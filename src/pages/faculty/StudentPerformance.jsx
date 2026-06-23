@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ResponsiveContainer,
@@ -20,14 +21,17 @@ import {
   Filter,
   BookOpen,
   Mail,
-  UserCheck
-  , RefreshCw
+  UserCheck,
+  RefreshCw
 } from 'lucide-react';
+import { useAuth } from "../../context/AuthContext";
+import { apiFetch } from "../../services/api";
 
 const StudentPerformance = () => {
+  const navigate = useNavigate();
   const selectedClass = JSON.parse(localStorage.getItem("selectedClass") || "{}");
-  const facultyId = Number(localStorage.getItem("faculty_id") || "7");
-
+  const { user } = useAuth();
+  const facultyId = user?.faculty_id;
   // Roster lists
   const [students, setStudents] = useState([]);
   const [assignedClasses, setAssignedClasses] = useState([]);
@@ -42,6 +46,9 @@ const StudentPerformance = () => {
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [profileDetail, setProfileDetail] = useState(null);
   const [profileLoading, setProfileLoading] = useState(false);
+  const [drawerTab, setDrawerTab] = useState("overview");
+  const [interventionNotes, setInterventionNotes] = useState("");
+  const [interventionStatus, setInterventionStatus] = useState("None");
 
   const branches = ["All", "CS", "IT"];
 
@@ -49,11 +56,11 @@ const StudentPerformance = () => {
   useEffect(() => {
     const fetchMetadataAndStudents = async () => {
       try {
-        const classesRes = await fetch(`http://127.0.0.1:8000/faculty/${facultyId}/classes`);
+        const classesRes = await apiFetch(`/faculty/${facultyId}/classes`);
         const classesData = await classesRes.json();
         setAssignedClasses(classesData);
 
-        const studentsRes = await fetch(`http://127.0.0.1:8000/faculty/${facultyId}/students`);
+        const studentsRes = await apiFetch(`/faculty/${facultyId}/students`);
         const studentsData = await studentsRes.json();
         setStudents(studentsData);
       } catch (err) {
@@ -67,15 +74,54 @@ const StudentPerformance = () => {
   const handleSelectStudent = async (student) => {
     setSelectedStudent(student);
     setProfileLoading(true);
+    setDrawerTab("overview");
     try {
-      const res = await fetch(`http://127.0.0.1:8000/student/${student.student_id}/profile`);
+      const res = await apiFetch(`/student/${student.student_id}/profile`);
       if (!res.ok) throw new Error("Failed to load profile details");
       const data = await res.json();
       setProfileDetail(data);
+      setInterventionNotes(data.metrics?.faculty_notes || "");
+      setInterventionStatus(data.metrics?.intervention_status || "None");
     } catch (err) {
       console.error(err);
     } finally {
       setProfileLoading(false);
+    }
+  };
+
+  const handleSaveIntervention = async () => {
+    try {
+      const res = await apiFetch(`/faculty/student/${selectedStudent.student_id}/intervention`, {
+        method: "POST",
+        body: JSON.stringify({
+          faculty_notes: interventionNotes,
+          intervention_status: interventionStatus,
+          faculty_id: facultyId
+        })
+      });
+      if (res.ok) {
+        alert("Intervention log updated successfully!");
+        setProfileDetail(prev => ({
+          ...prev,
+          metrics: {
+            ...prev.metrics,
+            faculty_notes: interventionNotes,
+            intervention_status: interventionStatus
+          }
+        }));
+        
+        // Refresh overall students list
+        const rosterRes = await apiFetch(`/faculty/${facultyId}/students`);
+        if (rosterRes.ok) {
+          const rosterData = await rosterRes.json();
+          setStudents(rosterData);
+        }
+      } else {
+        alert("Failed to update intervention log.");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error updating intervention log.");
     }
   };
 
@@ -287,6 +333,27 @@ const StudentPerformance = () => {
                 </button>
               </div>
 
+              {/* Drawer Tabs Navigation */}
+              {!profileLoading && profileDetail && (
+                <div className="flex border-b border-slate-100 dark:border-slate-800 overflow-x-auto scrollbar-none shrink-0 bg-slate-50 dark:bg-slate-955 px-3 py-1 gap-1">
+                  {[
+                    { id: "overview", label: "Overview" },
+                    { id: "attendance", label: "Attendance" },
+                    { id: "academics", label: "Academics" },
+                    { id: "assignments", label: "Assignments" },
+                    { id: "intervention", label: "Interventions" }
+                  ].map(t => (
+                    <button
+                      key={t.id}
+                      onClick={() => setDrawerTab(t.id)}
+                      className={`px-3 py-2 text-[10px] font-extrabold uppercase rounded-lg transition-all cursor-pointer shrink-0 whitespace-nowrap ${drawerTab === t.id ? 'bg-purple-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-850'}`}
+                    >
+                      {t.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+
               {/* Scrollable details */}
               {profileLoading ? (
                 <div className="flex-1 flex flex-col justify-center items-center gap-2">
@@ -294,132 +361,326 @@ const StudentPerformance = () => {
                   <span className="text-xs text-slate-400">Loading student profile...</span>
                 </div>
               ) : (
-                <div className="flex-1 overflow-y-auto p-5 space-y-6 text-xs">
-                  {/* Personal card */}
-                  <div className="bg-slate-50 dark:bg-slate-950 border border-slate-150 dark:border-slate-850 p-4 rounded-2xl space-y-2.5">
-                    <div className="flex justify-between items-center border-b border-slate-200 dark:border-slate-800 pb-2">
-                      <span className="text-slate-400 font-bold uppercase text-[9px]">Learner Email</span>
-                      <a href={`mailto:${profileDetail?.student?.email}`} className="font-semibold text-purple-600 dark:text-purple-400 flex items-center gap-1">
-                        <Mail size={12} />
-                        {profileDetail?.student?.email}
-                      </a>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
+                <div className="flex-1 overflow-y-auto p-5 text-xs">
+                  {drawerTab === "overview" && (
+                    <div className="space-y-6">
+                      {/* Personal card */}
+                      <div className="bg-slate-50 dark:bg-slate-950 border border-slate-150 dark:border-slate-850 p-4 rounded-2xl space-y-2.5">
+                        <div className="flex justify-between items-center border-b border-slate-200 dark:border-slate-800 pb-2">
+                          <span className="text-slate-450 dark:text-slate-500 font-bold uppercase text-[9px]">Learner Email</span>
+                          <a href={`mailto:${profileDetail?.student?.email}`} className="font-semibold text-purple-600 dark:text-purple-400 flex items-center gap-1">
+                            <Mail size={12} />
+                            {profileDetail?.student?.email}
+                          </a>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <span className="text-[9px] text-slate-450 dark:text-slate-550 font-bold block uppercase">Roll Number</span>
+                            <span className="font-extrabold text-slate-850 dark:text-white mt-0.5 block font-mono">{profileDetail?.student?.roll_no}</span>
+                          </div>
+                          <div>
+                            <span className="text-[9px] text-slate-455 dark:text-slate-550 font-bold block uppercase">Department & Term</span>
+                            <span className="font-extrabold text-slate-850 dark:text-white mt-0.5 block">{profileDetail?.student?.department} • Sem {profileDetail?.student?.semester}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Summary indicators */}
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="bg-slate-50 dark:bg-slate-950 border border-slate-150 dark:border-slate-850 p-3.5 rounded-xl flex items-center gap-3">
+                          <Calendar size={18} className="text-purple-500 shrink-0" />
+                          <div>
+                            <span className="text-[9px] text-slate-450 dark:text-slate-550 font-bold block uppercase">Attendance Rate</span>
+                            <span className="font-black text-base text-slate-800 dark:text-white">{profileDetail?.metrics?.attendance}%</span>
+                          </div>
+                        </div>
+                        <div className="bg-slate-50 dark:bg-slate-950 border border-slate-150 dark:border-slate-850 p-3.5 rounded-xl flex items-center gap-3">
+                          <Award size={18} className="text-purple-500 shrink-0" />
+                          <div>
+                            <span className="text-[9px] text-slate-450 dark:text-slate-550 font-bold block uppercase">Quiz Average</span>
+                            <span className="font-black text-base text-slate-800 dark:text-white">{profileDetail?.metrics?.quiz_score}%</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Risk Indicators */}
+                      <div className="bg-slate-50 dark:bg-slate-950 border border-slate-150 dark:border-slate-850 p-4 rounded-2xl space-y-2.5">
+                        <h4 className="text-[10px] font-black uppercase text-slate-450 dark:text-slate-400 tracking-wider">Academic Risk Indicators</h4>
+                        <div className="flex items-center justify-between">
+                          <span className="font-bold text-slate-650 dark:text-slate-450">Current Risk Evaluation:</span>
+                          <span className={`px-2.5 py-1 rounded-lg text-[9px] font-black uppercase ${
+                            profileDetail?.metrics?.risk_level === 'High' ? 'bg-red-500/10 text-red-500' :
+                            profileDetail?.metrics?.risk_level === 'Medium' ? 'bg-amber-500/10 text-amber-500' :
+                            'bg-emerald-500/10 text-emerald-500'
+                          }`}>
+                            {profileDetail?.metrics?.risk_level || "Low"} Risk
+                          </span>
+                        </div>
+                        <div className="pt-2 border-t border-slate-200 dark:border-slate-800">
+                          <span className="text-[9px] text-slate-400 font-bold block uppercase mb-1">Reason Breakdown</span>
+                          <p className="text-slate-600 dark:text-slate-350 leading-relaxed font-semibold">
+                            {profileDetail?.risk_history && profileDetail.risk_history.length > 0
+                              ? profileDetail.risk_history[0].reason
+                              : (profileDetail?.metrics?.attendance < 75 ? "Flagged due to low lecture attendance (<75%)." : "Sufficient overall metrics recorded.")
+                            }
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Study consistency */}
                       <div>
-                        <span className="text-[9px] text-slate-400 font-bold block uppercase">Roll Number</span>
-                        <span className="font-extrabold text-slate-850 dark:text-white mt-0.5 block font-mono">{profileDetail?.student?.roll_no}</span>
-                      </div>
-                      <div>
-                        <span className="text-[9px] text-slate-400 font-bold block uppercase">Department & Term</span>
-                        <span className="font-extrabold text-slate-850 dark:text-white mt-0.5 block">{profileDetail?.student?.department} • Sem {profileDetail?.student?.semester}</span>
+                        <h4 className="text-[10px] font-black uppercase text-slate-450 dark:text-slate-400 mb-3 tracking-wider flex items-center gap-1.5">
+                          <TrendingUp size={14} className="text-purple-500" />
+                          Study consistency growth (XP)
+                        </h4>
+                        <div className="h-44 border border-slate-200 dark:border-slate-800 rounded-2xl bg-slate-50/10 dark:bg-slate-955/10 p-2">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <AreaChart data={xpGrowthData}>
+                              <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.1} />
+                              <XAxis dataKey="week" stroke="#64748b" fontSize={9} />
+                              <YAxis stroke="#64748b" fontSize={9} />
+                              <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', borderRadius: '12px' }} itemStyle={{ color: '#fff', fontSize: '10px' }} />
+                              <Area type="monotone" dataKey="xp" stroke="#a855f7" fill="#a855f7" fillOpacity={0.15} strokeWidth={2} name="XP Accumulated" />
+                            </AreaChart>
+                          </ResponsiveContainer>
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  )}
 
-                  {/* Summary indicators */}
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="bg-slate-50 dark:bg-slate-950 border border-slate-150 dark:border-slate-850 p-3.5 rounded-xl flex items-center gap-3">
-                      <Calendar size={18} className="text-purple-500 shrink-0" />
-                      <div>
-                        <span className="text-[9px] text-slate-400 font-bold block uppercase">Attendance Rate</span>
-                        <span className="font-black text-base text-slate-800 dark:text-white">{profileDetail?.metrics?.attendance}%</span>
-                      </div>
-                    </div>
-                    <div className="bg-slate-50 dark:bg-slate-950 border border-slate-150 dark:border-slate-850 p-3.5 rounded-xl flex items-center gap-3">
-                      <Award size={18} className="text-purple-500 shrink-0" />
-                      <div>
-                        <span className="text-[9px] text-slate-400 font-bold block uppercase">Quiz Average</span>
-                        <span className="font-black text-base text-slate-800 dark:text-white">{profileDetail?.metrics?.quiz_score}%</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Assignment Statistics */}
-                  <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 rounded-2xl space-y-3">
-                    <h4 className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Assignment submission statistics</h4>
-                    <div className="grid grid-cols-3 gap-2 text-center">
-                      <div className="bg-emerald-500/10 p-2.5 rounded-xl">
-                        <span className="text-[8px] text-emerald-600 dark:text-emerald-400 font-bold block uppercase">Submitted</span>
-                        <span className="font-extrabold text-sm text-emerald-600 dark:text-emerald-400">{profileDetail?.assignment_stats?.submitted}</span>
-                      </div>
-                      <div className="bg-red-500/10 p-2.5 rounded-xl">
-                        <span className="text-[8px] text-red-600 dark:text-red-400 font-bold block uppercase">Pending</span>
-                        <span className="font-extrabold text-sm text-red-600 dark:text-red-400">{profileDetail?.assignment_stats?.pending}</span>
-                      </div>
-                      <div className="bg-amber-500/10 p-2.5 rounded-xl">
-                        <span className="text-[8px] text-amber-600 dark:text-amber-400 font-bold block uppercase">Late</span>
-                        <span className="font-extrabold text-sm text-amber-600 dark:text-amber-400">{profileDetail?.assignment_stats?.late}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Study consistency */}
-                  <div>
-                    <h4 className="text-[10px] font-black uppercase text-slate-400 mb-3 tracking-wider flex items-center gap-1.5">
-                      <TrendingUp size={14} className="text-purple-500" />
-                      Study consistency growth (XP)
-                    </h4>
-                    <div className="h-44 border border-slate-200 dark:border-slate-800 rounded-2xl bg-slate-50/10 dark:bg-slate-950/10 p-2">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <AreaChart data={xpGrowthData}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.1} />
-                          <XAxis dataKey="week" stroke="#64748b" fontSize={9} />
-                          <YAxis stroke="#64748b" fontSize={9} />
-                          <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', borderRadius: '12px' }} itemStyle={{ color: '#fff', fontSize: '10px' }} />
-                          <Area type="monotone" dataKey="xp" stroke="#a855f7" fill="#a855f7" fillOpacity={0.15} strokeWidth={2} name="XP Accumulated" />
-                        </AreaChart>
-                      </ResponsiveContainer>
-                    </div>
-                  </div>
-
-                  {/* Syllabus strengths */}
-                  <div className="space-y-4">
-                    <div>
-                      <h4 className="text-[10px] font-black uppercase text-slate-400 mb-2 tracking-wider">Strong Syllabus Nodes</h4>
-                      <div className="flex flex-wrap gap-1.5">
-                        <span className="bg-emerald-500/10 text-emerald-500 border border-emerald-500/10 text-[10px] font-bold px-2.5 py-1 rounded-lg">DBMS Schemas</span>
-                        <span className="bg-emerald-500/10 text-emerald-500 border border-emerald-500/10 text-[10px] font-bold px-2.5 py-1 rounded-lg">Linear Algebra</span>
-                      </div>
-                    </div>
-
-                    {/* Marks list */}
-                    <div>
-                      <h4 className="text-[10px] font-black uppercase text-slate-400 mb-2 tracking-wider">Marks Summary</h4>
-                      <div className="bg-slate-50 dark:bg-slate-950 border border-slate-150 dark:border-slate-850 rounded-2xl p-3 space-y-2">
-                        {profileDetail?.marks?.map((mark, mIdx) => (
-                          <div key={mIdx} className="flex justify-between items-center border-b last:border-0 border-slate-200 dark:border-slate-800 pb-1.5 last:pb-0">
-                            <div>
-                              <span className="font-semibold block text-slate-700 dark:text-slate-300">{mark.subject}</span>
-                              <span className="text-[9px] text-slate-400 block">Assign: {mark.assignments} | Quiz: {mark.quizzes} | Pract: {mark.practical}</span>
-                            </div>
-                            <div className="text-right">
-                              <span className="font-black text-sm block text-purple-650">{mark.total}/100</span>
-                              <span className="text-[9px] text-slate-400 block">Grade {mark.grade}</span>
-                            </div>
+                  {drawerTab === "attendance" && (
+                    <div className="space-y-4">
+                      <h4 className="text-[10px] font-black uppercase text-slate-450 dark:text-slate-400 tracking-wider">Daily Attendance Breakdown</h4>
+                      <div className="bg-slate-50 dark:bg-slate-950 border border-slate-150 dark:border-slate-850 rounded-2xl p-3 max-h-[350px] overflow-y-auto space-y-2">
+                        {profileDetail?.attendance_history?.map((att, idx) => (
+                          <div key={idx} className="flex justify-between items-center border-b last:border-0 border-slate-200 dark:border-slate-800 pb-2 last:pb-0">
+                            <span className="font-semibold text-slate-700 dark:text-slate-350">{att.date}</span>
+                            <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded ${
+                              att.status === "Present" ? "bg-emerald-500/10 text-emerald-500" :
+                              att.status === "Late" ? "bg-amber-500/10 text-amber-600 dark:text-amber-500" :
+                              "bg-red-500/10 text-red-500"
+                            }`}>
+                              {att.status}
+                            </span>
                           </div>
                         ))}
-                        {(!profileDetail?.marks || profileDetail.marks.length === 0) && (
-                          <span className="text-slate-400 text-xs block text-center py-2">No mark sheets registered yet.</span>
+                        {(!profileDetail?.attendance_history || profileDetail.attendance_history.length === 0) && (
+                          <div className="text-center text-slate-450 dark:text-slate-500 py-4 font-semibold">
+                            No attendance history recorded.
+                          </div>
                         )}
                       </div>
                     </div>
-                  </div>
+                  )}
+
+                  {drawerTab === "academics" && (
+                    <div className="space-y-4">
+                      <div className="bg-slate-50 dark:bg-slate-955 border border-slate-150 dark:border-slate-850 rounded-2xl p-4 space-y-3">
+                        <h5 className="font-black text-slate-800 dark:text-white uppercase text-[9px] tracking-wider">Subject Mark Roster</h5>
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-left border-collapse text-[10px]">
+                            <thead>
+                              <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-400 font-bold uppercase text-[8px] tracking-wider">
+                                <th className="py-2 pl-1">Subject</th>
+                                <th className="py-2 text-center">Internals</th>
+                                <th className="py-2 text-center">Assignments</th>
+                                <th className="py-2 text-center">Quizzes</th>
+                                <th className="py-2 text-center">Practical</th>
+                                <th className="py-2 text-center">Total</th>
+                                <th className="py-2 text-center pr-1">Grade</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100 dark:divide-slate-850/50">
+                              {profileDetail?.marks?.map((m, idx) => (
+                                <tr key={idx} className="text-slate-700 dark:text-slate-350">
+                                  <td className="py-2 pl-1 font-bold">{m.subject_name}</td>
+                                  <td className="py-2 text-center">{m.internal_marks}</td>
+                                  <td className="py-2 text-center">{m.assignments_marks}</td>
+                                  <td className="py-2 text-center">{m.quizzes_marks}</td>
+                                  <td className="py-2 text-center">{m.practical_marks}</td>
+                                  <td className="py-2 text-center font-black text-slate-800 dark:text-white">{m.total_marks}</td>
+                                  <td className="py-2 text-center pr-1"><span className="px-1.5 py-0.5 rounded bg-purple-100 dark:bg-purple-950 text-purple-600 dark:text-purple-400 font-black">{m.grade || "N/A"}</span></td>
+                                </tr>
+                              ))}
+                              {(!profileDetail?.marks || profileDetail.marks.length === 0) && (
+                                <tr>
+                                  <td colSpan={7} className="text-center py-4 text-slate-450 italic">No subject marks recorded.</td>
+                                </tr>
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+
+                      <div className="bg-slate-50 dark:bg-slate-950 border border-slate-150 dark:border-slate-850 rounded-2xl p-4 space-y-3">
+                        <h5 className="font-black text-slate-800 dark:text-white uppercase text-[9px] tracking-wider">Quiz Performance Logs</h5>
+                        <div className="space-y-2 max-h-[150px] overflow-y-auto pr-1">
+                          {profileDetail?.quizzes?.map((q, idx) => (
+                            <div key={idx} className="flex justify-between items-center p-2 bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-850 rounded-xl text-[10px]">
+                              <span className="font-bold text-slate-700 dark:text-slate-350">{q.title}</span>
+                              <span className="font-black text-purple-600">{q.score} / {q.total_questions} Questions</span>
+                            </div>
+                          ))}
+                          {(!profileDetail?.quizzes || profileDetail.quizzes.length === 0) && (
+                            <p className="text-slate-455 dark:text-slate-500 italic text-center py-2">No quiz attempts found.</p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {drawerTab === "assignments" && (
+                    <div className="space-y-4">
+                      {/* Completion stats calculations */}
+                      {(() => {
+                        const total = profileDetail?.assignments?.length || 0;
+                        const submitted = profileDetail?.assignments?.filter(a => a.status === "Submitted").length || 0;
+                        const late = profileDetail?.assignments?.filter(a => a.status === "Late").length || 0;
+                        const missing = profileDetail?.assignments?.filter(a => a.status === "Missing" || a.status === "Pending").length || 0;
+                        const rate = total > 0 ? Math.round(((submitted + late) / total) * 100) : 100;
+                        return (
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                            <div className="bg-emerald-500/10 border border-emerald-500/15 p-2 rounded-xl text-center">
+                              <span className="text-[8px] uppercase text-emerald-600 dark:text-emerald-400 font-bold block">Submitted</span>
+                              <span className="text-sm font-black text-emerald-600">{submitted}</span>
+                            </div>
+                            <div className="bg-amber-500/10 border border-amber-500/15 p-2 rounded-xl text-center">
+                              <span className="text-[8px] uppercase text-amber-600 dark:text-amber-450 font-bold block">Late</span>
+                              <span className="text-sm font-black text-amber-600">{late}</span>
+                            </div>
+                            <div className="bg-red-500/10 border border-red-500/15 p-2 rounded-xl text-center">
+                              <span className="text-[8px] uppercase text-red-650 dark:text-red-450 font-bold block">Missing</span>
+                              <span className="text-sm font-black text-red-600">{missing}</span>
+                            </div>
+                            <div className="bg-purple-500/10 border border-purple-500/15 p-2 rounded-xl text-center">
+                              <span className="text-[8px] uppercase text-purple-650 dark:text-purple-400 font-bold block">Completion</span>
+                              <span className="text-sm font-black text-purple-600">{rate}%</span>
+                            </div>
+                          </div>
+                        );
+                      })()}
+
+                      <div className="bg-slate-50 dark:bg-slate-950 border border-slate-150 dark:border-slate-850 rounded-2xl p-4 space-y-3">
+                        <h5 className="font-black text-slate-800 dark:text-white uppercase text-[9px] tracking-wider">Submissions Log</h5>
+                        <div className="space-y-2 max-h-[220px] overflow-y-auto pr-1">
+                          {profileDetail?.assignments?.map((assign, idx) => (
+                            <div key={idx} className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-850 rounded-xl p-3 flex justify-between items-center">
+                              <div className="space-y-0.5 max-w-[70%]">
+                                <h5 className="font-extrabold text-slate-850 dark:text-white line-clamp-1">{assign.title}</h5>
+                                <span className="text-[9px] text-slate-450 dark:text-slate-400 font-bold">
+                                  Score: <span className="text-purple-600 font-extrabold">{assign.score !== null ? `${assign.score} Marks` : "Not Graded"}</span>
+                                </span>
+                              </div>
+                              <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded shrink-0 ${
+                                assign.status === "Submitted" ? "bg-emerald-500/10 text-emerald-500" :
+                                assign.status === "Late" ? "bg-amber-500/10 text-amber-600 dark:text-amber-500" :
+                                "bg-red-500/10 text-red-500"
+                              }`}>
+                                {assign.status}
+                              </span>
+                            </div>
+                          ))}
+                          {(!profileDetail?.assignments || profileDetail.assignments.length === 0) && (
+                            <div className="text-center text-slate-455 py-4 font-semibold italic">
+                              No assignments logged.
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {drawerTab === "intervention" && (
+                    <div className="space-y-4">
+                      {/* Early Intervention status updates */}
+                      <div className="space-y-4 bg-slate-50 dark:bg-slate-955 border border-slate-150 dark:border-slate-850 rounded-2xl p-4">
+                        <h5 className="font-black text-slate-850 dark:text-white uppercase text-[9px] tracking-wider">Update Early Intervention Log</h5>
+                        <div className="space-y-1.5">
+                          <label className="text-[9px] uppercase font-bold text-slate-400 pl-0.5">Intervention Status</label>
+                          <select
+                            value={interventionStatus}
+                            onChange={(e) => setInterventionStatus(e.target.value)}
+                            className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-3 py-2 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-350 focus:outline-none"
+                          >
+                            <option value="None">None</option>
+                            <option value="Under Watch">Under Watch</option>
+                            <option value="Remediation Assigned">Remediation Assigned</option>
+                            <option value="Cleared">Cleared</option>
+                            <option value="Not Contacted">Not Contacted</option>
+                          </select>
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <label className="text-[9px] uppercase font-bold text-slate-400 pl-0.5">Faculty Notes & Remarks</label>
+                          <textarea
+                            value={interventionNotes}
+                            onChange={(e) => setInterventionNotes(e.target.value)}
+                            placeholder="Add progress remarks, warning details, parent meeting logs..."
+                            rows={4}
+                            className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-3 py-2 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-350 focus:outline-none resize-none"
+                          />
+                        </div>
+
+                        <button
+                          onClick={handleSaveIntervention}
+                          className="w-full py-2.5 bg-purple-600 hover:bg-purple-550 text-white font-extrabold text-xs rounded-xl shadow-md cursor-pointer transition-all"
+                        >
+                          Save Intervention Log
+                        </button>
+                      </div>
+
+                      {/* Remedial History */}
+                      <div className="bg-slate-50 dark:bg-slate-950 border border-slate-150 dark:border-slate-850 rounded-2xl p-4 space-y-3">
+                        <h5 className="font-black text-slate-850 dark:text-white uppercase text-[9px] tracking-wider">Remedial Session Invitations Log</h5>
+                        <div className="space-y-2 max-h-[180px] overflow-y-auto pr-1">
+                          {profileDetail?.remedial_history?.map((session, idx) => (
+                            <div key={idx} className="bg-white dark:bg-slate-900 border border-slate-155 dark:border-slate-850 rounded-xl p-3.5 space-y-1.5 text-[10px]">
+                              <div className="flex justify-between items-start">
+                                <h6 className="font-black text-slate-850 dark:text-white">{session.subject_name || "Remedial Session"}</h6>
+                                <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded ${
+                                  session.status === "Attended" ? "bg-emerald-500/10 text-emerald-500" :
+                                  session.status === "Absent" ? "bg-red-500/10 text-red-500" :
+                                  session.status === "Scheduled" ? "bg-blue-500/10 text-blue-500" :
+                                  "bg-amber-500/10 text-amber-600 dark:text-amber-500"
+                                }`}>
+                                  {session.status || "Pending"}
+                                </span>
+                              </div>
+                              <div className="grid grid-cols-2 gap-2 text-slate-450 dark:text-slate-400 font-bold">
+                                <div>Date: {session.session_date}</div>
+                                <div>Time: {session.session_time || "N/A"}</div>
+                              </div>
+                            </div>
+                          ))}
+                          {(!profileDetail?.remedial_history || profileDetail.remedial_history.length === 0) && (
+                            <p className="text-center text-slate-455 py-2 italic font-semibold">
+                              No remedial class history.
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
               {/* Action drawer footer */}
-              <div className="p-5 border-t border-slate-100 dark:border-slate-850 bg-slate-50 dark:bg-slate-950 flex flex-col gap-2">
-                <div className="flex justify-between items-center text-[10px] font-bold text-slate-400">
-                  <span>AI Grade Outcome Projection:</span>
-                  <span className="text-purple-600 dark:text-purple-400 font-extrabold text-sm">{selectedStudent.predicted_cgpa} CGPA</span>
+              {!profileLoading && profileDetail && (
+                <div className="p-5 border-t border-slate-100 dark:border-slate-850 bg-slate-50 dark:bg-slate-950 flex flex-col gap-2 shrink-0">
+                  <div className="flex justify-between items-center text-[10px] font-bold text-slate-400">
+                    <span>AI Grade Outcome Projection:</span>
+                    <span className="text-purple-600 dark:text-purple-400 font-extrabold text-sm">{profileDetail?.metrics?.predicted_cgpa || selectedStudent.predicted_cgpa} CGPA</span>
+                  </div>
+                  <button
+                    onClick={() => {
+                      navigate("/faculty/remedial", { state: { preselectedStudentId: selectedStudent.student_id } });
+                    }}
+                    className="w-full py-2.5 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-xl text-xs shadow-md cursor-pointer"
+                  >
+                    Send Remedial Class Invitation
+                  </button>
                 </div>
-                <button
-                  onClick={() => alert(`Warning summary successfully dispatched to ${selectedStudent.full_name}'s institutional mailbox.`)}
-                  className="w-full py-2.5 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-xl text-xs shadow-md cursor-pointer"
-                >
-                  Send Remedial Class Invitation
-                </button>
-              </div>
+              )}
             </motion.div>
           </div>
         )}

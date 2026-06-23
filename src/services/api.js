@@ -1,9 +1,24 @@
 export const apiFetch = async (endpoint, options = {}) => {
-    // In development mode, route requests relatively through Vite's dev proxy (/api).
-    // This protects local development from polluted system environment variables (like VITE_API_URL=localhost:5000).
-    const apiBase = import.meta.env.DEV ? '/api' : (import.meta.env.VITE_API_URL || '/api');
-    
     const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+    
+    // Check if the endpoint starts with one of the direct proxied prefixes
+    const directPrefixes = [
+        '/faculty', 
+        '/attendance', 
+        '/student', 
+        '/remedial', 
+        '/class', 
+        '/marks', 
+        '/assignments', 
+        '/submissions', 
+        '/announcements'
+    ];
+    const isDirect = directPrefixes.some(prefix => cleanEndpoint.startsWith(prefix) && !cleanEndpoint.startsWith('/api'));
+    
+    const apiBase = isDirect 
+        ? '' 
+        : (import.meta.env.DEV ? '/api' : (import.meta.env.VITE_API_URL || '/api'));
+        
     const url = `${apiBase}${cleanEndpoint}`;
 
     const headers = {
