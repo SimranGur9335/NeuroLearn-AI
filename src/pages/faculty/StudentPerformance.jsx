@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ResponsiveContainer,
@@ -22,7 +22,11 @@ import {
   BookOpen,
   Mail,
   UserCheck,
-  RefreshCw
+  RefreshCw,
+  Copy,
+  AlertTriangle,
+  Clock,
+  Check
 } from 'lucide-react';
 import { useAuth } from "../../context/AuthContext";
 import { apiFetch } from "../../services/api";
@@ -51,6 +55,7 @@ const StudentPerformance = () => {
   const [interventionStatus, setInterventionStatus] = useState("None");
 
   const branches = ["All", "CS", "IT"];
+  const location = useLocation();
 
   // Fetch faculty classes mapping and overall students roster
   useEffect(() => {
@@ -70,6 +75,19 @@ const StudentPerformance = () => {
     fetchMetadataAndStudents();
   }, [facultyId]);
 
+  // Handle incoming routing state (preselected student)
+  useEffect(() => {
+    if (location.state?.preselectedStudentId && students.length > 0) {
+      const targetId = Number(location.state.preselectedStudentId);
+      const student = students.find(s => s.student_id === targetId);
+      if (student) {
+        handleSelectStudent(student);
+      }
+      // Clean location state so it doesn't trigger again on reload
+      navigate(location.pathname, { replace: true, state: null });
+    }
+  }, [location.state, students]);
+
   // Fetch detailed profile for drawer
   const handleSelectStudent = async (student) => {
     setSelectedStudent(student);
@@ -87,6 +105,80 @@ const StudentPerformance = () => {
     } finally {
       setProfileLoading(false);
     }
+  };
+
+  // Helper to copy student details to clipboard
+  const handleCopyDetails = () => {
+    const textToCopy = `Student Name: ${selectedStudent.full_name}\nRoll No: ${selectedStudent.roll_no}\nEmail: ${profileDetail?.student?.email || ''}\nDepartment: ${selectedStudent.department} - ${selectedStudent.division}\nAttendance: ${profileDetail?.metrics?.attendance ?? selectedStudent.attendance}%\nQuiz Avg: ${profileDetail?.metrics?.quiz_score ?? selectedStudent.quiz_score}%\nRisk Tier: ${profileDetail?.metrics?.risk_level ?? selectedStudent.risk_level}`;
+    navigator.clipboard.writeText(textToCopy);
+    alert("Student details copied to clipboard!");
+  };
+
+  // Construct timeline events dynamically
+  const getTimelineEvents = () => {
+    const events = [];
+    
+    // Attendance history
+    if (profileDetail?.attendance_history) {
+      profileDetail.attendance_history.forEach(att => {
+        events.push({
+          date: att.date,
+          type: "attendance",
+          title: `Attendance: ${att.status}`,
+          desc: `Subject: ${att.subject}`,
+        });
+      });
+    }
+
+    // Assignments
+    const assignments = profileDetail?.detailed_assignments || [];
+    assignments.forEach(assign => {
+      if (assign.status === "Submitted" || assign.status === "Late") {
+        events.push({
+          date: assign.submitted_at ? assign.submitted_at.split(" ")[0] : assign.due_date,
+          type: "assignment",
+          title: `Assignment Submitted (${assign.status})`,
+          desc: `${assign.title} • Score: ${assign.marks_obtained !== null ? `${assign.marks_obtained}/${assign.total_marks}` : 'Pending Grading'}`,
+        });
+      } else if (assign.status === "Missing" || assign.status === "Pending") {
+        events.push({
+          date: assign.due_date,
+          type: "assignment",
+          title: `Assignment ${assign.status}`,
+          desc: `${assign.title} was due on ${assign.due_date}`,
+        });
+      }
+    });
+
+    // Risk history
+    if (profileDetail?.risk_history) {
+      profileDetail.risk_history.forEach(risk => {
+        events.push({
+          date: risk.date ? risk.date.split(" ")[0] : null,
+          type: "risk",
+          title: `Risk Assessed: ${risk.level}`,
+          desc: risk.reason,
+        });
+      });
+    }
+
+    // Remedial invitations
+    if (profileDetail?.remedial_history) {
+      profileDetail.remedial_history.forEach(rem => {
+        events.push({
+          date: rem.date,
+          type: "remedial",
+          title: `Support Session ${rem.status}`,
+          desc: `Topic: ${rem.topic} • Venue: ${rem.location}`,
+        });
+      });
+    }
+
+    // Sort by date descending
+    return events
+      .filter(e => e.date)
+      .sort((a, b) => new Date(b.date) - new Date(a.date))
+      .slice(0, 5); // Keep it compact
   };
 
   const handleSaveIntervention = async () => {
@@ -364,11 +456,61 @@ const StudentPerformance = () => {
                 <div className="flex-1 overflow-y-auto p-5 text-xs">
                   {drawerTab === "overview" && (
                     <div className="space-y-6">
+                      {/* Quick Actions Panel */}
+                      <div className="bg-slate-55 dark:bg-slate-950 border border-slate-150 dark:border-slate-850 p-4 rounded-2xl space-y-2.5">
+                        <h4 className="text-[10px] font-black uppercase text-slate-450 dark:text-slate-400 tracking-wider text-left">Quick Actions</h4>
+                        <div className="grid grid-cols-2 gap-2">
+                          <button
+                            onClick={() => navigate("/faculty/remedial", { state: { preselectedStudentId: selectedStudent.student_id } })}
+                            className="flex items-center gap-2 p-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl hover:bg-purple-500/5 dark:hover:bg-purple-500/10 hover:border-purple-550 transition-all duration-200 cursor-pointer text-left group"
+                          >
+                            <Mail size={14} className="text-purple-500 group-hover:scale-110 transition-transform shrink-0" />
+                            <div>
+                              <span className="font-bold text-[11px] text-slate-800 dark:text-white block">Remedial Invite</span>
+                              <span className="text-[9px] text-slate-400 block font-medium">Schedule session</span>
+                            </div>
+                          </button>
+                          
+                          <button
+                            onClick={() => setDrawerTab("intervention")}
+                            className="flex items-center gap-2 p-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl hover:bg-purple-500/5 dark:hover:bg-purple-500/10 hover:border-purple-550 transition-all duration-200 cursor-pointer text-left group"
+                          >
+                            <UserCheck size={14} className="text-purple-500 group-hover:scale-110 transition-transform shrink-0" />
+                            <div>
+                              <span className="font-bold text-[11px] text-slate-800 dark:text-white block">Intervention</span>
+                              <span className="text-[9px] text-slate-400 block font-medium">Update status/notes</span>
+                            </div>
+                          </button>
+
+                          <button
+                            onClick={() => navigate("/faculty/risk", { state: { preselectedStudentId: selectedStudent.student_id } })}
+                            className="flex items-center gap-2 p-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl hover:bg-purple-500/5 dark:hover:bg-purple-500/10 hover:border-purple-550 transition-all duration-200 cursor-pointer text-left group"
+                          >
+                            <AlertTriangle size={14} className="text-purple-500 group-hover:scale-110 transition-transform shrink-0" />
+                            <div>
+                              <span className="font-bold text-[11px] text-slate-800 dark:text-white block">Risk Profile</span>
+                              <span className="text-[9px] text-slate-400 block font-medium">View risk analysis</span>
+                            </div>
+                          </button>
+
+                          <button
+                            onClick={handleCopyDetails}
+                            className="flex items-center gap-2 p-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl hover:bg-purple-500/5 dark:hover:bg-purple-500/10 hover:border-purple-550 transition-all duration-200 cursor-pointer text-left group"
+                          >
+                            <Copy size={14} className="text-purple-500 group-hover:scale-110 transition-transform shrink-0" />
+                            <div>
+                              <span className="font-bold text-[11px] text-slate-800 dark:text-white block">Copy Details</span>
+                              <span className="text-[9px] text-slate-400 block font-medium">Copy key info</span>
+                            </div>
+                          </button>
+                        </div>
+                      </div>
+
                       {/* Personal card */}
-                      <div className="bg-slate-50 dark:bg-slate-950 border border-slate-150 dark:border-slate-850 p-4 rounded-2xl space-y-2.5">
+                      <div className="bg-slate-55 dark:bg-slate-950 border border-slate-150 dark:border-slate-850 p-4 rounded-2xl space-y-2.5 text-left">
                         <div className="flex justify-between items-center border-b border-slate-200 dark:border-slate-800 pb-2">
                           <span className="text-slate-450 dark:text-slate-500 font-bold uppercase text-[9px]">Learner Email</span>
-                          <a href={`mailto:${profileDetail?.student?.email}`} className="font-semibold text-purple-600 dark:text-purple-400 flex items-center gap-1">
+                          <a href={`mailto:${profileDetail?.student?.email}`} className="font-semibold text-purple-650 dark:text-purple-400 flex items-center gap-1">
                             <Mail size={12} />
                             {profileDetail?.student?.email}
                           </a>
@@ -387,27 +529,27 @@ const StudentPerformance = () => {
 
                       {/* Summary indicators */}
                       <div className="grid grid-cols-2 gap-4">
-                        <div className="bg-slate-50 dark:bg-slate-950 border border-slate-150 dark:border-slate-850 p-3.5 rounded-xl flex items-center gap-3">
+                        <div className="bg-slate-55 dark:bg-slate-950 border border-slate-150 dark:border-slate-850 p-3.5 rounded-xl flex items-center gap-3 text-left">
                           <Calendar size={18} className="text-purple-500 shrink-0" />
                           <div>
                             <span className="text-[9px] text-slate-450 dark:text-slate-550 font-bold block uppercase">Attendance Rate</span>
-                            <span className="font-black text-base text-slate-800 dark:text-white">{profileDetail?.metrics?.attendance}%</span>
+                            <span className="font-black text-base text-slate-805 dark:text-white">{profileDetail?.metrics?.attendance}%</span>
                           </div>
                         </div>
-                        <div className="bg-slate-50 dark:bg-slate-950 border border-slate-150 dark:border-slate-850 p-3.5 rounded-xl flex items-center gap-3">
+                        <div className="bg-slate-55 dark:bg-slate-955 border border-slate-150 dark:border-slate-850 p-3.5 rounded-xl flex items-center gap-3 text-left">
                           <Award size={18} className="text-purple-500 shrink-0" />
                           <div>
-                            <span className="text-[9px] text-slate-450 dark:text-slate-550 font-bold block uppercase">Quiz Average</span>
-                            <span className="font-black text-base text-slate-800 dark:text-white">{profileDetail?.metrics?.quiz_score}%</span>
+                            <span className="text-[9px] text-slate-455 dark:text-slate-550 font-bold block uppercase">Quiz Average</span>
+                            <span className="font-black text-base text-slate-805 dark:text-white">{profileDetail?.metrics?.quiz_score}%</span>
                           </div>
                         </div>
                       </div>
 
                       {/* Risk Indicators */}
-                      <div className="bg-slate-50 dark:bg-slate-950 border border-slate-150 dark:border-slate-850 p-4 rounded-2xl space-y-2.5">
+                      <div className="bg-slate-55 dark:bg-slate-950 border border-slate-150 dark:border-slate-850 p-4 rounded-2xl space-y-2.5 text-left">
                         <h4 className="text-[10px] font-black uppercase text-slate-450 dark:text-slate-400 tracking-wider">Academic Risk Indicators</h4>
                         <div className="flex items-center justify-between">
-                          <span className="font-bold text-slate-650 dark:text-slate-450">Current Risk Evaluation:</span>
+                          <span className="font-bold text-slate-650 dark:text-slate-455">Current Risk Evaluation:</span>
                           <span className={`px-2.5 py-1 rounded-lg text-[9px] font-black uppercase ${
                             profileDetail?.metrics?.risk_level === 'High' ? 'bg-red-500/10 text-red-500' :
                             profileDetail?.metrics?.risk_level === 'Medium' ? 'bg-amber-500/10 text-amber-500' :
@@ -428,8 +570,8 @@ const StudentPerformance = () => {
                       </div>
 
                       {/* Study consistency */}
-                      <div>
-                        <h4 className="text-[10px] font-black uppercase text-slate-450 dark:text-slate-400 mb-3 tracking-wider flex items-center gap-1.5">
+                      <div className="text-left">
+                        <h4 className="text-[10px] font-black uppercase text-slate-455 dark:text-slate-400 mb-3 tracking-wider flex items-center gap-1.5">
                           <TrendingUp size={14} className="text-purple-500" />
                           Study consistency growth (XP)
                         </h4>
@@ -445,15 +587,90 @@ const StudentPerformance = () => {
                           </ResponsiveContainer>
                         </div>
                       </div>
+
+                      {/* Student Activity Timeline */}
+                      {(() => {
+                        const events = getTimelineEvents();
+                        if (events.length === 0) return null;
+                        
+                        return (
+                          <div className="space-y-3 pt-2 text-left">
+                            <h4 className="text-[10px] font-black uppercase text-slate-450 dark:text-slate-400 tracking-wider flex items-center gap-1.5">
+                              <Clock size={14} className="text-purple-500 shrink-0" />
+                              Student Activity Timeline
+                            </h4>
+                            <div className="relative pl-4 border-l border-slate-200 dark:border-slate-800 space-y-4">
+                              {events.map((e, idx) => (
+                                <div key={idx} className="relative group text-left">
+                                  {/* timeline bullet */}
+                                  <span className={`absolute -left-[21.5px] top-0.5 w-2.5 h-2.5 rounded-full border-2 border-white dark:border-slate-900 ${
+                                    e.type === 'attendance' ? 'bg-emerald-500' :
+                                    e.type === 'assignment' ? 'bg-purple-500' :
+                                    e.type === 'risk' ? 'bg-red-500' : 'bg-blue-500'
+                                  }`} />
+                                  <div className="flex justify-between items-start gap-1">
+                                    <span className="font-extrabold text-[11px] text-slate-800 dark:text-white group-hover:text-purple-550 transition-colors">{e.title}</span>
+                                    <span className="text-[8px] font-mono text-slate-400 font-bold shrink-0">{e.date}</span>
+                                  </div>
+                                  <p className="text-[9px] text-slate-450 dark:text-slate-400 mt-0.5 font-medium leading-normal">{e.desc}</p>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })()}
                     </div>
                   )}
 
                   {drawerTab === "attendance" && (
                     <div className="space-y-4">
-                      <h4 className="text-[10px] font-black uppercase text-slate-450 dark:text-slate-400 tracking-wider">Daily Attendance Breakdown</h4>
-                      <div className="bg-slate-50 dark:bg-slate-950 border border-slate-150 dark:border-slate-850 rounded-2xl p-3 max-h-[350px] overflow-y-auto space-y-2">
+                      {/* Attendance Intelligence Status */}
+                      {(() => {
+                        const attPercentage = profileDetail?.metrics?.attendance ?? selectedStudent.attendance;
+                        let statusText = "Healthy";
+                        let statusColor = "bg-emerald-500/10 text-emerald-500 border-emerald-500/20";
+                        let statusDesc = "Student has consistent attendance, meeting institutional requirements.";
+                        
+                        if (attPercentage < 75) {
+                          statusText = "Critical";
+                          statusColor = "bg-red-500/10 text-red-500 border-red-500/20";
+                          statusDesc = "Attendance is below the 75% mandatory threshold. Immediate intervention required.";
+                        } else if (attPercentage < 85) {
+                          statusText = "Warning";
+                          statusColor = "bg-amber-500/10 text-amber-500 border-amber-500/20";
+                          statusDesc = "Attendance has dropped below 85%. Nearing critical risk threshold.";
+                        }
+                        
+                        return (
+                          <div className="bg-slate-55 dark:bg-slate-950 border border-slate-150 dark:border-slate-850 p-4 rounded-2xl space-y-3 text-left">
+                            <div className="flex justify-between items-center">
+                              <span className="text-[10px] uppercase font-black text-slate-455 dark:text-slate-400 tracking-wider">Attendance Intelligence</span>
+                              <span className={`text-[10px] font-black uppercase px-2.5 py-0.5 rounded-lg border ${statusColor}`}>
+                                {statusText}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <div className="text-2xl font-black text-slate-850 dark:text-white">{attPercentage}%</div>
+                              <div className="text-[10px] text-slate-500 dark:text-slate-400 font-medium leading-normal">
+                                {statusDesc}
+                              </div>
+                            </div>
+                            <div className="w-full bg-slate-200 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
+                              <div 
+                                className={`h-full rounded-full ${
+                                  statusText === "Healthy" ? "bg-emerald-500" : statusText === "Warning" ? "bg-amber-500" : "bg-red-500"
+                                }`} 
+                                style={{ width: `${Math.min(attPercentage, 100)}%` }} 
+                              />
+                            </div>
+                          </div>
+                        );
+                      })()}
+
+                      <h4 className="text-[10px] font-black uppercase text-slate-450 dark:text-slate-400 tracking-wider text-left">Daily Attendance Breakdown</h4>
+                      <div className="bg-slate-55 dark:bg-slate-950 border border-slate-155 dark:border-slate-850 rounded-2xl p-3 max-h-[350px] overflow-y-auto space-y-2">
                         {profileDetail?.attendance_history?.map((att, idx) => (
-                          <div key={idx} className="flex justify-between items-center border-b last:border-0 border-slate-200 dark:border-slate-800 pb-2 last:pb-0">
+                          <div key={idx} className="flex justify-between items-center border-b last:border-0 border-slate-200 dark:border-slate-800 pb-2 last:pb-0 text-left">
                             <span className="font-semibold text-slate-700 dark:text-slate-350">{att.date}</span>
                             <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded ${
                               att.status === "Present" ? "bg-emerald-500/10 text-emerald-500" :
@@ -528,47 +745,50 @@ const StudentPerformance = () => {
                       </div>
                     </div>
                   )}
-
                   {drawerTab === "assignments" && (
                     <div className="space-y-4">
                       {/* Completion stats calculations */}
                       {(() => {
-                        const total = profileDetail?.assignments?.length || 0;
-                        const submitted = profileDetail?.assignments?.filter(a => a.status === "Submitted").length || 0;
-                        const late = profileDetail?.assignments?.filter(a => a.status === "Late").length || 0;
-                        const missing = profileDetail?.assignments?.filter(a => a.status === "Missing" || a.status === "Pending").length || 0;
+                        const assignments = profileDetail?.detailed_assignments || [];
+                        const total = assignments.length;
+                        const submitted = assignments.filter(a => a.status === "Submitted").length;
+                        const late = assignments.filter(a => a.status === "Late").length;
+                        const missing = assignments.filter(a => a.status === "Missing" || a.status === "Pending").length;
                         const rate = total > 0 ? Math.round(((submitted + late) / total) * 100) : 100;
                         return (
                           <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                            <div className="bg-emerald-500/10 border border-emerald-500/15 p-2 rounded-xl text-center">
+                            <div className="bg-emerald-500/10 border border-emerald-550/15 p-2 rounded-xl text-center">
                               <span className="text-[8px] uppercase text-emerald-600 dark:text-emerald-400 font-bold block">Submitted</span>
-                              <span className="text-sm font-black text-emerald-600">{submitted}</span>
+                              <span className="text-sm font-black text-emerald-650 dark:text-emerald-400">{submitted}</span>
                             </div>
-                            <div className="bg-amber-500/10 border border-amber-500/15 p-2 rounded-xl text-center">
+                            <div className="bg-amber-500/10 border border-amber-550/15 p-2 rounded-xl text-center">
                               <span className="text-[8px] uppercase text-amber-600 dark:text-amber-450 font-bold block">Late</span>
-                              <span className="text-sm font-black text-amber-600">{late}</span>
+                              <span className="text-sm font-black text-amber-655 dark:text-amber-500">{late}</span>
                             </div>
-                            <div className="bg-red-500/10 border border-red-500/15 p-2 rounded-xl text-center">
-                              <span className="text-[8px] uppercase text-red-650 dark:text-red-450 font-bold block">Missing</span>
+                            <div className="bg-red-500/10 border border-red-550/15 p-2 rounded-xl text-center">
+                              <span className="text-[8px] uppercase text-red-650 dark:text-red-455 font-bold block">Missing</span>
                               <span className="text-sm font-black text-red-600">{missing}</span>
                             </div>
-                            <div className="bg-purple-500/10 border border-purple-500/15 p-2 rounded-xl text-center">
+                            <div className="bg-purple-500/10 border border-purple-550/15 p-2 rounded-xl text-center">
                               <span className="text-[8px] uppercase text-purple-650 dark:text-purple-400 font-bold block">Completion</span>
-                              <span className="text-sm font-black text-purple-600">{rate}%</span>
+                              <span className="text-sm font-black text-purple-650 dark:text-purple-400">{rate}%</span>
                             </div>
                           </div>
                         );
                       })()}
 
-                      <div className="bg-slate-50 dark:bg-slate-950 border border-slate-150 dark:border-slate-850 rounded-2xl p-4 space-y-3">
-                        <h5 className="font-black text-slate-800 dark:text-white uppercase text-[9px] tracking-wider">Submissions Log</h5>
+                      <div className="bg-slate-55 dark:bg-slate-950 border border-slate-150 dark:border-slate-850 rounded-2xl p-4 space-y-3 text-left">
+                        <div className="flex justify-between items-center">
+                          <h5 className="font-black text-slate-800 dark:text-white uppercase text-[9px] tracking-wider">Submissions Log</h5>
+                          <span className="text-[9px] text-slate-450 font-bold">Total: {(profileDetail?.detailed_assignments || []).length}</span>
+                        </div>
                         <div className="space-y-2 max-h-[220px] overflow-y-auto pr-1">
-                          {profileDetail?.assignments?.map((assign, idx) => (
-                            <div key={idx} className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-850 rounded-xl p-3 flex justify-between items-center">
+                          {(profileDetail?.detailed_assignments || []).map((assign, idx) => (
+                            <div key={idx} className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-850 rounded-xl p-3 flex justify-between items-center text-left">
                               <div className="space-y-0.5 max-w-[70%]">
                                 <h5 className="font-extrabold text-slate-850 dark:text-white line-clamp-1">{assign.title}</h5>
                                 <span className="text-[9px] text-slate-450 dark:text-slate-400 font-bold">
-                                  Score: <span className="text-purple-600 font-extrabold">{assign.score !== null ? `${assign.score} Marks` : "Not Graded"}</span>
+                                  Score: <span className="text-purple-650 font-extrabold">{assign.marks_obtained !== null ? `${assign.marks_obtained} / ${assign.total_marks}` : "Not Graded"}</span>
                                 </span>
                               </div>
                               <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded shrink-0 ${
@@ -580,7 +800,7 @@ const StudentPerformance = () => {
                               </span>
                             </div>
                           ))}
-                          {(!profileDetail?.assignments || profileDetail.assignments.length === 0) && (
+                          {(!profileDetail?.detailed_assignments || profileDetail.detailed_assignments.length === 0) && (
                             <div className="text-center text-slate-455 py-4 font-semibold italic">
                               No assignments logged.
                             </div>

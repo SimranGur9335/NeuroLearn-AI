@@ -4894,7 +4894,7 @@ def get_faculty_analytics(
         
         # 3. Top students
         top_students = db.execute(text("""
-            SELECT s.full_name, sm.quiz_score as score, s.roll_no, s.department
+            SELECT s.student_id, s.full_name, sm.quiz_score as score, s.roll_no, s.department
             FROM students s
             JOIN enrollments e ON s.student_id = e.student_id
             JOIN student_metrics sm ON s.student_id = sm.student_id
@@ -4905,7 +4905,7 @@ def get_faculty_analytics(
         
         # 4. Weak students
         weak_students = db.execute(text("""
-            SELECT s.full_name, sm.quiz_score as score, s.roll_no, s.department, sm.risk_level
+            SELECT s.student_id, s.full_name, sm.quiz_score as score, s.roll_no, s.department, sm.risk_level, sm.attendance
             FROM students s
             JOIN enrollments e ON s.student_id = e.student_id
             JOIN student_metrics sm ON s.student_id = sm.student_id
@@ -4993,11 +4993,11 @@ def get_faculty_analytics(
                 for p in perf_trend
             ],
             "top_students": [
-                {"name": t.full_name, "score": float(t.score) if t.score else 0.0, "roll": t.roll_no, "branch": t.department}
+                {"student_id": t.student_id, "name": t.full_name, "score": float(t.score) if t.score else 0.0, "roll": t.roll_no, "branch": t.department}
                 for t in top_students
             ],
             "weak_students": [
-                {"name": w.full_name, "score": float(w.score) if w.score else 0.0, "roll": w.roll_no, "branch": w.department, "risk": w.risk_level}
+                {"student_id": w.student_id, "name": w.full_name, "score": float(w.score) if w.score else 0.0, "roll": w.roll_no, "branch": w.department, "risk": w.risk_level, "attendance": float(w.attendance) if w.attendance else 100.0}
                 for w in weak_students
             ],
             "subject_averages": subj_perf,

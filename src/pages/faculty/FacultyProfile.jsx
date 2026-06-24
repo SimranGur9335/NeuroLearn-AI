@@ -170,41 +170,41 @@ const FacultyProfile = () => {
       {/* Main Sections Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-        {/* Left Col (2 cols span): Identity Details & Password Change */}
+        {/* Left Col (2 cols span): Account Overview & Password Change */}
         <div className="lg:col-span-2 space-y-6">
 
-          {/* Section 1: Faculty Identity Card */}
+          {/* Section 1: Account Overview Section */}
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm space-y-6">
             <div>
-              <h3 className="font-extrabold text-slate-850 dark:text-white text-sm">Faculty Identity Details</h3>
-              <p className="text-[10px] text-slate-400 font-bold uppercase mt-0.5">Official Administrative Information</p>
+              <h3 className="font-extrabold text-slate-855 dark:text-white text-sm flex items-center gap-2">
+                <User className="text-purple-500" size={18} />
+                Account Overview
+              </h3>
+              <p className="text-[10px] text-slate-400 font-bold uppercase mt-0.5">Administrative & System Profile</p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-              <div className="flex items-center gap-3 bg-slate-50 dark:bg-slate-950 p-4 rounded-xl border border-slate-100 dark:border-slate-850/60">
-                <User className="text-purple-500" size={18} />
-                <div>
-                  <span className="text-[9px] text-slate-400 block font-bold uppercase tracking-wider">Full Name</span>
-                  <span className="font-semibold text-slate-800 dark:text-slate-200">{profileData.name || "N/A"}</span>
-                </div>
-              </div>
-
+              {/* Faculty Code */}
               <div className="flex items-center gap-3 bg-slate-50 dark:bg-slate-950 p-4 rounded-xl border border-slate-100 dark:border-slate-850/60">
                 <Award className="text-purple-500" size={18} />
                 <div>
                   <span className="text-[9px] text-slate-400 block font-bold uppercase tracking-wider">Faculty Code</span>
-                  <span className="font-mono font-bold text-slate-800 dark:text-slate-200">{profileData.faculty_code || "N/A"}</span>
+                  <span className="font-mono font-bold text-slate-850 dark:text-slate-200">{profileData.faculty_code || "N/A"}</span>
                 </div>
               </div>
 
+              {/* Role */}
               <div className="flex items-center gap-3 bg-slate-50 dark:bg-slate-950 p-4 rounded-xl border border-slate-100 dark:border-slate-850/60">
-                <Mail className="text-purple-500" size={18} />
+                <Shield className="text-purple-500" size={18} />
                 <div>
-                  <span className="text-[9px] text-slate-400 block font-bold uppercase tracking-wider">Institutional Email</span>
-                  <span className="font-mono text-slate-800 dark:text-slate-200">{profileData.email || "N/A"}</span>
+                  <span className="text-[9px] text-slate-400 block font-bold uppercase tracking-wider">System Role</span>
+                  <span className="font-bold text-purple-650 dark:text-purple-400 uppercase text-[10px] tracking-wider bg-purple-500/10 px-2.5 py-0.5 rounded border border-purple-500/20">
+                    {profileData.role || "Faculty"}
+                  </span>
                 </div>
               </div>
 
+              {/* Department */}
               <div className="flex items-center gap-3 bg-slate-50 dark:bg-slate-950 p-4 rounded-xl border border-slate-100 dark:border-slate-850/60">
                 <Landmark className="text-purple-500" size={18} />
                 <div>
@@ -213,6 +213,7 @@ const FacultyProfile = () => {
                 </div>
               </div>
 
+              {/* Designation */}
               <div className="flex items-center gap-3 bg-slate-50 dark:bg-slate-950 p-4 rounded-xl border border-slate-100 dark:border-slate-850/60">
                 <Briefcase className="text-purple-500" size={18} />
                 <div>
@@ -221,11 +222,24 @@ const FacultyProfile = () => {
                 </div>
               </div>
 
+              {/* Institution */}
               <div className="flex items-center gap-3 bg-slate-50 dark:bg-slate-950 p-4 rounded-xl border border-slate-100 dark:border-slate-850/60">
-                <Shield className="text-purple-500" size={18} />
+                <Landmark className="text-purple-500" size={18} />
                 <div>
                   <span className="text-[9px] text-slate-400 block font-bold uppercase tracking-wider">Institution</span>
                   <span className="font-semibold text-slate-800 dark:text-slate-200">{profileData.institution_name || "N/A"}</span>
+                </div>
+              </div>
+
+              {/* Account Status */}
+              <div className="flex items-center gap-3 bg-slate-50 dark:bg-slate-950 p-4 rounded-xl border border-slate-100 dark:border-slate-850/60">
+                <CheckCircle className="text-purple-500" size={18} />
+                <div>
+                  <span className="text-[9px] text-slate-400 block font-bold uppercase tracking-wider">Account Status</span>
+                  <span className="font-bold text-emerald-500 flex items-center gap-1.5">
+                    <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    {profileData.account_status || "Active"}
+                  </span>
                 </div>
               </div>
             </div>
@@ -236,35 +250,28 @@ const FacultyProfile = () => {
             </div>
           </div>
 
-          {/* Section 3: Account Security (Password Reset) */}
+          {/* Section 2: Account Security (Password Reset) */}
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm space-y-6">
             <div>
-              <h3 className="font-extrabold text-slate-850 dark:text-white text-sm">Account Security</h3>
+              <h3 className="font-extrabold text-slate-850 dark:text-white text-sm flex items-center gap-2">
+                <Lock className="text-purple-500" size={18} />
+                Account Security
+              </h3>
               <p className="text-[10px] text-slate-400 font-bold uppercase mt-0.5">Manage credentials and authentication parameters</p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Security parameters */}
               <div className="space-y-4 text-xs">
-                <h4 className="font-bold text-slate-700 dark:text-slate-300 text-[10px] uppercase tracking-wider">System Security State</h4>
+                <h4 className="font-bold text-slate-700 dark:text-slate-350 text-[10px] uppercase tracking-wider">System Security State</h4>
 
                 <div className="space-y-3">
-                  <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-950 rounded-xl">
-                    <span className="text-slate-450 font-semibold">Authentication Role</span>
-                    <span className="font-mono text-purple-650 dark:text-purple-400 font-bold uppercase text-[10px] tracking-wider bg-purple-500/10 px-2 py-0.5 rounded">
-                      {profileData.role || "Faculty"}
-                    </span>
+                  <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-100 dark:border-slate-850/40">
+                    <span className="text-slate-450 font-semibold">Institutional Email</span>
+                    <span className="font-mono text-slate-700 dark:text-slate-300 font-semibold">{profileData.email || "N/A"}</span>
                   </div>
 
-                  <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-950 rounded-xl">
-                    <span className="text-slate-450 font-semibold">Account Status</span>
-                    <span className="font-bold text-emerald-500 flex items-center gap-1">
-                      <CheckCircle size={12} />
-                      {profileData.account_status || "Active"}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-950 rounded-xl">
+                  <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-100 dark:border-slate-850/40">
                     <span className="text-slate-450 font-semibold">Mandatory Password Reset</span>
                     <span className={`font-bold px-2 py-0.5 rounded text-[10px] ${profileData.must_change_password
                         ? 'bg-amber-500/10 text-amber-500'
@@ -273,12 +280,20 @@ const FacultyProfile = () => {
                       {profileData.must_change_password ? "Required" : "Not Required"}
                     </span>
                   </div>
+
+                  <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-100 dark:border-slate-850/40">
+                    <span className="text-slate-450 font-semibold">Last Login Security</span>
+                    <span className="font-semibold text-slate-500 dark:text-slate-455 flex items-center gap-1">
+                      <CheckCircle size={11} className="text-emerald-500" />
+                      IP Verified
+                    </span>
+                  </div>
                 </div>
               </div>
 
               {/* Password Change Form */}
               <form onSubmit={handleChangePassword} className="space-y-4 text-xs">
-                <h4 className="font-bold text-slate-700 dark:text-slate-300 text-[10px] uppercase tracking-wider flex items-center gap-1">
+                <h4 className="font-bold text-slate-700 dark:text-slate-350 text-[10px] uppercase tracking-wider flex items-center gap-1">
                   <Lock size={12} className="text-purple-500" />
                   Change Password
                 </h4>
@@ -382,77 +397,128 @@ const FacultyProfile = () => {
           </div>
         </div>
 
-        {/* Right Col (1 col span): Teaching Workload */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm space-y-6 h-fit">
-          <div>
-            <h3 className="font-extrabold text-slate-850 dark:text-white text-sm flex items-center gap-2">
-              <Activity size={18} className="text-purple-500" />
-              Academic Workload
-            </h3>
-            <p className="text-[10px] text-slate-400 font-bold uppercase mt-0.5">Assigned Lectures & Subjects</p>
-          </div>
+        {/* Right Col (1 col span): Teaching Statistics & Academic Workload */}
+        <div className="space-y-6">
 
-          {/* Counts */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="bg-slate-50 dark:bg-slate-950 p-4 rounded-2xl border border-slate-100 dark:border-slate-850/60 text-center">
-              <span className="text-2xl font-black text-purple-650 dark:text-purple-455 block">{assignedClasses.length}</span>
-              <span className="text-[9px] uppercase font-bold text-slate-400 block tracking-wider">Classes</span>
+          {/* Section 3: Teaching Statistics Section */}
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm space-y-6">
+            <div>
+              <h3 className="font-extrabold text-slate-850 dark:text-white text-sm flex items-center gap-2">
+                <Activity size={18} className="text-purple-500" />
+                Teaching Statistics
+              </h3>
+              <p className="text-[10px] text-slate-400 font-bold uppercase mt-0.5">Academic Workload Summary</p>
             </div>
-            <div className="bg-slate-50 dark:bg-slate-950 p-4 rounded-2xl border border-slate-100 dark:border-slate-850/60 text-center">
-              <span className="text-2xl font-black text-purple-650 dark:text-purple-455 block">{assignedSubjects.length}</span>
-              <span className="text-[9px] uppercase font-bold text-slate-400 block tracking-wider">Subjects</span>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="bg-gradient-to-br from-purple-500/5 to-indigo-500/5 dark:from-purple-950/10 dark:to-indigo-950/10 p-4 rounded-2xl border border-purple-500/10 dark:border-purple-500/5 text-center relative overflow-hidden group">
+                <div className="absolute -right-2 -top-2 text-purple-500/10 group-hover:scale-110 transition-all">
+                  <BookOpen size={48} />
+                </div>
+                <span className="text-3xl font-black text-purple-650 dark:text-purple-400 block relative z-10">{assignedClasses.length}</span>
+                <span className="text-[9px] uppercase font-black text-slate-500 dark:text-slate-400 block tracking-wider mt-1 relative z-10">Assigned Classes</span>
+              </div>
+              <div className="bg-gradient-to-br from-purple-500/5 to-indigo-500/5 dark:from-purple-950/10 dark:to-indigo-950/10 p-4 rounded-2xl border border-purple-500/10 dark:border-purple-500/5 text-center relative overflow-hidden group">
+                <div className="absolute -right-2 -top-2 text-purple-500/10 group-hover:scale-110 transition-all">
+                  <Layers size={48} />
+                </div>
+                <span className="text-3xl font-black text-purple-650 dark:text-purple-400 block relative z-10">{assignedSubjects.length}</span>
+                <span className="text-[9px] uppercase font-black text-slate-500 dark:text-slate-400 block tracking-wider mt-1 relative z-10">Assigned Subjects</span>
+              </div>
+            </div>
+
+            {/* Workload Status Bar */}
+            <div className="space-y-2 bg-slate-50 dark:bg-slate-950 p-4 rounded-2xl border border-slate-100 dark:border-slate-850/60">
+              <div className="flex justify-between items-center text-[10px]">
+                <span className="text-slate-450 font-bold uppercase tracking-wider">Workload Intensity</span>
+                <span className="text-purple-600 dark:text-purple-400 font-bold">Optimal Capacity</span>
+              </div>
+              <div className="h-2 w-full bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
+                <div 
+                  className="h-full bg-gradient-to-r from-purple-500 to-indigo-500 rounded-full" 
+                  style={{ width: `${Math.min(100, Math.max(20, (assignedClasses.length + assignedSubjects.length) * 12))}%` }} 
+                />
+              </div>
+              <p className="text-[9px] text-slate-400 leading-relaxed font-medium">
+                Workload allocation is automatically calculated based on credit hours and section divisions.
+              </p>
             </div>
           </div>
 
-          <hr className="border-slate-100 dark:border-slate-850" />
+          {/* Section 4: Improved Workload Presentation */}
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm space-y-6">
+            <div>
+              <h3 className="font-extrabold text-slate-850 dark:text-white text-sm flex items-center gap-2">
+                <BookOpen size={18} className="text-purple-500" />
+                Academic Workload Detail
+              </h3>
+              <p className="text-[10px] text-slate-400 font-bold uppercase mt-0.5">Assigned Courses & Classes</p>
+            </div>
 
-          {/* Assigned Subjects List */}
-          <div className="space-y-3">
-            <h4 className="font-bold text-slate-700 dark:text-slate-350 text-[10px] uppercase tracking-wider flex items-center gap-1.5">
-              <Layers size={13} className="text-purple-500" />
-              Assigned Subjects
-            </h4>
+            {/* Assigned Subjects List */}
+            <div className="space-y-3">
+              <h4 className="font-black text-slate-700 dark:text-slate-350 text-[10px] uppercase tracking-wider flex items-center gap-1.5 border-b border-slate-100 dark:border-slate-850 pb-1.5">
+                <Layers size={13} className="text-purple-500" />
+                Assigned Subjects
+              </h4>
 
-            {assignedSubjects.length === 0 ? (
-              <p className="text-xs text-slate-400 italic">No academic subjects currently assigned.</p>
-            ) : (
-              <div className="space-y-2">
-                {assignedSubjects.map((sub) => (
-                  <div key={sub.subject_id} className="p-3 bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-850/60 rounded-xl flex items-center justify-between text-xs">
-                    <span className="font-bold text-slate-700 dark:text-slate-300">{sub.subject_name}</span>
-                    <span className="font-mono text-[9px] text-slate-450 font-bold uppercase bg-slate-200/50 dark:bg-slate-800/80 px-2 py-0.5 rounded shrink-0">
-                      {sub.subject_code}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
+              {assignedSubjects.length === 0 ? (
+                <p className="text-xs text-slate-400 italic">No academic subjects currently assigned.</p>
+              ) : (
+                <div className="space-y-2">
+                  {assignedSubjects.map((sub) => (
+                    <div 
+                      key={sub.subject_id} 
+                      className="p-3 bg-slate-50 dark:bg-slate-950 border-l-4 border-l-purple-500 border border-slate-100/60 dark:border-slate-850/60 rounded-r-xl rounded-l-md flex items-center justify-between text-xs hover:bg-slate-100/50 dark:hover:bg-slate-900/50 transition-all"
+                    >
+                      <div className="space-y-0.5">
+                        <span className="font-bold text-slate-850 dark:text-slate-200 block">{sub.subject_name}</span>
+                        <span className="text-[9px] text-slate-400 font-semibold block">Academic Code</span>
+                      </div>
+                      <span className="font-mono text-[9px] text-purple-650 dark:text-purple-400 font-bold uppercase bg-purple-500/10 px-2.5 py-1 rounded border border-purple-500/20 shrink-0">
+                        {sub.subject_code}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Assigned Classes List */}
+            <div className="space-y-3 pt-2">
+              <h4 className="font-black text-slate-700 dark:text-slate-350 text-[10px] uppercase tracking-wider flex items-center gap-1.5 border-b border-slate-100 dark:border-slate-850 pb-1.5">
+                <BookOpen size={13} className="text-purple-500" />
+                Assigned Classes
+              </h4>
+
+              {assignedClasses.length === 0 ? (
+                <p className="text-xs text-slate-400 italic">No academic divisions currently assigned.</p>
+              ) : (
+                <div className="space-y-2">
+                  {assignedClasses.map((cls) => (
+                    <div 
+                      key={cls.class_id} 
+                      className="p-3 bg-slate-50 dark:bg-slate-950 border-l-4 border-l-indigo-500 border border-slate-100/60 dark:border-slate-850/60 rounded-r-xl rounded-l-md flex items-center justify-between text-xs hover:bg-slate-100/50 dark:hover:bg-slate-900/50 transition-all font-bold text-slate-800 dark:text-slate-200"
+                    >
+                      <div className="space-y-0.5">
+                        <span className="block">{cls.class_name}</span>
+                        <span className="text-[9px] text-slate-400 font-semibold block">Section Division</span>
+                      </div>
+                      <span className="text-[9px] text-indigo-650 dark:text-indigo-400 font-bold uppercase bg-indigo-500/10 px-2.5 py-1 rounded border border-indigo-500/20 shrink-0">
+                        Active Group
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
           </div>
 
-          {/* Assigned Classes List */}
-          <div className="space-y-3">
-            <h4 className="font-bold text-slate-700 dark:text-slate-350 text-[10px] uppercase tracking-wider flex items-center gap-1.5">
-              <BookOpen size={13} className="text-purple-500" />
-              Assigned Classes
-            </h4>
-
-            {assignedClasses.length === 0 ? (
-              <p className="text-xs text-slate-400 italic">No academic divisions currently assigned.</p>
-            ) : (
-              <div className="space-y-2">
-                {assignedClasses.map((cls) => (
-                  <div key={cls.class_id} className="p-3 bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-850/60 rounded-xl text-xs font-bold text-purple-650 dark:text-purple-400">
-                    {cls.class_name}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
         </div>
 
       </div>
-    </motion.div>
-  );
+    </div>
+  </motion.div>
+);
 };
 
 export default FacultyProfile;

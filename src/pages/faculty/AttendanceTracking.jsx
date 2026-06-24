@@ -15,10 +15,63 @@ import {
   RefreshCw,
   ChevronRight,
   TrendingUp,
-  AlertTriangle
+  AlertTriangle,
+  CheckCircle,
+  XCircle,
+  Info
 } from 'lucide-react';
+import {
+  ResponsiveContainer,
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip
+} from 'recharts';
 import { useAuth } from "../../context/AuthContext";
 import { apiFetch } from "../../services/api";
+
+
+const Toast = ({ msg, type, onClose }) => {
+  useEffect(() => {
+    const t = setTimeout(onClose, 4000);
+    return () => clearTimeout(t);
+  }, [onClose]);
+  const cfg = { success: "bg-emerald-600", error: "bg-red-600", info: "bg-blue-600" };
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 40 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: 40 }}
+      className={`fixed bottom-6 right-6 z-50 flex items-center gap-3 px-5 py-3 rounded-2xl text-white text-sm font-semibold shadow-2xl ${cfg[type] || cfg.info}`}
+    >
+      {type === "success" && <CheckCircle size={16} />}
+      {type === "error" && <XCircle size={16} />}
+      {type === "info" && <Info size={16} />}
+      {msg}
+      <button onClick={onClose} className="hover:opacity-80 cursor-pointer ml-2"><X size={14} /></button>
+    </motion.div>
+  );
+};
+
+const CustomTooltip = ({ active, payload }) => {
+  if (active && payload && payload.length) {
+    const data = payload[0].payload;
+    return (
+      <div className="bg-slate-900/95 dark:bg-slate-950/95 border border-purple-500/30 p-3 rounded-xl text-white text-xs shadow-xl backdrop-blur-md">
+        <p className="font-bold text-purple-300 mb-1">{data.date}</p>
+        <p className="font-semibold text-emerald-400">Attendance: {data["Attendance %"]}%</p>
+        <div className="grid grid-cols-3 gap-2 mt-1 text-[10px] text-slate-300">
+          <div>P: <span className="font-bold text-emerald-500">{data.Present}</span></div>
+          <div>A: <span className="font-bold text-red-500">{data.Absent}</span></div>
+          <div>L: <span className="font-bold text-amber-500">{data.Late}</span></div>
+        </div>
+      </div>
+    );
+  }
+  return null;
+};
 
 const AttendanceTracking = () => {
   const navigate = useNavigate();
@@ -32,13 +85,14 @@ const AttendanceTracking = () => {
   const [studentMetrics, setStudentMetrics] = useState([]);
   const [attendanceStatus, setAttendanceStatus] = useState({});
   const [searchTerm, setSearchTerm] = useState("");
-  
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   // Date and filter states (with localStorage persistence)
   const [selectedDate, setSelectedDate] = useState(
     localStorage.getItem("attendanceSelectedDate") || new Date().toISOString().split("T")[0]
   );
   const [activeTab, setActiveTab] = useState("grid"); // 'grid' | 'history' | 'monthly'
-  
+
   // Stats and history states
   const [summary, setSummary] = useState({ present: 0, absent: 0, late: 0 });
   const [history, setHistory] = useState([]);
@@ -46,6 +100,14 @@ const AttendanceTracking = () => {
   const [currentMonth, setCurrentMonth] = useState(new Date().getMonth() + 1);
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
   const [loading, setLoading] = useState(false);
+
+  // Toast & Drilldown Student states
+  const [toast, setToast] = useState(null);
+  const showToast = (msg, type = "info") => setToast({ msg, type });
+
+  const [selectedDrilldownStudent, setSelectedDrilldownStudent] = useState(null);
+  const [recentPattern, setRecentPattern] = useState([]);
+  const [loadingPattern, setLoadingPattern] = useState(false);
 
   // Persistence of selectedDate
   useEffect(() => {
@@ -104,14 +166,14 @@ const AttendanceTracking = () => {
       if (!res.ok) throw new Error("Failed to load attendance records");
       const data = await res.json();
       setStudents(data);
-      
+
       // Map statuses
       const statusMap = {};
       data.forEach(s => {
         statusMap[s.student_id] = s.status;
       });
       setAttendanceStatus(statusMap);
-      
+
       // Calculate summary on current page
       let p = 0, a = 0, l = 0;
       data.forEach(s => {
@@ -174,7 +236,12 @@ const AttendanceTracking = () => {
       updated[s.student_id] = status;
     });
     setAttendanceStatus(updated);
+
     
+
+     
+
+        
     // Update local summary
     const count = students.length;
     setSummary({
@@ -204,19 +271,19 @@ const AttendanceTracking = () => {
       });
 
       if (!res.ok) throw new Error("Failed to save attendance");
-      alert("Attendance Saved and Logged Successfully!");
+      showToast("Attendance Saved and Logged Successfully!", "success");
       loadDailyGrid();
       loadStudentMetrics();
     } catch (err) {
       console.error(err);
-      alert("Error saving attendance records!");
+      showToast("Error saving attendance records!", "error");
     }
   };
 
   // Export Monthly Grid as CSV
   const handleExportCSV = () => {
     if (!monthlyReport.matrix || monthlyReport.matrix.length === 0) {
-      alert("No data available to export");
+      showToast("No data available to export", "error");
       return;
     }
     const headers = ["Roll No", "Full Name", ...monthlyReport.dates];
@@ -234,32 +301,49 @@ const AttendanceTracking = () => {
     saveAs(blob, `Monthly_Attendance_Report_Class_${currentClass.class_id}_Subject_${currentClass.subject_id}.csv`);
   };
 
+  const handleStudentClick = async (student) => {
+    setSelectedDrilldownStudent(student);
+    setRecentPattern([]);
+    setLoadingPattern(true);
+    try {
+      const res = await apiFetch(`/student/${student.student_id}/attendance-history`);
+      if (res.ok) {
+        const data = await res.json();
+        setRecentPattern(data.slice(0, 7));
+      }
+    } catch (err) {
+      console.error("Error loading student attendance history:", err);
+    } finally {
+      setLoadingPattern(false);
+    }
+  };
+
   const filteredStudents = students.filter(
     s => s.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-         s.roll_no.toLowerCase().includes(searchTerm.toLowerCase())
+      s.roll_no.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   // Calculate advanced metrics
   const totalStudents = students.length;
   const presentPct = totalStudents > 0 ? Math.round((summary.present / totalStudents) * 100) : 0;
   const absentPct = totalStudents > 0 ? Math.round((summary.absent / totalStudents) * 100) : 0;
-  
+
   // Calculate historical rate & trend text
   const avgRate = history.length > 0
     ? Math.round(history.reduce((acc, h) => {
-        const total = h.present + h.absent + h.late;
-        const rate = total > 0 ? (h.present / total) * 100 : 100;
-        return acc + rate;
-      }, 0) / history.length)
+      const total = h.present + h.absent + h.late;
+      const rate = total > 0 ? (h.present / total) * 100 : 100;
+      return acc + rate;
+    }, 0) / history.length)
     : 85;
   const todayRate = (summary.present + summary.absent + summary.late) > 0
     ? Math.round((summary.present / (summary.present + summary.absent + summary.late)) * 100)
     : 100;
   const diff = todayRate - avgRate;
-  const trendText = diff > 2 
-    ? `Improved (+${diff}% vs avg)` 
-    : diff < -2 
-      ? `Declining (${diff}% vs avg)` 
+  const trendText = diff > 2
+    ? `Improved (+${diff}% vs avg)`
+    : diff < -2
+      ? `Declining (${diff}% vs avg)`
       : `Stable (matches avg)`;
 
   // Defaulter metrics from studentMetrics
@@ -393,6 +477,7 @@ const AttendanceTracking = () => {
                 </div>
               </div>
 
+
               {/* Search input */}
               <div className="space-y-1">
                 <label className="text-[10px] uppercase font-bold text-slate-400 block pl-1">Search Students</label>
@@ -495,7 +580,12 @@ const AttendanceTracking = () => {
                       <tbody className="divide-y divide-slate-100 dark:divide-slate-850/80">
                         {filteredStudents.map(student => (
                           <tr key={student.student_id} className="hover:bg-slate-50/40 dark:hover:bg-slate-850/40 transition-colors">
-                            <td className="py-3.5 pl-5 font-bold text-slate-800 dark:text-white">{student.full_name}</td>
+                            <td
+                              onClick={() => handleStudentClick(student)}
+                              className="py-3.5 pl-5 font-bold text-slate-800 dark:text-white cursor-pointer hover:text-purple-650 transition-colors"
+                            >
+                              {student.full_name}
+                            </td>
                             <td className="py-3.5 text-slate-500 dark:text-slate-400 font-mono font-semibold">{student.roll_no}</td>
                             <td className="py-3.5 pr-5">
                               <div className="flex gap-1.5 justify-end">
@@ -565,7 +655,7 @@ const AttendanceTracking = () => {
                     <h3 className="font-extrabold text-sm text-slate-900 dark:text-white">Defaulter Insights</h3>
                   </div>
                   <p className="text-[10px] text-slate-400 leading-relaxed font-medium">
-                    Calculated automatically from real-time cumulative student records.
+                    Calculated automatically from real-time cumulative student records. Click a student for detailed drilldown insights.
                   </p>
 
                   {/* Below 75% list */}
@@ -576,7 +666,11 @@ const AttendanceTracking = () => {
                         <p className="text-[10px] text-slate-400 italic">No defaulters in this class.</p>
                       ) : (
                         defaulters.map(student => (
-                          <div key={student.student_id} className="flex justify-between items-center p-2 bg-amber-500/5 border border-amber-500/10 rounded-xl text-[10px]">
+                          <div
+                            key={student.student_id}
+                            onClick={() => handleStudentClick(student)}
+                            className="flex justify-between items-center p-2 bg-amber-500/5 border border-amber-500/10 rounded-xl text-[10px] cursor-pointer hover:bg-amber-500/10 dark:hover:bg-amber-500/15 transition-all"
+                          >
                             <div className="font-bold text-slate-700 dark:text-slate-300">
                               {student.full_name}
                               <span className="text-[8px] text-slate-400 font-normal block">{student.roll_no}</span>
@@ -596,7 +690,11 @@ const AttendanceTracking = () => {
                         <p className="text-[10px] text-slate-400 italic">No critical defaulters.</p>
                       ) : (
                         criticalDefaulters.map(student => (
-                          <div key={student.student_id} className="flex justify-between items-center p-2 bg-red-500/5 border border-red-500/10 rounded-xl text-[10px]">
+                          <div
+                            key={student.student_id}
+                            onClick={() => handleStudentClick(student)}
+                            className="flex justify-between items-center p-2 bg-red-500/5 border border-red-500/10 rounded-xl text-[10px] cursor-pointer hover:bg-red-500/10 dark:hover:bg-red-500/15 transition-all"
+                          >
                             <div className="font-bold text-slate-700 dark:text-slate-350">
                               {student.full_name}
                               <span className="text-[8px] text-slate-400 font-normal block">{student.roll_no}</span>
@@ -617,7 +715,10 @@ const AttendanceTracking = () => {
                       ) : (
                         defaulters.map(student => (
                           <div key={student.student_id} className="flex justify-between items-center p-2 bg-purple-500/5 border border-purple-500/10 rounded-xl text-[10px]">
-                            <div className="font-bold text-slate-700 dark:text-slate-300">
+                            <div
+                              onClick={() => handleStudentClick(student)}
+                              className="font-bold text-slate-700 dark:text-slate-300 cursor-pointer hover:text-purple-600 transition-colors"
+                            >
                               {student.full_name}
                             </div>
                             <button
@@ -655,8 +756,82 @@ const AttendanceTracking = () => {
             initial={{ opacity: 0, x: -10 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: 10 }}
-            className="space-y-4"
+            className="space-y-6"
           >
+            {/* Trend Chart Card */}
+            {history.length > 0 && (
+              <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm space-y-4">
+                <div>
+                  <h3 className="font-extrabold text-sm text-slate-905 dark:text-white flex items-center gap-2">
+                    <TrendingUp className="text-purple-500" size={18} />
+                    Attendance Trend Analysis
+                  </h3>
+                  <p className="text-[10px] text-slate-400 font-bold uppercase mt-0.5">Historical session-by-session attendance rates (Last 7 Lectures)</p>
+                </div>
+                <div className="h-64 w-full text-xs">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart
+                      data={[...history]
+                        .sort((a, b) => new Date(a.date) - new Date(b.date))
+                        .slice(-7)
+                        .map(row => {
+                          const total = row.present + row.absent + row.late;
+                          const rate = total > 0 ? Math.round((row.present / total) * 100) : 0;
+                          return {
+                            date: row.date,
+                            "Attendance %": rate,
+                            Present: row.present,
+                            Absent: row.absent,
+                            Late: row.late
+                          };
+                        })}
+                      margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
+                    >
+                      <defs>
+                        <linearGradient id="colorAttendance" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.4} />
+                          <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.1} />
+                      <XAxis
+                        dataKey="date"
+                        stroke="#94a3b8"
+                        fontSize={10}
+                        tickLine={false}
+                        axisLine={false}
+                        tickFormatter={(tick) => {
+                          try {
+                            const parts = tick.split('-');
+                            return `${parts[1]}/${parts[2]}`; // Shorten to MM/DD
+                          } catch {
+                            return tick;
+                          }
+                        }}
+                      />
+                      <YAxis
+                        stroke="#94a3b8"
+                        fontSize={10}
+                        tickLine={false}
+                        axisLine={false}
+                        domain={[0, 100]}
+                        tickFormatter={(tick) => `${tick}%`}
+                      />
+                      <Tooltip content={<CustomTooltip />} />
+                      <Area
+                        type="monotone"
+                        dataKey="Attendance %"
+                        stroke="#8b5cf6"
+                        strokeWidth={3}
+                        fillOpacity={1}
+                        fill="url(#colorAttendance)"
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            )}
+
             <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-sm overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse text-xs">
@@ -676,10 +851,10 @@ const AttendanceTracking = () => {
                       const total = row.present + row.absent + row.late;
                       const rate = total > 0 ? Math.round((row.present / total) * 100) : 0;
                       const statusLabel = rate >= 85 ? "Excellent" : rate >= 75 ? "Good" : "Needs Review";
-                      const statusColor = rate >= 85 
-                        ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20" 
-                        : rate >= 75 
-                          ? "bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20" 
+                      const statusColor = rate >= 85
+                        ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
+                        : rate >= 75
+                          ? "bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20"
                           : "bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20";
                       return (
                         <tr key={row.date} className="hover:bg-slate-50/20 dark:hover:bg-slate-850/20 transition-colors">
@@ -723,98 +898,365 @@ const AttendanceTracking = () => {
         )}
 
         {/* MONTHLY MATRIX TAB */}
-        {activeTab === "monthly" && (
-          <motion.div
-            key="monthly"
-            initial={{ opacity: 0, x: -10 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: 10 }}
-            className="space-y-4"
-          >
-            {/* Filter monthly header */}
-            <div className="flex flex-col sm:flex-row justify-between items-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-5 py-3 rounded-2xl shadow-sm gap-3">
-              <div className="flex gap-2">
-                <select
-                  value={currentMonth}
-                  onChange={(e) => setCurrentMonth(Number(e.target.value))}
-                  className="bg-slate-50 dark:bg-slate-950 border border-slate-250 dark:border-slate-850 px-3 py-2 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-300 focus:outline-none"
-                >
-                  {Array.from({ length: 12 }, (_, i) => (
-                    <option key={i + 1} value={i + 1}>
-                      {new Date(0, i).toLocaleString('en', { month: 'long' })}
-                    </option>
-                  ))}
-                </select>
-                <select
-                  value={currentYear}
-                  onChange={(e) => setCurrentYear(Number(e.target.value))}
-                  className="bg-slate-50 dark:bg-slate-950 border border-slate-250 dark:border-slate-850 px-3 py-2 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-300 focus:outline-none"
-                >
-                  <option value={2026}>2026</option>
-                  <option value={2027}>2027</option>
-                </select>
+        {activeTab === "monthly" && (() => {
+          // Calculate monthly statistics
+          const getMonthlyStats = () => {
+            if (!monthlyReport.matrix || monthlyReport.matrix.length === 0) {
+              return {
+                classAvg: 0,
+                highest: { name: "N/A", percentage: 0 },
+                lowest: { name: "N/A", percentage: 0 },
+                below75: 0
+              };
+            }
+
+            let totalPercentageSum = 0;
+            let highest = { name: "N/A", percentage: -1 };
+            let lowest = { name: "N/A", percentage: 101 };
+            let below75Count = 0;
+
+            monthlyReport.matrix.forEach(student => {
+              let present = 0;
+              let total = 0;
+              monthlyReport.dates.forEach(d => {
+                const status = student.attendance[d];
+                if (status === "Present" || status === "Late") {
+                  present++;
+                  total++;
+                } else if (status === "Absent") {
+                  total++;
+                }
+              });
+              const pct = total > 0 ? Math.round((present / total) * 100) : 100;
+              totalPercentageSum += pct;
+
+              if (pct > highest.percentage) {
+                highest = { name: student.full_name, percentage: pct };
+              }
+              if (pct < lowest.percentage) {
+                lowest = { name: student.full_name, percentage: pct };
+              }
+              if (pct < 75) {
+                below75Count++;
+              }
+            });
+
+            return {
+              classAvg: Math.round(totalPercentageSum / monthlyReport.matrix.length),
+              highest,
+              lowest: lowest.percentage === 101 ? { name: "N/A", percentage: 0 } : lowest,
+              below75: below75Count
+            };
+          };
+
+          const stats = getMonthlyStats();
+
+          return (
+            <motion.div
+              key="monthly"
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 10 }}
+              className="space-y-6"
+            >
+              {/* Monthly Summary Cards */}
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                {/* Class Average */}
+                <div className="bg-gradient-to-br from-purple-500/5 to-indigo-500/5 dark:from-purple-950/10 dark:to-indigo-950/10 border border-purple-500/10 dark:border-purple-500/5 p-4 rounded-2xl shadow-sm relative overflow-hidden group">
+                  <span className="text-[9px] uppercase font-bold text-purple-650 dark:text-purple-400 block tracking-wider">Class Average</span>
+                  <h3 className="text-2xl font-black text-purple-605 dark:text-purple-400 mt-1">{stats.classAvg}%</h3>
+                  <p className="text-[8px] text-slate-400 font-semibold mt-0.5">Target: &gt;75% required</p>
+                </div>
+
+                {/* Highest Attendance */}
+                <div className="bg-gradient-to-br from-emerald-500/5 to-teal-500/5 dark:from-emerald-950/10 dark:to-teal-950/10 border border-emerald-500/10 dark:border-emerald-500/5 p-4 rounded-2xl shadow-sm relative overflow-hidden group">
+                  <span className="text-[9px] uppercase font-bold text-emerald-600 dark:text-emerald-400 block tracking-wider">Highest Attendance</span>
+                  <h3 className="text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-1 truncate max-w-full" title={stats.highest.name}>
+                    {stats.highest.percentage}%
+                  </h3>
+                  <p className="text-[8px] text-slate-400 font-semibold mt-0.5 truncate">{stats.highest.name}</p>
+                </div>
+
+                {/* Lowest Attendance */}
+                <div className="bg-gradient-to-br from-amber-500/5 to-orange-500/5 dark:from-amber-950/10 dark:to-orange-950/10 border border-amber-500/10 dark:border-amber-500/5 p-4 rounded-2xl shadow-sm relative overflow-hidden group">
+                  <span className="text-[9px] uppercase font-bold text-amber-600 dark:text-amber-400 block tracking-wider">Lowest Attendance</span>
+                  <h3 className="text-2xl font-black text-amber-600 dark:text-amber-450 mt-1 truncate max-w-full" title={stats.lowest.name}>
+                    {stats.lowest.percentage}%
+                  </h3>
+                  <p className="text-[8px] text-slate-400 font-semibold mt-0.5 truncate">{stats.lowest.name}</p>
+                </div>
+
+                {/* Below 75% Count */}
+                <div className="bg-gradient-to-br from-red-500/5 to-pink-500/5 dark:from-red-950/10 dark:to-pink-950/10 border border-red-500/10 dark:border-red-500/5 p-4 rounded-2xl shadow-sm relative overflow-hidden group">
+                  <span className="text-[9px] uppercase font-bold text-red-600 dark:text-red-450 block tracking-wider">Defaulters (&lt;75%)</span>
+                  <h3 className="text-2xl font-black text-red-600 dark:text-red-400 mt-1">{stats.below75}</h3>
+                  <p className="text-[8px] text-slate-400 font-semibold mt-0.5">Require urgent intervention</p>
+                </div>
               </div>
 
-              <button
-                onClick={handleExportCSV}
-                className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-slate-250 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-50 text-xs font-bold text-slate-750 dark:text-slate-300 cursor-pointer shadow-sm"
-              >
-                <FileSpreadsheet size={15} className="text-emerald-500" />
-                Export Monthly CSV Report
-              </button>
-            </div>
+              {/* Filter monthly header */}
+              <div className="flex flex-col sm:flex-row justify-between items-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-5 py-3 rounded-2xl shadow-sm gap-3">
+                <div className="flex gap-2">
+                  <select
+                    value={currentMonth}
+                    onChange={(e) => setCurrentMonth(Number(e.target.value))}
+                    className="bg-slate-50 dark:bg-slate-950 border border-slate-250 dark:border-slate-850 px-3 py-2 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-330 focus:outline-none"
+                  >
+                    {Array.from({ length: 12 }, (_, i) => (
+                      <option key={i + 1} value={i + 1}>
+                        {new Date(0, i).toLocaleString('en', { month: 'long' })}
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    value={currentYear}
+                    onChange={(e) => setCurrentYear(Number(e.target.value))}
+                    className="bg-slate-50 dark:bg-slate-950 border border-slate-250 dark:border-slate-850 px-3 py-2 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-330 focus:outline-none"
+                  >
+                    <option value={2026}>2026</option>
+                    <option value={2027}>2027</option>
+                  </select>
+                </div>
 
-            {/* Matrix spreadsheet */}
-            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-sm overflow-hidden">
-              <div className="overflow-x-auto scrollbar-thin">
-                <table className="w-full text-left border-collapse text-xs">
-                  <thead>
-                    <tr className="border-b border-slate-150 dark:border-slate-850 text-slate-400 font-bold uppercase text-[9px] tracking-wider bg-slate-50/50 dark:bg-slate-950/20">
-                      <th className="py-3.5 pl-5 sticky left-0 bg-white dark:bg-slate-900 z-10 shadow-md">Learner Details</th>
-                      <th className="py-3.5">Roll Number</th>
-                      {monthlyReport.dates.map(date => {
-                        const day = date.split('-')[2];
-                        return (
-                          <th key={date} className="py-3.5 text-center min-w-[42px] px-1 font-mono font-bold">
-                            {day}
-                          </th>
-                        );
-                      })}
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-slate-850/80">
-                    {monthlyReport.matrix.map(student => (
-                      <tr key={student.student_id} className="hover:bg-slate-50/30 dark:hover:bg-slate-850/30 transition-colors">
-                        <td className="py-3.5 pl-5 font-bold text-slate-800 dark:text-white sticky left-0 bg-white dark:bg-slate-900 z-10 shadow-md">
-                          {student.full_name}
-                        </td>
-                        <td className="py-3.5 text-slate-500 dark:text-slate-400 font-mono font-semibold">{student.roll_no}</td>
+                <button
+                  onClick={handleExportCSV}
+                  className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-slate-250 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-50 text-xs font-bold text-slate-750 dark:text-slate-300 cursor-pointer shadow-sm"
+                >
+                  <FileSpreadsheet size={15} className="text-emerald-500" />
+                  Export Monthly CSV Report
+                </button>
+              </div>
+
+              {/* Matrix spreadsheet */}
+              <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-sm overflow-hidden">
+                <div className="overflow-x-auto scrollbar-thin">
+                  <table className="w-full text-left border-collapse text-xs">
+                    <thead>
+                      <tr className="border-b border-slate-150 dark:border-slate-850 text-slate-400 font-bold uppercase text-[9px] tracking-wider bg-slate-50/50 dark:bg-slate-950/20">
+                        <th className="py-3.5 pl-5 sticky left-0 bg-white dark:bg-slate-900 z-10 shadow-md">Learner Details</th>
+                        <th className="py-3.5">Roll Number</th>
                         {monthlyReport.dates.map(date => {
-                          const status = student.attendance[date] || "-";
-                          let color = "text-slate-400";
-                          if (status === "Present") color = "text-emerald-500 font-bold";
-                          else if (status === "Absent") color = "text-red-500 font-bold";
-                          else if (status === "Late") color = "text-amber-500 font-bold";
+                          const day = date.split('-')[2];
                           return (
-                            <td key={date} className={`py-3.5 text-center ${color}`}>
-                              {status === "Present" ? "P" : status === "Absent" ? "A" : status === "Late" ? "L" : "-"}
-                            </td>
+                            <th key={date} className="py-3.5 text-center min-w-[42px] px-1 font-mono font-bold">
+                              {day}
+                            </th>
                           );
                         })}
                       </tr>
-                    ))}
-                    {monthlyReport.matrix.length === 0 && (
-                      <tr>
-                        <td colSpan={10} className="p-8 text-center text-slate-400 font-medium text-xs">
-                          No attendance data recorded in the selected month.
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-850/80">
+                      {monthlyReport.matrix.map(student => (
+                        <tr key={student.student_id} className="hover:bg-slate-50/30 dark:hover:bg-slate-850/30 transition-colors">
+                          <td className="py-3.5 pl-5 font-bold text-slate-800 dark:text-white sticky left-0 bg-white dark:bg-slate-900 z-10 shadow-md">
+                            {student.full_name}
+                          </td>
+                          <td className="py-3.5 text-slate-500 dark:text-slate-400 font-mono font-semibold">{student.roll_no}</td>
+                          {monthlyReport.dates.map(date => {
+                            const status = student.attendance[date] || "-";
+                            let color = "text-slate-400";
+                            if (status === "Present") color = "text-emerald-500 font-bold";
+                            else if (status === "Absent") color = "text-red-500 font-bold";
+                            else if (status === "Late") color = "text-amber-500 font-bold";
+                            return (
+                              <td key={date} className={`py-3.5 text-center ${color}`}>
+                                {status === "Present" ? "P" : status === "Absent" ? "A" : status === "Late" ? "L" : "-"}
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      ))}
+                      {monthlyReport.matrix.length === 0 && (
+                        <tr>
+                          <td colSpan={10} className="p-8 text-center text-slate-400 font-medium text-xs">
+                            No attendance data recorded in the selected month.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
-            </div>
-          </motion.div>
+            </motion.div>
+          );
+        })()}
+      </AnimatePresence>
+
+      {/* Toast Notification */}
+      <AnimatePresence>
+        {toast && (
+          <Toast
+            msg={toast.msg}
+            type={toast.type}
+            onClose={() => setToast(null)}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Drilldown Modal */}
+      <AnimatePresence>
+        {selectedDrilldownStudent && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setSelectedDrilldownStudent(null)}
+              className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm"
+            />
+
+            {/* Content container */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-2xl space-y-6 z-10 text-slate-800 dark:text-slate-100"
+            >
+              {/* Close Button */}
+              <button
+                onClick={() => setSelectedDrilldownStudent(null)}
+                className="absolute top-4 right-4 p-1 rounded-full text-slate-400 hover:text-slate-600 dark:hover:text-slate-250 cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+
+              {/* Header info */}
+              <div className="space-y-1">
+                <span className="text-[9px] text-purple-650 dark:text-purple-400 font-extrabold uppercase tracking-wider">
+                  Student Drilldown Insights
+                </span>
+                <h3 className="text-xl font-black text-slate-905 dark:text-white leading-tight">
+                  {selectedDrilldownStudent.full_name}
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 font-mono font-semibold">
+                  Roll No: {selectedDrilldownStudent.roll_no}
+                </p>
+              </div>
+
+              {/* Metrics Grid */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-slate-50 dark:bg-slate-950/40 p-4 rounded-2xl border border-slate-150 dark:border-slate-850 text-center">
+                  <span className="text-[9px] uppercase font-bold text-slate-400 block tracking-wider">Attendance Rate</span>
+                  <span className={`text-2xl font-black block mt-1 ${selectedDrilldownStudent.attendance >= 75
+                    ? 'text-emerald-500'
+                    : selectedDrilldownStudent.attendance >= 60
+                      ? 'text-amber-500'
+                      : 'text-red-500'
+                    }`}>
+                    {selectedDrilldownStudent.attendance}%
+                  </span>
+                </div>
+
+                <div className="bg-slate-50 dark:bg-slate-950/40 p-4 rounded-2xl border border-slate-150 dark:border-slate-850 text-center">
+                  <span className="text-[9px] uppercase font-bold text-slate-400 block tracking-wider">Risk Level</span>
+                  <span className={`inline-block mt-2 px-2.5 py-0.5 rounded-full text-[9px] font-extrabold uppercase border ${selectedDrilldownStudent.attendance >= 75
+                    ? 'bg-emerald-500/10 text-emerald-550 border-emerald-500/20'
+                    : selectedDrilldownStudent.attendance >= 60
+                      ? 'bg-amber-500/10 text-amber-550 border-amber-500/20'
+                      : 'bg-red-500/10 text-red-550 border-red-500/20'
+                    }`}>
+                    {selectedDrilldownStudent.attendance >= 75 ? 'Low' : selectedDrilldownStudent.attendance >= 60 ? 'Medium' : 'High'} Risk
+                  </span>
+                </div>
+              </div>
+
+              {/* Attendance Progress Bar */}
+              <div className="space-y-1.5">
+                <div className="flex justify-between items-center text-[10px] font-bold">
+                  <span className="text-slate-400 uppercase tracking-wider">Attendance Threshold</span>
+                  <span className="text-slate-505">75% Required</span>
+                </div>
+                <div className="h-2 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full rounded-full ${selectedDrilldownStudent.attendance >= 75
+                      ? 'bg-emerald-500'
+                      : selectedDrilldownStudent.attendance >= 60
+                        ? 'bg-amber-500'
+                        : 'bg-red-500'
+                      }`}
+                    style={{ width: `${Math.min(100, selectedDrilldownStudent.attendance)}%` }}
+                  />
+                </div>
+              </div>
+
+              {/* Recent Attendance Pattern */}
+              <div className="space-y-2">
+                <h4 className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">
+                  Recent Session Pattern (Last {recentPattern.length || 7} lectures)
+                </h4>
+
+                {loadingPattern ? (
+                  <div className="py-4 text-center text-slate-400 flex justify-center items-center gap-2">
+                    <RefreshCw size={14} className="animate-spin text-purple-500" />
+                    <span className="text-[10px]">Fetching history...</span>
+                  </div>
+                ) : recentPattern.length === 0 ? (
+                  <p className="text-[10px] text-slate-400 italic">No session history available.</p>
+                ) : (
+                  <div className="flex gap-1.5 flex-wrap">
+                    {recentPattern.map((session, index) => {
+                      let color = "bg-slate-100 dark:bg-slate-800 text-slate-500 border-slate-200 dark:border-slate-750";
+                      if (session.status === "Present") color = "bg-emerald-500/10 text-emerald-500 border-emerald-500/20";
+                      else if (session.status === "Absent") color = "bg-red-500/10 text-red-550 border-red-500/20";
+                      else if (session.status === "Late") color = "bg-amber-500/10 text-amber-550 border-amber-500/20";
+
+                      return (
+                        <div
+                          key={index}
+                          className={`flex flex-col items-center p-2 rounded-xl border min-w-[44px] ${color}`}
+                        >
+                          <span className="text-[8px] opacity-75 font-mono">
+                            {session.attendance_date.split('-')[1]}/{session.attendance_date.split('-')[2]}
+                          </span>
+                          <span className="text-[10px] font-black mt-0.5">
+                            {session.status === "Present" ? "P" : session.status === "Absent" ? "A" : "L"}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Suggested Actions */}
+              <div className="bg-slate-50 dark:bg-slate-950/40 border border-slate-150 dark:border-slate-850 p-4 rounded-2xl space-y-1.5 text-xs">
+                <h4 className="font-extrabold text-slate-905 dark:text-white flex items-center gap-1.5">
+                  <AlertTriangle size={13} className="text-purple-500" />
+                  Suggested Remedial Action
+                </h4>
+                <p className="text-slate-500 dark:text-slate-400 leading-relaxed text-[11px] font-medium">
+                  {selectedDrilldownStudent.attendance < 60
+                    ? "Issue Critical Attendance Warning, schedule an urgent parent-teacher meeting, and mandate daily remedial attendance."
+                    : selectedDrilldownStudent.attendance < 75
+                      ? "Send standard attendance alert email, recommend joining remedial/revision sessions, and monitor next 3 lectures."
+                      : "No immediate action required. Maintain current academic engagement."
+                  }
+                </p>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-3 pt-2">
+                {selectedDrilldownStudent.attendance < 75 && (
+                  <button
+                    onClick={() => {
+                      setSelectedDrilldownStudent(null);
+                      navigate("/faculty/remedial", { state: { preselectedStudentId: selectedDrilldownStudent.student_id } });
+                    }}
+                    className="flex-1 py-2.5 bg-purple-650 hover:bg-purple-600 text-white font-extrabold rounded-xl transition-all shadow-md text-[10px] uppercase tracking-wider cursor-pointer text-center"
+                  >
+                    Invite to Remedial
+                  </button>
+                )}
+                <button
+                  onClick={() => setSelectedDrilldownStudent(null)}
+                  className="flex-1 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-750 text-slate-700 dark:text-slate-200 font-extrabold rounded-xl transition-all text-[10px] uppercase tracking-wider cursor-pointer text-center"
+                >
+                  Dismiss
+                </button>
+              </div>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
     </motion.div>

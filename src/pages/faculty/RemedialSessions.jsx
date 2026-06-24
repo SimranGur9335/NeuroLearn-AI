@@ -118,14 +118,22 @@ const facultyId = user?.faculty_id;
     }
   }, [selectedClass.class_id]);
 
-  // Handle incoming routing state (preselected student)
+  // Handle incoming routing state (preselected student / students)
   useEffect(() => {
-    if (location.state?.preselectedStudentId && classStudents.length > 0) {
-      const studId = Number(location.state.preselectedStudentId);
-      setSelectedStudentIds([studId]);
-      setIsModalOpen(true);
-      // Clean location state so it doesn't trigger again on reload
-      navigate(location.pathname, { replace: true, state: null });
+    if (classStudents.length > 0) {
+      if (location.state?.preselectedStudentIds) {
+        const studentIds = location.state.preselectedStudentIds.map(Number);
+        setSelectedStudentIds(studentIds);
+        setIsModalOpen(true);
+        // Clean location state so it doesn't trigger again on reload
+        navigate(location.pathname, { replace: true, state: null });
+      } else if (location.state?.preselectedStudentId) {
+        const studId = Number(location.state.preselectedStudentId);
+        setSelectedStudentIds([studId]);
+        setIsModalOpen(true);
+        // Clean location state so it doesn't trigger again on reload
+        navigate(location.pathname, { replace: true, state: null });
+      }
     }
   }, [location.state, classStudents]);
 

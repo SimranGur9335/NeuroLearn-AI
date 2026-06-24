@@ -30,19 +30,7 @@ const ClassSelection = () => {
         resolveAndFetch();
     }, [email]);
 
-    const handleSelect = (cls) => {
-        console.log("Selected Class:", cls);
-
-        localStorage.setItem(
-            "selectedClass",
-            JSON.stringify(cls)
-        );
-        console.log(
-            localStorage.getItem("selectedClass")
-        );
-
-        navigate("/faculty/dashboard");
-    };
+    
 
     return (
         <div className="min-h-screen bg-slate-50 dark:bg-slate-950 p-8 font-sans">
