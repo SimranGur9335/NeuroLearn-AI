@@ -19,12 +19,10 @@ def run_migrations():
     db = SessionLocal()
     print("Running migrations...")
     try:
-        is_sqlite = engine.name == 'sqlite'
-
         # 1. academic_terms
-        db.execute(text(f"""
+        db.execute(text("""
             CREATE TABLE IF NOT EXISTS academic_terms (
-                term_id { 'INTEGER PRIMARY KEY AUTOINCREMENT' if is_sqlite else 'SERIAL PRIMARY KEY' },
+                term_id SERIAL PRIMARY KEY,
                 academic_year VARCHAR(50) NOT NULL,
                 semester INTEGER NOT NULL,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -33,9 +31,9 @@ def run_migrations():
         db.commit()
 
         # 2. students
-        db.execute(text(f"""
+        db.execute(text("""
             CREATE TABLE IF NOT EXISTS students (
-                student_id { 'INTEGER PRIMARY KEY AUTOINCREMENT' if is_sqlite else 'SERIAL PRIMARY KEY' },
+                student_id SERIAL PRIMARY KEY,
                 roll_no VARCHAR(50) UNIQUE NOT NULL,
                 full_name VARCHAR(255) NOT NULL,
                 email VARCHAR(255) NOT NULL,
@@ -48,9 +46,9 @@ def run_migrations():
         db.commit()
 
         # 3. faculty
-        db.execute(text(f"""
+        db.execute(text("""
             CREATE TABLE IF NOT EXISTS faculty (
-                faculty_id { 'INTEGER PRIMARY KEY AUTOINCREMENT' if is_sqlite else 'SERIAL PRIMARY KEY' },
+                faculty_id SERIAL PRIMARY KEY,
                 faculty_code VARCHAR(50) UNIQUE NOT NULL,
                 full_name VARCHAR(255) NOT NULL,
                 email VARCHAR(255) NOT NULL,
@@ -62,9 +60,9 @@ def run_migrations():
         db.commit()
 
         # 4. classes
-        db.execute(text(f"""
+        db.execute(text("""
             CREATE TABLE IF NOT EXISTS classes (
-                class_id { 'INTEGER PRIMARY KEY AUTOINCREMENT' if is_sqlite else 'SERIAL PRIMARY KEY' },
+                class_id SERIAL PRIMARY KEY,
                 class_name VARCHAR(100) NOT NULL,
                 division VARCHAR(10) NOT NULL,
                 department VARCHAR(100) NOT NULL,
@@ -76,9 +74,9 @@ def run_migrations():
         db.commit()
 
         # 5. subjects
-        db.execute(text(f"""
+        db.execute(text("""
             CREATE TABLE IF NOT EXISTS subjects (
-                subject_id { 'INTEGER PRIMARY KEY AUTOINCREMENT' if is_sqlite else 'SERIAL PRIMARY KEY' },
+                subject_id SERIAL PRIMARY KEY,
                 subject_code VARCHAR(50) UNIQUE NOT NULL,
                 subject_name VARCHAR(255) NOT NULL,
                 credits INTEGER NOT NULL,
@@ -90,9 +88,9 @@ def run_migrations():
         db.commit()
 
         # 6. enrollments
-        db.execute(text(f"""
+        db.execute(text("""
             CREATE TABLE IF NOT EXISTS enrollments (
-                enrollment_id { 'INTEGER PRIMARY KEY AUTOINCREMENT' if is_sqlite else 'SERIAL PRIMARY KEY' },
+                enrollment_id SERIAL PRIMARY KEY,
                 student_id INTEGER REFERENCES students(student_id) ON DELETE CASCADE,
                 class_id INTEGER REFERENCES classes(class_id) ON DELETE CASCADE,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -101,9 +99,9 @@ def run_migrations():
         db.commit()
 
         # 7. faculty_assignments
-        db.execute(text(f"""
+        db.execute(text("""
             CREATE TABLE IF NOT EXISTS faculty_assignments (
-                assignment_id { 'INTEGER PRIMARY KEY AUTOINCREMENT' if is_sqlite else 'SERIAL PRIMARY KEY' },
+                assignment_id SERIAL PRIMARY KEY,
                 faculty_id INTEGER REFERENCES faculty(faculty_id) ON DELETE CASCADE,
                 class_id INTEGER REFERENCES classes(class_id) ON DELETE CASCADE,
                 subject_id INTEGER REFERENCES subjects(subject_id) ON DELETE CASCADE,
@@ -116,9 +114,9 @@ def run_migrations():
         db.commit()
 
         # 8. courses
-        db.execute(text(f"""
+        db.execute(text("""
             CREATE TABLE IF NOT EXISTS courses (
-                course_id { 'INTEGER PRIMARY KEY AUTOINCREMENT' if is_sqlite else 'SERIAL PRIMARY KEY' },
+                course_id SERIAL PRIMARY KEY,
                 course_code VARCHAR(50) UNIQUE NOT NULL,
                 course_title VARCHAR(255) NOT NULL,
                 department VARCHAR(100) NOT NULL,
@@ -131,9 +129,9 @@ def run_migrations():
         db.commit()
 
         # 9. course_subject_mapping
-        db.execute(text(f"""
+        db.execute(text("""
             CREATE TABLE IF NOT EXISTS course_subject_mapping (
-                mapping_id { 'INTEGER PRIMARY KEY AUTOINCREMENT' if is_sqlite else 'SERIAL PRIMARY KEY' },
+                mapping_id SERIAL PRIMARY KEY,
                 course_id INTEGER REFERENCES courses(course_id) ON DELETE CASCADE,
                 subject_id INTEGER REFERENCES subjects(subject_id) ON DELETE CASCADE,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -143,9 +141,9 @@ def run_migrations():
         db.commit()
 
         # 10. announcements
-        db.execute(text(f"""
+        db.execute(text("""
             CREATE TABLE IF NOT EXISTS announcements (
-                announcement_id { 'INTEGER PRIMARY KEY AUTOINCREMENT' if is_sqlite else 'SERIAL PRIMARY KEY' },
+                announcement_id SERIAL PRIMARY KEY,
                 title VARCHAR(255) NOT NULL,
                 description TEXT NOT NULL,
                 sender_type VARCHAR(50) NOT NULL,
@@ -158,7 +156,7 @@ def run_migrations():
         db.commit()
 
         # 11. student_metrics
-        db.execute(text(f"""
+        db.execute(text("""
             CREATE TABLE IF NOT EXISTS student_metrics (
                 student_id INTEGER PRIMARY KEY REFERENCES students(student_id) ON DELETE CASCADE,
                 attendance NUMERIC(5, 2) DEFAULT 0.00,
@@ -172,9 +170,9 @@ def run_migrations():
         db.commit()
 
         # 12. risk_predictions
-        db.execute(text(f"""
+        db.execute(text("""
             CREATE TABLE IF NOT EXISTS risk_predictions (
-                prediction_id { 'INTEGER PRIMARY KEY AUTOINCREMENT' if is_sqlite else 'SERIAL PRIMARY KEY' },
+                prediction_id SERIAL PRIMARY KEY,
                 student_id INTEGER REFERENCES students(student_id) ON DELETE CASCADE,
                 class_id INTEGER REFERENCES classes(class_id) ON DELETE CASCADE,
                 risk_score NUMERIC(5, 2) DEFAULT 0.00,
@@ -189,9 +187,9 @@ def run_migrations():
         db.commit()
 
         # 13. audit_logs
-        db.execute(text(f"""
+        db.execute(text("""
             CREATE TABLE IF NOT EXISTS audit_logs (
-                log_id { 'INTEGER PRIMARY KEY AUTOINCREMENT' if is_sqlite else 'SERIAL PRIMARY KEY' },
+                log_id SERIAL PRIMARY KEY,
                 action VARCHAR(100) NOT NULL,
                 entity_type VARCHAR(100) NOT NULL,
                 entity_id INTEGER NULL,
@@ -202,9 +200,9 @@ def run_migrations():
         db.commit()
 
         # 14. system_settings
-        db.execute(text(f"""
+        db.execute(text("""
             CREATE TABLE IF NOT EXISTS system_settings (
-                setting_id { 'INTEGER PRIMARY KEY AUTOINCREMENT' if is_sqlite else 'SERIAL PRIMARY KEY' },
+                setting_id SERIAL PRIMARY KEY,
                 setting_key VARCHAR(100) UNIQUE NOT NULL,
                 setting_value TEXT NOT NULL,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -213,9 +211,9 @@ def run_migrations():
         db.commit()
 
         # 15. assignments
-        db.execute(text(f"""
+        db.execute(text("""
             CREATE TABLE IF NOT EXISTS assignments (
-                assignment_id { 'INTEGER PRIMARY KEY AUTOINCREMENT' if is_sqlite else 'SERIAL PRIMARY KEY' },
+                assignment_id SERIAL PRIMARY KEY,
                 subject_id INTEGER REFERENCES subjects(subject_id) ON DELETE CASCADE,
                 class_id INTEGER REFERENCES classes(class_id) ON DELETE CASCADE,
                 title VARCHAR(255) NOT NULL,
@@ -228,9 +226,9 @@ def run_migrations():
         db.commit()
 
         # 16. assignment_submissions
-        db.execute(text(f"""
+        db.execute(text("""
             CREATE TABLE IF NOT EXISTS assignment_submissions (
-                submission_id { 'INTEGER PRIMARY KEY AUTOINCREMENT' if is_sqlite else 'SERIAL PRIMARY KEY' },
+                submission_id SERIAL PRIMARY KEY,
                 assignment_id INTEGER REFERENCES assignments(assignment_id) ON DELETE CASCADE,
                 student_id INTEGER REFERENCES students(student_id) ON DELETE CASCADE,
                 submission_url VARCHAR(255) NULL,
@@ -242,9 +240,9 @@ def run_migrations():
         db.commit()
 
         # 17. attendance_records
-        db.execute(text(f"""
+        db.execute(text("""
             CREATE TABLE IF NOT EXISTS attendance_records (
-                attendance_id { 'INTEGER PRIMARY KEY AUTOINCREMENT' if is_sqlite else 'SERIAL PRIMARY KEY' },
+                attendance_id SERIAL PRIMARY KEY,
                 student_id INTEGER REFERENCES students(student_id) ON DELETE CASCADE,
                 class_id INTEGER REFERENCES classes(class_id) ON DELETE CASCADE,
                 attendance_date DATE NOT NULL,
@@ -255,9 +253,9 @@ def run_migrations():
         db.commit()
 
         # 18. departments
-        db.execute(text(f"""
+        db.execute(text("""
             CREATE TABLE IF NOT EXISTS departments (
-                department_id { 'INTEGER PRIMARY KEY AUTOINCREMENT' if is_sqlite else 'SERIAL PRIMARY KEY' },
+                department_id SERIAL PRIMARY KEY,
                 department_name VARCHAR(255) NOT NULL,
                 department_code VARCHAR(50) UNIQUE NOT NULL
             );
@@ -265,9 +263,9 @@ def run_migrations():
         db.commit()
 
         # 19. quizzes
-        db.execute(text(f"""
+        db.execute(text("""
             CREATE TABLE IF NOT EXISTS quizzes (
-                quiz_id { 'INTEGER PRIMARY KEY AUTOINCREMENT' if is_sqlite else 'SERIAL PRIMARY KEY' },
+                quiz_id SERIAL PRIMARY KEY,
                 quiz_title VARCHAR(255) NOT NULL,
                 total_marks INTEGER NOT NULL
             );
@@ -275,9 +273,9 @@ def run_migrations():
         db.commit()
 
         # 20. quiz_results
-        db.execute(text(f"""
+        db.execute(text("""
             CREATE TABLE IF NOT EXISTS quiz_results (
-                result_id { 'INTEGER PRIMARY KEY AUTOINCREMENT' if is_sqlite else 'SERIAL PRIMARY KEY' },
+                result_id SERIAL PRIMARY KEY,
                 quiz_id INTEGER REFERENCES quizzes(quiz_id) ON DELETE CASCADE,
                 student_id INTEGER REFERENCES students(student_id) ON DELETE CASCADE,
                 score NUMERIC(5, 2) NOT NULL
@@ -307,9 +305,9 @@ def run_migrations():
         print("OK: attendance_records columns and avatar_url columns verified/added.")
         
         # 22. Create student_marks table
-        db.execute(text(f"""
+        db.execute(text("""
             CREATE TABLE IF NOT EXISTS student_marks (
-                mark_id { 'INTEGER PRIMARY KEY AUTOINCREMENT' if is_sqlite else 'SERIAL PRIMARY KEY' },
+                mark_id SERIAL PRIMARY KEY,
                 student_id INTEGER REFERENCES students(student_id) ON DELETE CASCADE,
                 class_id INTEGER REFERENCES classes(class_id) ON DELETE CASCADE,
                 subject_id INTEGER REFERENCES subjects(subject_id) ON DELETE CASCADE,
@@ -328,9 +326,9 @@ def run_migrations():
         print("OK: student_marks table verified/created.")
 
         # 23. Create users table
-        db.execute(text(f"""
+        db.execute(text("""
             CREATE TABLE IF NOT EXISTS users (
-                user_id { 'INTEGER PRIMARY KEY AUTOINCREMENT' if is_sqlite else 'SERIAL PRIMARY KEY' },
+                user_id SERIAL PRIMARY KEY,
                 email VARCHAR(255) UNIQUE NOT NULL,
                 password_hash VARCHAR(255) NOT NULL,
                 role VARCHAR(50) NOT NULL CHECK (role IN ('student', 'teacher', 'admin')),
@@ -345,9 +343,9 @@ def run_migrations():
         print("OK: users table verified/created.")
 
         # 24. Create security_events table
-        db.execute(text(f"""
+        db.execute(text("""
             CREATE TABLE IF NOT EXISTS security_events (
-                event_id { 'INTEGER PRIMARY KEY AUTOINCREMENT' if is_sqlite else 'SERIAL PRIMARY KEY' },
+                event_id SERIAL PRIMARY KEY,
                 user_id INTEGER REFERENCES users(user_id) ON DELETE SET NULL NULL,
                 email VARCHAR(255) NOT NULL,
                 event_type VARCHAR(100) NOT NULL,
@@ -360,9 +358,9 @@ def run_migrations():
         print("OK: security_events table verified/created.")
 
         # 25. Create announcement_reads table
-        db.execute(text(f"""
+        db.execute(text("""
             CREATE TABLE IF NOT EXISTS announcement_reads (
-                read_id { 'INTEGER PRIMARY KEY AUTOINCREMENT' if is_sqlite else 'SERIAL PRIMARY KEY' },
+                read_id SERIAL PRIMARY KEY,
                 announcement_id INTEGER REFERENCES announcements(announcement_id) ON DELETE CASCADE,
                 user_id INTEGER REFERENCES users(user_id) ON DELETE CASCADE,
                 read_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -373,9 +371,9 @@ def run_migrations():
         print("OK: announcement_reads table verified/created.")
 
         # 26. Create institutions table
-        db.execute(text(f"""
+        db.execute(text("""
             CREATE TABLE IF NOT EXISTS institutions (
-                institution_id { 'INTEGER PRIMARY KEY AUTOINCREMENT' if is_sqlite else 'SERIAL PRIMARY KEY' },
+                institution_id SERIAL PRIMARY KEY,
                 institution_name VARCHAR(255) NOT NULL,
                 short_name VARCHAR(50) NOT NULL UNIQUE,
                 domain_name VARCHAR(255) NOT NULL UNIQUE,
@@ -393,15 +391,61 @@ def run_migrations():
         db.commit()
         print("OK: institutions table verified/created.")
 
+        # 27. Create mentor_messages table
+        db.execute(text("""
+            CREATE TABLE IF NOT EXISTS mentor_messages (
+                message_id SERIAL PRIMARY KEY,
+                student_id INTEGER REFERENCES students(student_id) ON DELETE CASCADE,
+                sender VARCHAR(50) NOT NULL,
+                message_text TEXT NOT NULL,
+                code_text TEXT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        """))
+        db.commit()
+        print("OK: mentor_messages table verified/created.")
+
+        # 28. Create wellness_mood_logs table
+        db.execute(text("""
+            CREATE TABLE IF NOT EXISTS wellness_mood_logs (
+                log_id SERIAL PRIMARY KEY,
+                student_id INTEGER REFERENCES students(student_id) ON DELETE CASCADE,
+                happiness INTEGER NOT NULL,
+                focus INTEGER NOT NULL,
+                frustration INTEGER NOT NULL,
+                stress INTEGER NOT NULL,
+                log_date DATE DEFAULT CURRENT_DATE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        """))
+        db.commit()
+        print("OK: wellness_mood_logs table verified/created.")
+
+        # 29. Create wellness_focus_sessions table
+        db.execute(text("""
+            CREATE TABLE IF NOT EXISTS wellness_focus_sessions (
+                session_id SERIAL PRIMARY KEY,
+                student_id INTEGER REFERENCES students(student_id) ON DELETE CASCADE,
+                completed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        """))
+        db.commit()
+        print("OK: wellness_focus_sessions table verified/created.")
+
         # Add institution_id column to existing tables if missing
-        from sqlalchemy import inspect
-        inspector = inspect(engine)
         tables_to_alter = ['users', 'students', 'faculty', 'classes', 'subjects', 'courses', 'announcements', 'departments']
         for t in tables_to_alter:
             cols = [c['name'] for c in inspector.get_columns(t)]
             if 'institution_id' not in cols:
                 db.execute(text(f"ALTER TABLE {t} ADD COLUMN institution_id INTEGER REFERENCES institutions(institution_id) ON DELETE SET NULL;"))
                 print(f"Altered table {t} to add institution_id column.")
+        
+        # Add target_career column to student_metrics if missing
+        metrics_cols = [c['name'] for c in inspector.get_columns('student_metrics')]
+        if 'target_career' not in metrics_cols:
+            db.execute(text("ALTER TABLE student_metrics ADD COLUMN target_career VARCHAR(100) DEFAULT 'ai-engineer';"))
+            print("Altered table student_metrics to add target_career column.")
+        
         db.commit()
 
     except Exception as e:

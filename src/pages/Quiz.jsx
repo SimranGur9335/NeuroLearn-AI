@@ -39,6 +39,7 @@ import {
 } from 'lucide-react';
 import { useStudent } from '../context/StudentContext';
 import { DOMAINS, LEVEL_SYSTEM } from '../data/data';
+import { apiFetch } from '../services/api';
 
 // Map icon strings to Lucide icon components
 const iconMap = {
@@ -114,6 +115,8 @@ const Quiz = () => {
   const [timeLeft, setTimeLeft] = useState(30); // 30s per question
   const [quizCompleted, setQuizCompleted] = useState(false);
   const [quizResults, setQuizResults] = useState(null); // stores end result object
+  const [submittingQuiz, setSubmittingQuiz] = useState(false);
+  const [submissionError, setSubmissionError] = useState(null);
 
   const timerRef = useRef(null);
 
@@ -203,17 +206,43 @@ const Quiz = () => {
     setIsAnswerSubmitted(true);
   };
 
-  const handleNextQuestion = () => {
+  const handleNextQuestion = async () => {
     if (currentQuestionIndex + 1 < questions.length) {
       setCurrentQuestionIndex(prev => prev + 1);
       setSelectedOptionIndex(null);
       setIsAnswerSubmitted(false);
     } else {
-      // Quiz finished! Calculate and sync with context
-      setQuizCompleted(true);
       const finalScore = score + (selectedOptionIndex === questions[currentQuestionIndex].correctIndex && !isAnswerSubmitted ? 1 : 0);
+      setSubmittingQuiz(true);
+      setSubmissionError(null);
+
       const results = completeQuiz(currentNode.id, currentDomain.id, finalScore, questions.length);
       setQuizResults(results);
+
+      try {
+        const response = await apiFetch("/quiz/submit", {
+          method: "POST",
+          body: JSON.stringify({
+            node_id: currentNode.id,
+            domain_id: currentDomain.id,
+            score: finalScore,
+            total_questions: questions.length,
+            xp_earned: results.xpReward
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error("Academic registry API compilation failed");
+        }
+
+        setQuizCompleted(true);
+      } catch (err) {
+        console.error(err);
+        setSubmissionError("Network error: Result was not synced to database. It has been saved locally.");
+        setQuizCompleted(true);
+      } finally {
+        setSubmittingQuiz(false);
+      }
     }
   };
 
@@ -856,7 +885,13 @@ const Quiz = () => {
 
       {/* 2. ACTIVE QUESTION ARENA WRAPPER */}
       {quizStarted && !quizCompleted && (
-        <div className="max-w-2xl mx-auto space-y-6">
+        submittingQuiz ? (
+          <div className="max-w-2xl mx-auto bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-12 text-center shadow-xl flex flex-col items-center justify-center space-y-4">
+            <div className="w-10 h-10 border-4 border-slate-700 border-t-indigo-500 rounded-full animate-spin" />
+            <p className="text-slate-450 dark:text-slate-400 text-sm font-semibold animate-pulse">Syncing quiz score with Supabase database...</p>
+          </div>
+        ) : (
+          <div className="max-w-2xl mx-auto space-y-6">
           {/* Progress header with premium container */}
           <div className="flex justify-between items-center bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 px-6 py-4 rounded-3xl shadow-md animate-fade-in">
             <div>
@@ -958,6 +993,7 @@ const Quiz = () => {
             </div>
           </div>
         </div>
+      )
       )}
 
       {/* 3. PREMIUM RESULT SCREEN WRAPPER */}

@@ -80,7 +80,10 @@ const Header = () => {
       if (path.includes('chat')) return 'AI Personal Mentor';
       if (path.includes('predictions')) return 'Academic Predictors';
       if (path.includes('emotions')) return 'Sentiment & Focus Analytics';
-      if (path.includes('recommendations')) return 'Curriculum Recommendation Engine';
+    }
+
+    if (path.includes('/student-hub/predictions')) {
+      return 'Academic Outcome Forecasts';
     }
 
     // Student Portal Paths

@@ -61,11 +61,11 @@ const StudentPerformance = () => {
   useEffect(() => {
     const fetchMetadataAndStudents = async () => {
       try {
-        const classesRes = await apiFetch(`/faculty/${facultyId}/classes`);
+        const classesRes = await fetch(`http://127.0.0.1:8000/faculty/${facultyId}/classes`);
         const classesData = await classesRes.json();
         setAssignedClasses(classesData);
 
-        const studentsRes = await apiFetch(`/faculty/${facultyId}/students`);
+        const studentsRes = await fetch(`http://127.0.0.1:8000/faculty/${facultyId}/students`);
         const studentsData = await studentsRes.json();
         setStudents(studentsData);
       } catch (err) {
@@ -94,7 +94,7 @@ const StudentPerformance = () => {
     setProfileLoading(true);
     setDrawerTab("overview");
     try {
-      const res = await apiFetch(`/student/${student.student_id}/profile`);
+      const res = await fetch(`http://127.0.0.1:8000/student/${student.student_id}/profile`);
       if (!res.ok) throw new Error("Failed to load profile details");
       const data = await res.json();
       setProfileDetail(data);

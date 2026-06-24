@@ -34,7 +34,7 @@ const LearningDomains = () => {
 
   const categories = ["All", "Popular", "Backend", "Data", "Security", "Ops"];
 
-  // Calculate dynamic progress for each domain based on student context states
+  // Calculate dynamic progress based on completed nodes
   const getDomainProgress = (domainId) => {
     const domain = DOMAINS.find(d => d.id === domainId);
     if (!domain) return 0;
@@ -52,15 +52,12 @@ const LearningDomains = () => {
     navigate('/roadmap');
   };
 
-  // Filter logic
   const filteredDomains = DOMAINS.filter(domain => {
-    // Search query filter
     const matchesSearch = domain.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
                           domain.description.toLowerCase().includes(searchTerm.toLowerCase());
     
     if (!matchesSearch) return false;
 
-    // Category filter
     if (filter === "All") return true;
     if (filter === "Popular") return domain.popular;
     return domain.category === filter;
@@ -71,27 +68,25 @@ const LearningDomains = () => {
       initial={{ opacity: 0, y: 15 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4 }}
-      className="space-y-6"
+      className="space-y-6 font-sans text-slate-800 dark:text-slate-100"
     >
-      {/* Intro Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <p className="text-xs text-indigo-500 font-bold uppercase tracking-wider">Engineering Tracks</p>
-          <h2 className="text-2xl font-black text-slate-800 dark:text-white">Choose Your Learning Domain</h2>
-          <p className="text-slate-500 text-xs mt-1">Select a core computer science or engineering track to build custom skill-graphs.</p>
-        </div>
+      {/* Page Header */}
+      <div>
+        <p className="text-xs text-indigo-500 font-bold uppercase tracking-wider">Engineering Tracks</p>
+        <h2 className="text-2xl font-black text-slate-800 dark:text-white">Choose Your Learning Domain</h2>
+        <p className="text-slate-550 dark:text-slate-400 text-xs mt-1">Select a core engineering specialty to focus recommendations and customize roadmaps.</p>
       </div>
 
       {/* Category Pills Filters */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-thin">
+      <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
         {categories.map((cat) => (
           <button
             key={cat}
             onClick={() => setFilter(cat)}
             className={`px-4 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
               filter === cat
-                ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/10'
-                : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60'
+                ? 'bg-indigo-600 text-white shadow-md shadow-indigo-650/15'
+                : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-650 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60'
             }`}
           >
             {cat}
@@ -111,8 +106,8 @@ const LearningDomains = () => {
               key={domain.id}
               className={`bg-white dark:bg-slate-900 border rounded-3xl p-6 flex flex-col justify-between min-h-[340px] transition-all duration-300 relative ${
                 isActive 
-                  ? 'ring-2 ring-indigo-500 border-indigo-500 dark:ring-indigo-500 dark:border-indigo-500 shadow-xl' 
-                  : 'border-slate-200 dark:border-slate-800 hover:shadow-lg hover:-translate-y-1'
+                  ? 'ring-2 ring-indigo-500 border-indigo-500 shadow-xl shadow-indigo-500/5' 
+                  : 'border-slate-200 dark:border-slate-800 hover:shadow-lg hover:translate-y-[-2px]'
               }`}
             >
               {/* Highlight ribbon if active */}
@@ -131,10 +126,10 @@ const LearningDomains = () => {
                       ? 'bg-indigo-600 text-white' 
                       : 'bg-indigo-500/10 text-indigo-500 dark:text-indigo-400'
                   }`}>
-                    <Icon size={24} />
+                    <Icon size={22} />
                   </div>
                   <div>
-                    <h3 className="font-extrabold text-slate-800 dark:text-white text-base">
+                    <h3 className="font-extrabold text-slate-850 dark:text-white text-base">
                       {domain.title}
                     </h3>
                     <span className="text-[10px] text-slate-400 font-semibold">{domain.difficulty} • {domain.duration}</span>
@@ -142,14 +137,14 @@ const LearningDomains = () => {
                 </div>
 
                 {/* Description */}
-                <p className="text-slate-500 dark:text-slate-400 text-xs mt-4 leading-relaxed">
+                <p className="text-slate-500 dark:text-slate-400 text-xs mt-4 leading-relaxed font-medium">
                   {domain.description}
                 </p>
 
                 {/* Salary benchmark */}
-                <div className="flex justify-between items-center bg-slate-50 dark:bg-slate-950 p-3 rounded-xl border border-slate-100 dark:border-slate-850 mt-4 text-[11px]">
-                  <span className="text-slate-500">Average Starting Package</span>
-                  <span className="font-extrabold text-indigo-600 dark:text-cyan-400">{domain.avgSalary}</span>
+                <div className="flex justify-between items-center bg-slate-50/50 dark:bg-slate-950 p-3.5 rounded-xl border border-slate-100 dark:border-slate-850 mt-4 text-[11px]">
+                  <span className="text-slate-450 dark:text-slate-500 font-bold">Average Package Benchmark</span>
+                  <span className="font-black text-indigo-650 dark:text-cyan-400">{domain.avgSalary}</span>
                 </div>
               </div>
 
@@ -158,8 +153,8 @@ const LearningDomains = () => {
                 {/* Progress bar */}
                 <div>
                   <div className="flex justify-between items-center text-[10px] mb-1.5 font-bold">
-                    <span className="text-slate-400">Track Progress</span>
-                    <span className="text-slate-600 dark:text-slate-300">{progress}%</span>
+                    <span className="text-slate-400 uppercase tracking-wider">Track Completed</span>
+                    <span className="text-slate-600 dark:text-slate-350">{progress}%</span>
                   </div>
                   <div className="w-full bg-slate-100 dark:bg-slate-850 h-1.5 rounded-full overflow-hidden">
                     <div className="bg-indigo-600 h-full transition-all duration-300" style={{ width: `${progress}%` }} />
@@ -171,7 +166,7 @@ const LearningDomains = () => {
                   {!isActive && (
                     <button
                       onClick={() => handleSetDomain(domain)}
-                      className="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-850 font-bold text-slate-700 dark:text-slate-300 transition-colors cursor-pointer"
+                      className="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-850 font-bold text-slate-700 dark:text-slate-350 transition-colors cursor-pointer"
                     >
                       Set Active
                     </button>
@@ -197,12 +192,12 @@ const LearningDomains = () => {
       {/* Empty State */}
       {filteredDomains.length === 0 && (
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-12 text-center max-w-md mx-auto">
-          <div className="w-16 h-16 rounded-full bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-805 flex items-center justify-center text-slate-400 mx-auto mb-4">
-            <Search size={22} />
+          <div className="w-12 h-12 rounded-full bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-805 flex items-center justify-center text-slate-400 mx-auto mb-4 animate-bounce">
+            <Search size={20} />
           </div>
-          <h3 className="font-extrabold text-slate-800 dark:text-white text-base">No Matching Tracks</h3>
-          <p className="text-slate-500 text-xs mt-2">
-            No engineering domains found matching "{searchTerm}". Try updating your search queries in the header bar.
+          <h3 className="font-extrabold text-slate-800 dark:text-white text-base">No tracks match your query</h3>
+          <p className="text-slate-500 text-xs mt-2 leading-relaxed">
+            Try correcting your search input in the global search bar.
           </p>
         </div>
       )}

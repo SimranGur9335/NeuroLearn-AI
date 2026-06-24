@@ -66,155 +66,146 @@ const FacultyAnnouncements = () => {
   /* ── tabs ── */
   const [activeTab, setActiveTab] = useState("received");
 
-  /* ── data ── */
-  const [received,   setReceived]   = useState([]);
-  const [sent,       setSent]       = useState([]);
-  const [classes,    setClasses]    = useState([]);
+    const [stats, setStats] = useState({
+        received: 0,
+        sent: 0,
+        unread: 0
+    });
+    const [targetType, setTargetType] = useState("CLASS");
 
-  /* ── ui state ── */
-  const [loading,    setLoading]    = useState(true);
-  const [submitting, setSubmitting] = useState(false);
-  const [toast,      setToast]      = useState(null);
+    const [announcements, setAnnouncements] = useState([]);
+    const [title, setTitle] = useState("");
+    const [message, setMessage] = useState("");
+    const [selectedClass, setSelectedClass] = useState("");
 
-  /* ── compose form ── */
-  const [title,       setTitle]       = useState("");
-  const [message,     setMessage]     = useState("");
-  const [priority,    setPriority]    = useState("Normal");
-  const [targetType,  setTargetType]  = useState("Class");
-  const [selectedClass, setSelectedClass] = useState("");
-  const [attachment,  setAttachment]  = useState(null);
+    const loadAnnouncements = async () => {
+        try {
+            const res = await fetch(
+                "http://127.0.0.1:8000/faculty/announcements"
+            );
 
-  const showToast = useCallback((msg, type = "info") => setToast({ msg, type }), []);
+            const data = await res.json();
 
-  /* ── fetch announcements ── */
-  const loadAnnouncements = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await fetch("/api/announcements");
-      if (!res.ok) {
-        if (res.status === 401) { showToast("Session expired — please log in again.", "error"); }
-        else { showToast(`Failed to load announcements (${res.status})`, "error"); }
-        setReceived([]); setSent([]);
-        return;
-      }
-      const data = await res.json();
-      if (!Array.isArray(data)) { setReceived([]); setSent([]); return; }
+            const received = data.filter(
+              (ann) => ann.sender_type === "ADMIN" || ann.sender_type === "admin"
+            );
 
-      const weekAgo = fmtWeekAgo();
-      setReceived(data.filter(a => a.sender_type !== "faculty" || a.sender_id !== facultyId));
-      setSent(data.filter(a => a.sender_type === "faculty" && a.sender_id === facultyId));
-    } catch (err) {
-      console.error("Announcements fetch error:", err);
-      showToast("Network error loading announcements.", "error");
-      setReceived([]); setSent([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [facultyId, showToast]);
+            const sent = data.filter(
+              (ann) => ann.sender_type === "FACULTY" || ann.sender_type === "faculty"
+            );
 
-  /* ── fetch classes ── */
-  const loadClasses = useCallback(async () => {
-    if (!facultyId) return;
-    try {
-      const res = await fetch(`/faculty/${facultyId}/classes`);
-      if (!res.ok) return;
-      const data = await res.json();
-      if (Array.isArray(data)) setClasses(data);
-    } catch (err) {
-      console.error("Classes fetch error:", err);
-    }
-  }, [facultyId]);
+            setAnnouncements(received);
+            setSentAnnouncements(sent);
+            setStats({
+                received: received.length,
+                sent: sent.length,
+                unread: received.filter(a => !a.is_read).length
+            });
 
-  useEffect(() => {
-    loadAnnouncements();
-    loadClasses();
-  }, [loadAnnouncements, loadClasses]);
+        } catch (err) {
+            console.error(err);
+        }
+    };
 
-  /* ── mark as read ── */
-  const handleMarkRead = async (id) => {
-    try {
-      const res = await fetch(`/api/announcements/${id}/read`, { method: "POST" });
-      if (res.ok) {
-        setReceived(prev => prev.map(a => a.announcement_id === id ? { ...a, is_read: true } : a));
-      }
-    } catch (err) { console.error("Mark read error:", err); }
-  };
+    const handleMarkAsRead = async (announcementId) => {
+        try {
+            const res = await fetch(`http://127.0.0.1:8000/faculty/announcements/${announcementId}/read`, {
+                method: "POST"
+            });
+            if (res.ok) {
+                setAnnouncements(prev => prev.map(a => a.announcement_id === announcementId ? { ...a, is_read: true } : a));
+                setStats(prev => ({
+                    ...prev,
+                    unread: Math.max(0, prev.unread - 1)
+                }));
+            }
+        } catch (err) {
+            console.error("Failed to mark announcement as read:", err);
+        }
+    };
 
-  /* ── publish announcement ── */
-  const handlePublish = async () => {
-    if (!title.trim()) { showToast("Title is required.", "error"); return; }
-    if (!message.trim()) { showToast("Message body is required.", "error"); return; }
-    if (targetType === "Class" && !selectedClass) { showToast("Please select a target class.", "error"); return; }
+    useEffect(() => {
+        loadAnnouncements();
+    }, []);
+    
 
-    setSubmitting(true);
-    try {
-      const body = {
-        title: title.trim(),
-        description: message.trim(),
-        target_type: targetType,
-        target_id: targetType === "Class" ? Number(selectedClass) : null,
-        priority,
-      };
+    const [classes] = useState([
+        {
+            class_id: 1,
+            class_name: "TE Computer A"
+        },
+        {
+            class_id: 2,
+            class_name: "TE Computer B"
+        }
+    ]);
+    const [sentAnnouncements, setSentAnnouncements] =
+  useState([]);
 
-      const res = await fetch("/api/announcements", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
+    const handlePublish = async () => {
+        try {
+            const res = await fetch(
+                "http://127.0.0.1:8000/faculty/announcements",
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        title,
+                        description: message,
+                        sender_type: "FACULTY",
+                        sender_id: 1,
+                        target_type: "CLASS",
+                        target_id: Number(selectedClass)
+                    })
+                }
+            );
 
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        showToast(err.detail || `Error ${res.status}`, "error");
-        return;
-      }
+            const data = await res.json();
+            console.log(data);
 
-      showToast("Announcement published successfully!", "success");
-      setTitle(""); setMessage(""); setPriority("Normal");
-      setSelectedClass(""); setAttachment(null);
-      setActiveTab("sent");
-      await loadAnnouncements();
-    } catch (err) {
-      console.error("Publish error:", err);
-      showToast("Failed to publish announcement.", "error");
-    } finally {
-      setSubmitting(false);
-    }
-  };
+            alert("Announcement Published Successfully");
+            setTitle("");
+            setMessage("");
+            setSelectedClass("");
+            loadAnnouncements();
+        } catch (err) {
+            console.error(err);
+        }
+    };
 
-  /* ── derived stats ── */
-  const weekAgoDate = new Date(); weekAgoDate.setDate(weekAgoDate.getDate() - 7);
-  const unreadCount   = received.filter(a => !a.is_read).length;
-  const thisWeekCount = [...received, ...sent].filter(a => new Date(a.created_at) >= weekAgoDate).length;
+    return (
+        <motion.div
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="space-y-6"
+        >
+            {/* Header */}
+            <div>
+                <p className="text-xs text-blue-500 font-bold uppercase tracking-wider">
+                    Communication Center
+                </p>
 
-  const tabs = [
-    { id: "received", label: "Received", icon: Inbox,    count: received.length },
-    { id: "sent",     label: "Sent",     icon: Send,     count: sent.length },
-    { id: "compose",  label: "Compose",  icon: Plus,     count: null },
-  ];
+                <h2 className="text-2xl font-black text-slate-800 dark:text-white">
+                    Faculty Announcements
+                </h2>
 
-  /* ════════════════════════ RENDER ════════════════════════ */
-  return (
-    <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.35 }} className="space-y-6 font-sans">
+                <p className="text-slate-500 text-sm mt-1">
+                    Manage incoming notices and communicate with students.
+                </p>
+            </div>
 
-      {/* ── Header ── */}
-      <div className="flex items-start justify-between flex-wrap gap-3">
-        <div>
-          <p className="text-[10px] text-purple-500 font-black uppercase tracking-widest mb-1">
-            Communication Center
-          </p>
-          <h1 className="text-2xl font-black text-slate-800 dark:text-white">
-            Faculty Announcements
-          </h1>
-          <p className="text-slate-500 text-xs mt-1">
-            Manage notices and broadcast messages to your classes.
-          </p>
-        </div>
-        <button onClick={loadAnnouncements} disabled={loading}
-          className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all">
-          <RefreshCw size={13} className={loading ? "animate-spin" : ""} /> Refresh
-        </button>
-      </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border">
+                    <p className="text-xs text-slate-500">
+                        Received
+                    </p>
+                    <h2 className="text-2xl font-black">
+                        {stats.received}
+                    </h2>
+                </div>
+            </div>
 
       {/* ── Metric Cards ── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

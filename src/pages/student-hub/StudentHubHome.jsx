@@ -10,7 +10,8 @@ import {
   Calendar, 
   Activity,
   ArrowRight,
-  GraduationCap
+  GraduationCap,
+  Brain
 } from 'lucide-react';
 import { apiFetch } from '../../services/api';
 import { useStudent } from '../../context/StudentContext';
@@ -87,6 +88,14 @@ const StudentHubHome = () => {
       icon: Trophy,
       badge: `CGPA: ${data.cgpa}`,
       path: '/student-hub/grades'
+    },
+    {
+      id: 'predictions',
+      title: 'Performance Predictions',
+      description: 'Calculate projected performance targets and model grades based on study parameters.',
+      icon: Brain,
+      badge: 'Forecast',
+      path: '/student-hub/predictions'
     },
     {
       id: 'announcements',

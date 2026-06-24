@@ -85,20 +85,7 @@ const FacultyAnalytics = () => {
   const fetchAnalytics = async () => {
     setLoading(true);
     try {
-      let url = `http://127.0.0.1:8000/faculty/${facultyId}/analytics`;
-      const params = new URLSearchParams();
-      if (classFilter) params.append("class_id", classFilter);
-      if (subjectFilter) params.append("subject_id", subjectFilter);
-      if (startDate) params.append("start_date", startDate);
-      if (endDate) params.append("end_date", endDate);
-      
-      const queryString = params.toString();
-      if (queryString) {
-        url += `?${queryString}`;
-      }
-      
-      const res = await fetch(url);
-      if (!res.ok) throw new Error("Failed to fetch analytics");
+      const res = await fetch(`http://127.0.0.1:8000/faculty/${facultyId}/analytics`);
       const data = await res.json();
       setAnalytics(data);
     } catch (err) {

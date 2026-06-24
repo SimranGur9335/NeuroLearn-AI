@@ -319,7 +319,12 @@ class ChangePasswordInput(BaseModel):
     new_password: str
 
 
-
+class QuizSubmitInput(BaseModel):
+    node_id: str
+    domain_id: str
+    score: float
+    total_questions: int
+    xp_earned: int
 
 
 # --- Audit Logging Helper ---
@@ -480,14 +485,18 @@ def login_route(data: LoginInput):
         access_token = create_access_token(token_payload)
         refresh_token = create_refresh_token(token_payload)
 
-        # Determine avatar based on role
+        # Determine avatar based on role or database avatar_url
         avatar = "🚀"
         if user.role == "super_admin":
             avatar = "👑"
         elif user.role == "admin":
             avatar = "🛡️"
-        elif user.role == "faculty":
-            avatar = "👨‍🏫"
+        elif user.role == "faculty" and user.faculty_id:
+            row = db.execute(text("SELECT avatar_url FROM faculty WHERE faculty_id = :fid"), {"fid": user.faculty_id}).fetchone()
+            avatar = row.avatar_url if row and row.avatar_url else "👨‍🏫"
+        elif user.role == "student" and user.student_id:
+            row = db.execute(text("SELECT avatar_url FROM students WHERE student_id = :sid"), {"sid": user.student_id}).fetchone()
+            avatar = row.avatar_url if row and row.avatar_url else "🚀"
 
         # Assemble user payload
         user_info = {
@@ -505,6 +514,8 @@ def login_route(data: LoginInput):
             user_info["student_id"] = user.student_id
             user_info["rollNumber"] = roll_number
             user_info["branch"] = branch
+            metrics_row = db.execute(text("SELECT xp_points FROM student_metrics WHERE student_id = :sid"), {"sid": user.student_id}).fetchone()
+            user_info["xp"] = metrics_row.xp_points if metrics_row else 0
         if user.faculty_id:
             user_info["faculty_id"] = user.faculty_id
             user_info["branch"] = branch
@@ -593,20 +604,35 @@ def refresh_token_route(data: RefreshInput):
         access_token = create_access_token(token_payload)
         new_refresh_token = create_refresh_token(token_payload)
 
+        # Determine avatar based on database avatar_url
+        avatar = "🚀"
+        if user.role == "super_admin":
+            avatar = "👑"
+        elif user.role == "admin":
+            avatar = "🛡️"
+        elif user.role == "faculty" and user.faculty_id:
+            row = db.execute(text("SELECT avatar_url FROM faculty WHERE faculty_id = :fid"), {"fid": user.faculty_id}).fetchone()
+            avatar = row.avatar_url if row and row.avatar_url else "👨‍🏫"
+        elif user.role == "student" and user.student_id:
+            row = db.execute(text("SELECT avatar_url FROM students WHERE student_id = :sid"), {"sid": user.student_id}).fetchone()
+            avatar = row.avatar_url if row and row.avatar_url else "🚀"
+
         user_info = {
             "email": user.email,
             "name": name,
             "role": user.role,
             "college": college,
             "institution_id": user.institution_id,
-    "theme_color": inst_color,
-    "logo_url": inst_logo,
-    "avatar": "🛡️" if user.role == "admin" else ("👨‍🏫" if user.role == "faculty" else "🚀")
-}
+            "theme_color": inst_color,
+            "logo_url": inst_logo,
+            "avatar": avatar
+        }
         if user.student_id:
             user_info["student_id"] = user.student_id
             user_info["rollNumber"] = roll_number
             user_info["branch"] = branch
+            metrics_row = db.execute(text("SELECT xp_points FROM student_metrics WHERE student_id = :sid"), {"sid": user.student_id}).fetchone()
+            user_info["xp"] = metrics_row.xp_points if metrics_row else 0
         if user.faculty_id:
             user_info["faculty_id"] = user.faculty_id
             user_info["branch"] = branch
@@ -845,7 +871,7 @@ def model_status():
 def predict_test():
     return {"predicted_grade": 14.8}
 
-@app.post("/predict/student-performance")
+@app.post("/api/predict/student-performance")
 def predict_student_performance(data: StudentPerformanceInput):
     if not student_model:
         return {"predicted_grade": 0.0, "error": "Model not loaded"}
@@ -3353,13 +3379,15 @@ def get_my_profile(current_user: dict = Depends(get_current_user)):
         if role == "student" and current_user["student_id"]:
             s = db.execute(text("SELECT * FROM students WHERE student_id = :sid"), {"sid": current_user["student_id"]}).fetchone()
             if s:
+                metrics_row = db.execute(text("SELECT xp_points FROM student_metrics WHERE student_id = :sid"), {"sid": current_user["student_id"]}).fetchone()
                 profile_data.update({
                     "name": s.full_name,
                     "rollNumber": s.roll_no,
                     "branch": s.department,
                     "semester": s.semester,
                     "division": s.division,
-                    "avatar": s.avatar_url or "🚀"
+                    "avatar": s.avatar_url or "🚀",
+                    "xp": metrics_row.xp_points if metrics_row else 0
                 })
         elif role == "faculty" and current_user["faculty_id"]:
             f = db.execute(text("SELECT * FROM faculty WHERE faculty_id = :fid"), {"fid": current_user["faculty_id"]}).fetchone()
@@ -3527,7 +3555,6 @@ def change_my_password(data: PasswordChangeInput, current_user: dict = Depends(g
         new_hash = hash_password(data.new_password)
         db.execute(text("UPDATE users SET password_hash = :hash, updated_at = CURRENT_TIMESTAMP WHERE user_id = :uid"), {"hash": new_hash, "uid": uid})
         db.commit()
-        
         # Log success
         db.execute(
             text("""
@@ -3535,8 +3562,6 @@ def change_my_password(data: PasswordChangeInput, current_user: dict = Depends(g
                 VALUES (:uid, :email, 'PASSWORD_CHANGE_SUCCESS', 'Successfully changed password', CURRENT_TIMESTAMP)
             """),
             {"uid": uid, "email": current_user["email"]}
-
-
         )
         db.commit()
         log_audit(db, "CHANGE_PASSWORD", "User", uid, performed_by=f"User {uid}")
@@ -3546,6 +3571,417 @@ def change_my_password(data: PasswordChangeInput, current_user: dict = Depends(g
         if isinstance(e, HTTPException):
             raise e
         raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        db.close()
+
+
+# --- Additional Schemas for AI & Wellness ---
+
+class AiChatInput(BaseModel):
+    prompt: str
+
+class WellnessMoodInput(BaseModel):
+    happiness: int
+    focus: int
+    frustration: int
+    stress: int
+
+class TargetCareerInput(BaseModel):
+    target_career: str
+
+
+# --- Additional Endpoints for AI, Wellness, & Career ---
+
+@app.get("/api/v1/ai/chat/history")
+def get_ai_chat_history(current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "student" or not current_user["student_id"]:
+        raise HTTPException(status_code=403, detail="Only students can access AI Mentor Chat history.")
+    
+    db = SessionLocal()
+    try:
+        sid = current_user["student_id"]
+        result = db.execute(
+            text("""
+                SELECT sender, message_text, code_text, created_at 
+                FROM mentor_messages 
+                WHERE student_id = :sid 
+                ORDER BY created_at ASC
+            """),
+            {"sid": sid}
+        ).fetchall()
+        
+        return [
+            {
+                "role": r.sender,
+                "text": r.message_text,
+                "code": r.code_text,
+                "date": r.created_at.strftime("%I:%M:%S %p") if r.created_at else ""
+            } for r in result
+        ]
+    finally:
+        db.close()
+
+@app.post("/api/v1/ai/chat")
+def send_ai_chat_message(data: AiChatInput, current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "student" or not current_user["student_id"]:
+        raise HTTPException(status_code=403, detail="Only students can chat with the AI Mentor.")
+    
+    db = SessionLocal()
+    try:
+        sid = current_user["student_id"]
+        prompt = data.prompt.strip()
+        if not prompt:
+            raise HTTPException(status_code=400, detail="Prompt cannot be empty.")
+        
+        # 1. Log the user's message in Supabase
+        db.execute(
+            text("""
+                INSERT INTO mentor_messages (student_id, sender, message_text, code_text)
+                VALUES (:sid, 'user', :msg, NULL)
+            """),
+            {"sid": sid, "msg": prompt}
+        )
+        db.commit()
+        
+        # 2. Get LLM response
+        reply = ""
+        code_block = None
+        
+        gemini_key = os.getenv("GEMINI_API_KEY")
+        if gemini_key:
+            try:
+                import google.generativeai as genai
+                genai.configure(api_key=gemini_key)
+                model = genai.GenerativeModel('gemini-1.5-flash')
+                
+                # Fetch some brief context history (last 5 messages)
+                history_records = db.execute(
+                    text("""
+                        SELECT sender, message_text 
+                        FROM mentor_messages 
+                        WHERE student_id = :sid 
+                        ORDER BY created_at DESC 
+                        LIMIT 6
+                    """),
+                    {"sid": sid}
+                ).fetchall()
+                history_records.reverse()
+                
+                chat_history = []
+                for hr in history_records[:-1]: # exclude the one we just inserted
+                    role = "user" if hr.sender == "user" else "model"
+                    chat_history.append({"role": role, "parts": [hr.message_text]})
+                
+                chat = model.start_chat(history=chat_history)
+                response = chat.send_message(prompt)
+                full_response = response.text
+                
+                # Extract code block if any (markdown ``` block)
+                import re
+                code_match = re.search(r'```(?:\w*)\n(.*?)```', full_response, re.DOTALL)
+                if code_match:
+                    code_block = code_match.group(1).strip()
+                    # Remove code block from standard text response
+                    reply = re.sub(r'```(?:\w*)\n(.*?)```', '', full_response, flags=re.DOTALL).strip()
+                else:
+                    reply = full_response
+            except Exception as e:
+                print(f"Gemini API execution error: {e}")
+                reply = f"System Error executing AI prompt. Falling back to local offline diagnostics..."
+        
+        # Heuristics Fallback
+        if not reply or reply.startswith("System Error"):
+            lower_prompt = prompt.lower()
+            if "vanishing gradient" in lower_prompt or "vanishing gradients" in lower_prompt:
+                reply = """The vanishing gradient problem occurs during the training of deep neural networks using backpropagation, where gradients shrink exponentially as they propagate backward through the network layers.
+
+### Mathematical Breakdown
+During backpropagation, the gradient of the loss function L with respect to weight w1 in the first layer is computed using the Chain Rule:
+∂L/∂w1 = (∂L/∂a_d) * (∂a_d/∂a_d-1) * ... * (∂a_2/∂a_1) * (∂a_1/∂w_1)
+
+If the activation functions (like Sigmoid or Tanh) have derivatives strictly less than 1 (f'(x) <= 0.25 for Sigmoid), multiplying many of these terms together causes the product to approach 0. Consequently, the weights of early layers update extremely slowly, halting learning.
+
+### Standard Solutions
+1. Activation Functions: Use ReLU (f(x) = max(0, x)) or its variants (Leaky ReLU) in hidden layers since their derivative is 1 for positive inputs.
+2. Weight Initialization: Implement He (Kaiming) or Xavier (Glorot) initializations to maintain stable variance across layers.
+3. Batch Normalization: Normalize inputs to each layer, preventing activations from saturated bounds.
+4. Residual Connections: Skip connections (e.g. ResNet) allow gradients to bypass layers without shrinking."""
+                code_block = """import torch.nn as nn
+
+# Correct implementation using Residual connections and ReLU
+class ResidualBlock(nn.Module):
+    def __init__(self, channels):
+        super().__init__()
+        self.conv1 = nn.Conv2d(channels, channels, kernel_size=3, padding=1)
+        self.bn1 = nn.BatchNorm2d(channels)
+        self.relu = nn.ReLU()
+        
+    def forward(self, x):
+        residual = x
+        out = self.conv1(x)
+        out = self.bn1(out)
+        out = self.relu(out)
+        # Adding residual connection preserves gradients
+        return out + residual"""
+            elif "secure" in lower_prompt and ("express" in lower_prompt or "sqli" in lower_prompt):
+                reply = """Securing an Express application against SQL Injection (SQLi) requires preventing user inputs from being interpreted as database query commands.
+
+### Best Practices for Secure Node/SQL Design
+1. Never Concatenate Inputs: Do not write strings like "SELECT * FROM users WHERE name = '" + req.body.name + "'".
+2. Prepared Statements: Leverage parameterized queries. Database drivers compile the query structure first, ensuring user variables are treated strictly as data indices.
+3. ORM/Query Builders: Use libraries like Sequelize, Knex, or Prisma which implement prepared parameters out of the box.
+4. Input Validation: Use schemas (e.g., Joi, Zod) to validate and sanitize incoming payloads."""
+                code_block = """const express = require('express');
+const mysql = require('mysql2/promise');
+const app = express();
+
+const pool = mysql.createPool({ host: 'localhost', database: 'college_db' });
+
+// SECURE: Parameterized Query
+app.post('/api/student-profile', async (req, res) => {
+  const { rollNumber } = req.body;
+  try {
+    // The '?' acts as a placeholder. mysql2 safely sanitizes variables.
+    const [rows] = await pool.execute(
+      'SELECT * FROM students WHERE roll_number = ?',
+      [rollNumber]
+    );
+    res.json(rows[0]);
+  } catch (err) {
+    res.status(500).send("Database error");
+  }
+});"""
+            elif "kubernetes" in lower_prompt or "fastapi" in lower_prompt or "capstone" in lower_prompt:
+                reply = """Here is a high-yield, college Capstone-level project architecture that integrates FastAPI, Kubernetes (K8s), and Distributed Systems principles.
+
+### Project Title: "AeroPulse - High-Frequency IoT Analytics Engine"
+
+### Core Architecture Components
+1. Ingress Layer: Ingress routing HTTP telemetry packets to the K8s cluster.
+2. Compute Nodes (FastAPI): Lightweight, asynchronous FastAPI microservices running in Docker containers. Auto-scaled using K8s Horizontal Pod Autoscaler (HPA) based on load.
+3. Broker (Redis/RabbitMQ): A queue container cluster separating compute ingestion from database persistence.
+4. Analytics Worker: Python scripts analyzing anomalies (e.g., sensor outlier spikes) utilizing scientific libraries.
+5. UI (Vite + Recharts): Real-time visualization charting engine.
+
+### Learning Projections & Faculty Selling Point
+- Concurrency: Showcases FastAPI's async execution handling 5,000+ mock IoT sensor readings/sec.
+- Resilience: Simulates container failure to prove Kubernetes self-healing replica policies.
+- Scaling: Demonstrates dynamic container scale-out when CPU load exceeds 70%."""
+                code_block = """# deployment.yaml (Kubernetes HPA config)
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: aeropulse-ingestion-hpa
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: aeropulse-ingestion
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70"""
+            else:
+                reply = f"That's an interesting technical question! I can help you model that concept, draft an architecture, or review configurations. (Using offline fallback mode. Configure GEMINI_API_KEY in .env for active generative support.)"
+                code_block = None
+
+        # 3. Log the AI's response in Supabase
+        db.execute(
+            text("""
+                INSERT INTO mentor_messages (student_id, sender, message_text, code_text)
+                VALUES (:sid, 'assistant', :msg, :code)
+            """),
+            {"sid": sid, "msg": reply, "code": code_block}
+        )
+        db.commit()
+        
+        return {
+            "role": "assistant",
+            "text": reply,
+            "code": code_block,
+            "date": datetime.now().strftime("%I:%M:%S %p")
+        }
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        db.close()
+
+@app.post("/api/v1/wellness/mood")
+def log_wellness_mood(data: WellnessMoodInput, current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "student" or not current_user["student_id"]:
+        raise HTTPException(status_code=403, detail="Only students can log mood vectors.")
+    
+    db = SessionLocal()
+    try:
+        sid = current_user["student_id"]
+        db.execute(
+            text("""
+                INSERT INTO wellness_mood_logs (student_id, happiness, focus, frustration, stress)
+                VALUES (:sid, :hap, :foc, :fru, :str)
+            """),
+            {
+                "sid": sid,
+                "hap": data.happiness,
+                "foc": data.focus,
+                "fru": data.frustration,
+                "str": data.stress
+            }
+        )
+        db.commit()
+        return {"success": True, "message": "Mood logged successfully"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        db.close()
+
+@app.get("/api/v1/wellness/mood/history")
+def get_wellness_mood_history(current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "student" or not current_user["student_id"]:
+        raise HTTPException(status_code=403, detail="Only students can view mood history.")
+    
+    db = SessionLocal()
+    try:
+        sid = current_user["student_id"]
+        result = db.execute(
+            text("""
+                SELECT happiness, focus, frustration, stress, log_date 
+                FROM wellness_mood_logs 
+                WHERE student_id = :sid 
+                ORDER BY created_at DESC 
+                LIMIT 7
+            """),
+            {"sid": sid}
+        ).fetchall()
+        
+        history_list = []
+        for r in result:
+            history_list.append({
+                "day": r.log_date.strftime("%a") if r.log_date else "Today",
+                "happy": int(r.happiness),
+                "focused": int(r.focus),
+                "frustrated": int(r.frustration),
+                "stressed": int(r.stress)
+            })
+        
+        history_list.reverse()
+        
+        # Baseline mock history if empty
+        if not history_list:
+            return [
+                { "day": "Mon", "focused": 30, "happy": 45, "frustrated": 15, "stressed": 10 },
+                { "day": "Tue", "focused": 35, "happy": 48, "frustrated": 10, "stressed": 7 },
+                { "day": "Wed", "focused": 45, "happy": 35, "frustrated": 12, "stressed": 8 },
+                { "day": "Thu", "focused": 25, "happy": 40, "frustrated": 20, "stressed": 15 },
+                { "day": "Fri", "focused": 38, "happy": 42, "frustrated": 12, "stressed": 8 },
+                { "day": "Sat", "focused": 40, "happy": 45, "frustrated": 10, "stressed": 5 },
+                { "day": "Today", "focused": 70, "happy": 60, "frustrated": 20, "stressed": 15 }
+            ]
+        
+        if history_list:
+            history_list[-1]["day"] = "Today"
+            
+        return history_list
+    finally:
+        db.close()
+
+@app.post("/api/v1/wellness/focus")
+def complete_focus_session(current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "student" or not current_user["student_id"]:
+        raise HTTPException(status_code=403, detail="Only students can complete focus sessions.")
+    
+    db = SessionLocal()
+    try:
+        sid = current_user["student_id"]
+        # 1. Log completed focus session
+        db.execute(
+            text("INSERT INTO wellness_focus_sessions (student_id) VALUES (:sid)"),
+            {"sid": sid}
+        )
+        
+        # 2. Add +50 XP to student_metrics
+        db.execute(
+            text("""
+                UPDATE student_metrics
+                SET xp_points = xp_points + 50, updated_at = CURRENT_TIMESTAMP
+                WHERE student_id = :sid
+            """),
+            {"sid": sid}
+        )
+        
+        # Fetch updated XP
+        updated_xp = db.execute(
+            text("SELECT xp_points FROM student_metrics WHERE student_id = :sid"),
+            {"sid": sid}
+        ).scalar() or 0
+        
+        db.commit()
+        return {"success": True, "xp_points": updated_xp}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        db.close()
+
+@app.get("/api/v1/wellness/focus/stats")
+def get_focus_session_stats(current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "student" or not current_user["student_id"]:
+        raise HTTPException(status_code=403, detail="Only students can fetch focus stats.")
+    
+    db = SessionLocal()
+    try:
+        sid = current_user["student_id"]
+        count = db.execute(
+            text("SELECT COUNT(*) FROM wellness_focus_sessions WHERE student_id = :sid"),
+            {"sid": sid}
+        ).scalar() or 0
+        return {"completed_sessions": count}
+    finally:
+        db.close()
+
+@app.post("/api/v1/student/target-career")
+def set_target_career(data: TargetCareerInput, current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "student" or not current_user["student_id"]:
+        raise HTTPException(status_code=403, detail="Only students can set target careers.")
+    
+    db = SessionLocal()
+    try:
+        sid = current_user["student_id"]
+        db.execute(
+            text("""
+                UPDATE student_metrics
+                SET target_career = :tc, updated_at = CURRENT_TIMESTAMP
+                WHERE student_id = :sid
+            """),
+            {"tc": data.target_career, "sid": sid}
+        )
+        db.commit()
+        return {"success": True, "message": "Target career updated successfully"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        db.close()
+
+@app.get("/api/v1/student/target-career")
+def get_target_career(current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "student" or not current_user["student_id"]:
+        raise HTTPException(status_code=403, detail="Only students can fetch target careers.")
+    
+    db = SessionLocal()
+    try:
+        sid = current_user["student_id"]
+        tc = db.execute(
+            text("SELECT target_career FROM student_metrics WHERE student_id = :sid"),
+            {"sid": sid}
+        ).scalar() or "ai-engineer"
+        return {"target_career": tc}
     finally:
         db.close()
 
@@ -3596,33 +4032,18 @@ def get_report_enrollments(current_user: dict = Depends(require_role(["admin"]))
     db = SessionLocal()
     try:
         iid = current_user["institution_id"]
-        is_sqlite = db.bind.dialect.name == 'sqlite'
-        if is_sqlite:
-            query = text("""
-                SELECT strftime('%Y', s.created_at) AS year,
-                       SUM(CASE WHEN s.department = 'CS' THEN 1 ELSE 0 END) AS CS,
-                       SUM(CASE WHEN s.department = 'IT' THEN 1 ELSE 0 END) AS IT,
-                       SUM(CASE WHEN s.department = 'ECE' THEN 1 ELSE 0 END) AS ECE,
-                       SUM(CASE WHEN s.department = 'EEE' THEN 1 ELSE 0 END) AS EEE,
-                       SUM(CASE WHEN s.department = 'ME' THEN 1 ELSE 0 END) AS ME
-                FROM students s
-                WHERE s.institution_id = :iid
-                GROUP BY year
-                ORDER BY year ASC
-            """)
-        else:
-            query = text("""
-                SELECT EXTRACT(YEAR FROM s.created_at) AS year,
-                       SUM(CASE WHEN s.department = 'CS' THEN 1 ELSE 0 END) AS CS,
-                       SUM(CASE WHEN s.department = 'IT' THEN 1 ELSE 0 END) AS IT,
-                       SUM(CASE WHEN s.department = 'ECE' THEN 1 ELSE 0 END) AS ECE,
-                       SUM(CASE WHEN s.department = 'EEE' THEN 1 ELSE 0 END) AS EEE,
-                       SUM(CASE WHEN s.department = 'ME' THEN 1 ELSE 0 END) AS ME
-                FROM students s
-                WHERE s.institution_id = :iid
-                GROUP BY EXTRACT(YEAR FROM s.created_at)
-                ORDER BY year ASC
-            """)
+        query = text("""
+            SELECT EXTRACT(YEAR FROM s.created_at) AS year,
+                   SUM(CASE WHEN s.department = 'CS' THEN 1 ELSE 0 END) AS CS,
+                   SUM(CASE WHEN s.department = 'IT' THEN 1 ELSE 0 END) AS IT,
+                   SUM(CASE WHEN s.department = 'ECE' THEN 1 ELSE 0 END) AS ECE,
+                   SUM(CASE WHEN s.department = 'EEE' THEN 1 ELSE 0 END) AS EEE,
+                   SUM(CASE WHEN s.department = 'ME' THEN 1 ELSE 0 END) AS ME
+            FROM students s
+            WHERE s.institution_id = :iid
+            GROUP BY EXTRACT(YEAR FROM s.created_at)
+            ORDER BY year ASC
+        """)
         result = db.execute(query, {"iid": iid}).fetchall()
         
         # If no yearly data exists, return baseline mock trajectory
@@ -3652,29 +4073,16 @@ def get_report_active_sessions(current_user: dict = Depends(require_role(["admin
     db = SessionLocal()
     try:
         iid = current_user["institution_id"]
-        is_sqlite = db.bind.dialect.name == 'sqlite'
-        if is_sqlite:
-            query = text("""
-                SELECT strftime('%H:00', se.created_at) AS hour,
-                       COUNT(DISTINCT se.user_id) AS users
-                FROM security_events se
-                WHERE se.event_type = 'LOGIN_SUCCESS' 
-                  AND se.created_at >= datetime('now', '-24 hours')
-                  AND se.institution_id = :iid
-                GROUP BY hour
-                ORDER BY hour;
-            """)
-        else:
-            query = text("""
-                SELECT TO_CHAR(se.created_at, 'HH24:00') AS hour,
-                       COUNT(DISTINCT se.user_id) AS users
-                FROM security_events se
-                WHERE se.event_type = 'LOGIN_SUCCESS' 
-                  AND se.created_at >= NOW() - INTERVAL '24 hours'
-                  AND se.institution_id = :iid
-                GROUP BY hour
-                ORDER BY hour;
-            """)
+        query = text("""
+            SELECT TO_CHAR(se.created_at, 'HH24:00') AS hour,
+                   COUNT(DISTINCT se.user_id) AS users
+            FROM security_events se
+            WHERE se.event_type = 'LOGIN_SUCCESS' 
+              AND se.created_at >= NOW() - INTERVAL '24 hours'
+              AND se.institution_id = :iid
+            GROUP BY hour
+            ORDER BY hour;
+        """)
         result = db.execute(query, {"iid": iid}).fetchall()
         
         if not result:
@@ -4068,26 +4476,14 @@ def get_monthly_attendance_report(class_id: int, subject_id: int, month: int, ye
             ORDER BY s.roll_no
         """), {"cid": class_id}).fetchall()
         
-        # Load records in this month, handles SQLite vs PostgreSQL dialects
-        is_sqlite = db.bind.dialect.name == 'sqlite'
-        if is_sqlite:
-            month_str = f"{month:02d}"
-            year_str = f"{year:04d}"
-            records = db.execute(text("""
-                SELECT student_id, attendance_date, status
-                FROM attendance_records
-                WHERE class_id = :cid AND subject_id = :sid
-                  AND strftime('%m', attendance_date) = :m
-                  AND strftime('%Y', attendance_date) = :y
-            """), {"cid": class_id, "sid": subject_id, "m": month_str, "y": year_str}).fetchall()
-        else:
-            records = db.execute(text("""
-                SELECT student_id, attendance_date, status
-                FROM attendance_records
-                WHERE class_id = :cid AND subject_id = :sid
-                  AND EXTRACT(MONTH FROM attendance_date) = :m
-                  AND EXTRACT(YEAR FROM attendance_date) = :y
-            """), {"cid": class_id, "sid": subject_id, "m": month, "y": year}).fetchall()
+        # Load records in this month
+        records = db.execute(text("""
+            SELECT student_id, attendance_date, status
+            FROM attendance_records
+            WHERE class_id = :cid AND subject_id = :sid
+              AND EXTRACT(MONTH FROM attendance_date) = :m
+              AND EXTRACT(YEAR FROM attendance_date) = :y
+        """), {"cid": class_id, "sid": subject_id, "m": month, "y": year}).fetchall()
         
         # Build matrix
         student_records = {s.student_id: {} for s in students}
@@ -5976,39 +6372,21 @@ def get_monitoring_status(current_user: dict = Depends(require_role(["admin", "s
         iid = current_user.get("institution_id")
         
         # Count distinct user logins in the past 24 hours
-        is_sqlite = db.bind.dialect.name == 'sqlite'
         if role == "super_admin":
-            if is_sqlite:
-                active_users = db.execute(text("""
-                    SELECT COUNT(DISTINCT user_id) 
-                    FROM security_events 
-                    WHERE event_type = 'LOGIN_SUCCESS' 
-                      AND created_at >= datetime('now', '-24 hours')
-                """)).scalar() or 0
-            else:
-                active_users = db.execute(text("""
-                    SELECT COUNT(DISTINCT user_id) 
-                    FROM security_events 
-                    WHERE event_type = 'LOGIN_SUCCESS' 
-                      AND created_at >= NOW() - INTERVAL '24 hours'
-                """)).scalar() or 0
+            active_users = db.execute(text("""
+                SELECT COUNT(DISTINCT user_id) 
+                FROM security_events 
+                WHERE event_type = 'LOGIN_SUCCESS' 
+                  AND created_at >= NOW() - INTERVAL '24 hours'
+            """)).scalar() or 0
         else:
-            if is_sqlite:
-                active_users = db.execute(text("""
-                    SELECT COUNT(DISTINCT user_id) 
-                    FROM security_events 
-                    WHERE event_type = 'LOGIN_SUCCESS' 
-                      AND created_at >= datetime('now', '-24 hours')
-                      AND institution_id = :iid
-                """), {"iid": iid}).scalar() or 0
-            else:
-                active_users = db.execute(text("""
-                    SELECT COUNT(DISTINCT user_id) 
-                    FROM security_events 
-                    WHERE event_type = 'LOGIN_SUCCESS' 
-                      AND created_at >= NOW() - INTERVAL '24 hours'
-                      AND institution_id = :iid
-                """), {"iid": iid}).scalar() or 0
+            active_users = db.execute(text("""
+                SELECT COUNT(DISTINCT user_id) 
+                FROM security_events 
+                WHERE event_type = 'LOGIN_SUCCESS' 
+                  AND created_at >= NOW() - INTERVAL '24 hours'
+                  AND institution_id = :iid
+            """), {"iid": iid}).scalar() or 0
                 
         return {
             "database_status": db_status,
@@ -6016,340 +6394,5 @@ def get_monitoring_status(current_user: dict = Depends(require_role(["admin", "s
             "storage_status": "Coming Soon",
             "active_users": active_users
         }
-    finally:
-        db.close()
-
-
-# --- Faculty Portal Command Center Additions (Sprint 1 & 2) ---
-
-@app.post("/faculty/student/{student_id}/intervention")
-def post_student_intervention(
-    student_id: int, 
-    data: StudentInterventionUpdateInput, 
-    current_user: dict = Depends(get_current_user)
-):
-    if current_user["role"] not in ["admin", "faculty"]:
-        raise HTTPException(status_code=403, detail="Access denied")
-    
-    db = SessionLocal()
-    try:
-        # Security validation: make sure faculty has access to student
-        verify_student_access(current_user, student_id)
-        
-        # Check if student metrics row exists
-        row = db.execute(
-            text("SELECT 1 FROM student_metrics WHERE student_id = :sid"),
-            {"sid": student_id}
-        ).fetchone()
-        
-        if not row:
-            # Seed standard metrics row for student if somehow missing
-            db.execute(text("""
-                INSERT INTO student_metrics (student_id, attendance_percentage, average_quiz_score, predicted_gpa, risk_level, warnings_count, last_updated)
-                VALUES (:sid, 80.0, 70.0, 3.0, 'Low', 0, CURRENT_TIMESTAMP)
-            """), {"sid": student_id})
-            db.commit()
-
-        # Update notes and status
-        db.execute(text("""
-            UPDATE student_metrics
-            SET faculty_notes = :notes,
-                intervention_status = :status,
-                last_updated = CURRENT_TIMESTAMP
-            WHERE student_id = :sid
-        """), {
-            "notes": data.faculty_notes,
-            "status": data.intervention_status or "Not Contacted",
-            "sid": student_id
-        })
-        db.commit()
-        log_audit(db, "STUDENT_INTERVENTION_UPDATE", "student_metrics", student_id, f"Faculty {data.faculty_id}")
-        return {"message": "Intervention details updated successfully"}
-    except HTTPException as he:
-        raise he
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
-    finally:
-        db.close()
-
-@app.post("/assignments/{assignment_id}/close")
-def close_assignment(
-    assignment_id: int, 
-    data: CloseAssignmentInput, 
-    current_user: dict = Depends(get_current_user)
-):
-    if current_user["role"] not in ["admin", "faculty"]:
-        raise HTTPException(status_code=403, detail="Access denied")
-    
-    db = SessionLocal()
-    try:
-        assign = db.execute(
-            text("SELECT class_id, subject_id FROM assignments WHERE assignment_id = :aid"),
-            {"aid": assignment_id}
-        ).fetchone()
-        if not assign:
-            raise HTTPException(status_code=404, detail="Assignment not found")
-        
-        verify_faculty_access(db, data.faculty_id, assign.class_id, assign.subject_id)
-        
-        db.execute(
-            text("UPDATE assignments SET status = 'Closed' WHERE assignment_id = :aid"),
-            {"aid": assignment_id}
-        )
-        db.commit()
-        log_audit(db, "CLOSE_ASSIGNMENT", "assignments", assignment_id, f"Faculty {data.faculty_id}")
-        return {"message": "Assignment manually closed successfully."}
-    except HTTPException as he:
-        raise he
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
-    finally:
-        db.close()
-
-@app.get("/assignments/{assignment_id}/submissions-analytics")
-def get_assignment_submissions_analytics(
-    assignment_id: int,
-    faculty_id: int,
-    current_user: dict = Depends(get_current_user)
-):
-    if current_user["role"] not in ["admin", "faculty"]:
-        raise HTTPException(status_code=403, detail="Access denied")
-        
-    db = SessionLocal()
-    try:
-        assign = db.execute(
-            text("SELECT class_id, subject_id, total_marks FROM assignments WHERE assignment_id = :aid"),
-            {"aid": assignment_id}
-        ).fetchone()
-        if not assign:
-            raise HTTPException(status_code=404, detail="Assignment not found")
-            
-        verify_faculty_access(db, faculty_id, assign.class_id, assign.subject_id)
-        
-        # Calculate analytics
-        # 1. Total Enrolled Students
-        total_enrolled = db.execute(
-            text("SELECT COUNT(*) FROM enrollments WHERE class_id = :cid"),
-            {"cid": assign.class_id}
-        ).scalar() or 0
-        
-        # 2. Status counts
-        submissions = db.execute(
-            text("SELECT status, submitted_at FROM assignment_submissions WHERE assignment_id = :aid"),
-            {"aid": assignment_id}
-        ).fetchall()
-        
-        submitted_count = 0
-        pending_count = 0
-        late_count = 0
-        missing_count = 0
-        
-        for sub in submissions:
-            if sub.status == 'Submitted':
-                submitted_count += 1
-            elif sub.status == 'Late':
-                late_count += 1
-            elif sub.status == 'Pending':
-                pending_count += 1
-            elif sub.status == 'Missing':
-                missing_count += 1
-                
-        # Fill gaps: if submission records are fewer than enrolled, the rest are pending
-        total_records = len(submissions)
-        if total_records < total_enrolled:
-            pending_count += (total_enrolled - total_records)
-            
-        submission_rate = round((submitted_count + late_count) / total_enrolled * 100, 1) if total_enrolled > 0 else 0.0
-        
-        return {
-            "total_enrolled": total_enrolled,
-            "submitted_count": submitted_count,
-            "pending_count": pending_count,
-            "late_count": late_count,
-            "missing_count": missing_count,
-            "submission_rate": submission_rate
-        }
-    except HTTPException as he:
-        raise he
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-    finally:
-        db.close()
-
-@app.post("/remedial/sessions")
-def create_remedial_session(
-    data: RemedialSessionCreateInput,
-    current_user: dict = Depends(get_current_user)
-):
-    if current_user["role"] not in ["admin", "faculty"]:
-        raise HTTPException(status_code=403, detail="Access denied")
-        
-    db = SessionLocal()
-    try:
-        verify_faculty_access(db, data.faculty_id, data.class_id, data.subject_id)
-        
-        # Insert session
-        res = db.execute(text("""
-            INSERT INTO remedial_sessions (faculty_id, class_id, subject_id, topic, description, session_date, session_time, location, created_at)
-            VALUES (:fid, :cid, :sid, :topic, :desc, :date, :time, :loc, CURRENT_TIMESTAMP)
-            RETURNING session_id
-        """), {
-            "fid": data.faculty_id,
-            "cid": data.class_id,
-            "sid": data.subject_id,
-            "topic": data.topic,
-            "desc": data.description,
-            "date": data.session_date,
-            "time": data.session_time,
-            "loc": data.location
-        })
-        session_id = res.scalar()
-        
-        # Validate student enrollment & insert invitations
-        for student_id in data.student_ids:
-            # Verify student is in this class
-            enr = db.execute(
-                text("SELECT 1 FROM enrollments WHERE student_id = :sid AND class_id = :cid"),
-                {"sid": student_id, "cid": data.class_id}
-            ).fetchone()
-            if enr:
-                db.execute(text("""
-                    INSERT INTO remedial_invitations (session_id, student_id, status, created_at)
-                    VALUES (:sess_id, :stud_id, 'Invited', CURRENT_TIMESTAMP)
-                    ON CONFLICT (session_id, student_id) DO NOTHING
-                """), {"sess_id": session_id, "stud_id": student_id})
-                
-        db.commit()
-        log_audit(db, "CREATE_REMEDIAL_SESSION", "remedial_sessions", session_id, f"Faculty {data.faculty_id}")
-        return {"message": "Remedial session scheduled successfully", "session_id": session_id}
-    except HTTPException as he:
-        raise he
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
-    finally:
-        db.close()
-
-@app.get("/remedial/sessions")
-def get_remedial_sessions(
-    faculty_id: int,
-    current_user: dict = Depends(get_current_user)
-):
-    if current_user["role"] not in ["admin", "faculty"]:
-        raise HTTPException(status_code=403, detail="Access denied")
-        
-    db = SessionLocal()
-    try:
-        # Return all remedial sessions created by the faculty
-        # Include subject name and class name
-        sessions = db.execute(text("""
-            SELECT rs.*, c.class_name, sub.subject_name
-            FROM remedial_sessions rs
-            JOIN classes c ON rs.class_id = c.class_id
-            JOIN subjects sub ON rs.subject_id = sub.subject_id
-            WHERE rs.faculty_id = :fid
-            ORDER BY rs.session_date DESC, rs.session_time DESC
-        """), {"fid": faculty_id}).fetchall()
-        
-        result = []
-        for s in sessions:
-            result.append({
-                "session_id": s.session_id,
-                "class_id": s.class_id,
-                "class_name": s.class_name,
-                "subject_id": s.subject_id,
-                "subject_name": s.subject_name,
-                "topic": s.topic,
-                "description": s.description,
-                "session_date": str(s.session_date),
-                "session_time": s.session_time,
-                "location": s.location,
-                "created_at": str(s.created_at)
-            })
-        return result
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-    finally:
-        db.close()
-
-@app.get("/remedial/sessions/{session_id}/invitations")
-def get_remedial_session_invitations(
-    session_id: int,
-    faculty_id: int,
-    current_user: dict = Depends(get_current_user)
-):
-    if current_user["role"] not in ["admin", "faculty"]:
-        raise HTTPException(status_code=403, detail="Access denied")
-        
-    db = SessionLocal()
-    try:
-        # Validate faculty owns session
-        sess = db.execute(
-            text("SELECT faculty_id FROM remedial_sessions WHERE session_id = :sid"),
-            {"sid": session_id}
-        ).fetchone()
-        if not sess or sess.faculty_id != faculty_id:
-            raise HTTPException(status_code=403, detail="Access denied: You do not own this remedial session.")
-            
-        invitations = db.execute(text("""
-            SELECT ri.*, s.full_name, s.roll_no, s.email
-            FROM remedial_invitations ri
-            JOIN students s ON ri.student_id = s.student_id
-            WHERE ri.session_id = :sid
-        """), {"sid": session_id}).fetchall()
-        
-        return [
-            {
-                "invitation_id": ri.invitation_id,
-                "session_id": ri.session_id,
-                "student_id": ri.student_id,
-                "student_name": ri.full_name,
-                "roll_no": ri.roll_no,
-                "email": ri.email,
-                "status": ri.status,
-                "created_at": str(ri.created_at)
-            } for ri in invitations
-        ]
-    except HTTPException as he:
-        raise he
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-    finally:
-        db.close()
-
-@app.post("/remedial/invitations/{invitation_id}/status")
-def update_remedial_invitation_status(
-    invitation_id: int,
-    data: UpdateInvitationStatusInput,
-    current_user: dict = Depends(get_current_user)
-):
-    if current_user["role"] not in ["admin", "faculty"]:
-        raise HTTPException(status_code=403, detail="Access denied")
-        
-    db = SessionLocal()
-    try:
-        # Validate that faculty owns the associated session
-        sess = db.execute(text("""
-            SELECT rs.faculty_id FROM remedial_sessions rs
-            JOIN remedial_invitations ri ON rs.session_id = ri.session_id
-            WHERE ri.invitation_id = :iid
-        """), {"iid": invitation_id}).fetchone()
-        if not sess or sess.faculty_id != data.faculty_id:
-            raise HTTPException(status_code=403, detail="Access denied: You do not own this remedial session.")
-            
-        db.execute(text("""
-            UPDATE remedial_invitations
-            SET status = :status
-            WHERE invitation_id = :iid
-        """), {"status": data.status, "iid": invitation_id})
-        db.commit()
-        return {"message": "Invitation status updated successfully"}
-    except HTTPException as he:
-        raise he
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
     finally:
         db.close()

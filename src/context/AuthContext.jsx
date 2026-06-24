@@ -12,8 +12,6 @@ window.fetch = async function (url, options = {}) {
   const apiBase = import.meta.env.VITE_API_URL || '';
 
   const isBackend = typeof url === 'string' && (
-    url.includes('localhost:8000') ||
-    url.includes('127.0.0.1:8000') ||
     url.startsWith('/api/') ||
     url.startsWith('/admin/') ||
     url.startsWith('/class/') ||
@@ -22,7 +20,11 @@ window.fetch = async function (url, options = {}) {
     url.startsWith('/attendance/') ||
     url.startsWith('/marks') ||
     url.startsWith('/submissions/') ||
-    url.startsWith('/announcements')
+    url.startsWith('/announcements') ||
+    url.startsWith('/predict/') ||
+    url.startsWith('/quiz/') ||
+    url.includes('localhost:8000') ||
+    url.includes('127.0.0.1:8000')
   );
 
   if (isBackend) {
@@ -30,8 +32,6 @@ window.fetch = async function (url, options = {}) {
       if (apiBase) {
         const cleanApiBase = apiBase.endsWith('/') ? apiBase.slice(0, -1) : apiBase;
         targetUrl = url.replace(/^https?:\/\/(localhost|127\.0\.0\.1):8000/, cleanApiBase);
-      } else if (url.includes('127.0.0.1:8000')) {
-        targetUrl = url.replace('127.0.0.1:8000', 'localhost:8000');
       }
     } else if (url.startsWith('/')) {
       if (apiBase && (apiBase.startsWith('http://') || apiBase.startsWith('https://'))) {
@@ -193,7 +193,7 @@ export const AuthProvider = ({ children }) => {
   const updateProfile = async (updatedFields) => {
     if (!user) return;
     try {
-      const res = await fetch("http://localhost:8000/api/v1/profile/update", {
+      const res = await fetch("/api/v1/profile/update", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(updatedFields)
@@ -234,7 +234,7 @@ export const AuthProvider = ({ children }) => {
   const updateAvatar = async (avatarUrl) => {
     if (!user) return;
     try {
-      const res = await fetch("http://localhost:8000/api/v1/profile/avatar", {
+      const res = await fetch("/api/v1/profile/avatar", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ avatar_url: avatarUrl })

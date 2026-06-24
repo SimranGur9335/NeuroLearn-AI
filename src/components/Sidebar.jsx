@@ -46,8 +46,7 @@ const Sidebar = () => {
     { name: 'Leaderboard & Badges', path: '/leaderboard', icon: Trophy },
     { name: 'AI Mentor Chat', path: '/ai/chat', icon: MessageSquareCode },
     { name: 'Academic Predictions', path: '/ai/predictions', icon: Brain },
-    { name: 'Learning Wellness', path: '/ai/emotions', icon: Smile },
-    { name: 'AI Smart Advisor', path: '/ai/recommendations', icon: Sparkles }
+    { name: 'Learning Wellness', path: '/ai/emotions', icon: Smile }
   ];
 
   const theme = THEME_ACCENT_MAP[profile.theme_color] || THEME_ACCENT_MAP.indigo;

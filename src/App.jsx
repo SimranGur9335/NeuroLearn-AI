@@ -35,7 +35,6 @@ import Leaderboard from './pages/Leaderboard';
 import AiMentorChat from './pages/ai/AiMentorChat';
 import PerformancePrediction from './pages/ai/PerformancePrediction';
 import EmotionAnalysis from './pages/ai/EmotionAnalysis';
-import RecommendationEngine from './pages/ai/RecommendationEngine';
 
 // Student Hub Pages
 import StudentHubHome from './pages/student-hub/StudentHubHome';
@@ -45,6 +44,7 @@ import AttendancePage from './pages/student-hub/AttendancePage';
 import GradesPage from './pages/student-hub/GradesPage';
 import AnnouncementsPage from './pages/student-hub/AnnouncementsPage';
 import CalendarPage from './pages/student-hub/CalendarPage';
+import PredictionsPage from './pages/student-hub/PredictionsPage';
 
 // Faculty Portal Pages
 import FacultyDashboard from './pages/faculty/FacultyDashboard';
@@ -159,8 +159,6 @@ function App() {
               <Route path="/faculty/announcements" element={<FacultyAnnouncement />} />
               <Route path="/faculty/assignments" element={<AssignmentManagement />} />
               <Route path="/faculty/gradebook" element={<MarksGradebook />} />
-              <Route path="/faculty/remedial" element={<RemedialSessions />} />
-              <Route path="/faculty/profile" element={<FacultySelfProfile />} />
             </Route>
 
             {/* Admin Portal Layout & Routes */}

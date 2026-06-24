@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   User, 
@@ -12,7 +12,9 @@ import {
   ShieldAlert,
   CheckCircle,
   Eye,
-  EyeOff
+  EyeOff,
+  UserCheck,
+  Percent
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useStudent } from '../context/StudentContext';
@@ -38,7 +40,27 @@ const Profile = () => {
   const [passSuccessMsg, setPassSuccessMsg] = useState("");
   const [passErrorMsg, setPassErrorMsg] = useState("");
 
-  const handleUpdateDetails = (e) => {
+  // Sync state if user loads later
+  useEffect(() => {
+    if (user) {
+      setFormName(user.name || "");
+      setFormMobile(user.mobile || "");
+      setFormBranch(user.branch || "B.Tech Computer Science");
+      setFormCollege(user.college || "COEP Technological University");
+    }
+  }, [user]);
+
+  // Calculate Profile Completion Index
+  const completionPercent = (() => {
+    let score = 0;
+    if (formName?.trim()) score += 25;
+    if (user?.email) score += 25;
+    if (formMobile?.trim() && formMobile.length === 10) score += 25;
+    if (user?.avatar && user.avatar !== "🚀" && user.avatar !== "👨‍🏫" && user.avatar !== "🛡️") score += 25;
+    return score;
+  })();
+
+  const handleUpdateDetails = async (e) => {
     e.preventDefault();
     setSuccessMsg("");
     setErrorMsg("");
@@ -53,22 +75,26 @@ const Profile = () => {
       return;
     }
 
-    // Update AuthContext user
-    updateProfile({
-      name: formName,
-      mobile: formMobile,
-      branch: formBranch
-    });
+    try {
+      // Update AuthContext user (persists to Supabase DB via FastAPI)
+      await updateProfile({
+        name: formName,
+        mobile: formMobile,
+        branch: formBranch
+      });
 
-    // Sync back to StudentContext profile for global consistency!
-    setProfile(prev => ({
-      ...prev,
-      name: formName,
-      branch: formBranch
-    }));
+      // Sync back to StudentContext profile for global consistency!
+      setProfile(prev => ({
+        ...prev,
+        name: formName,
+        branch: formBranch
+      }));
 
-    setSuccessMsg("Profile details updated successfully!");
-    setTimeout(() => setSuccessMsg(""), 3000);
+      setSuccessMsg("Profile details updated successfully!");
+      setTimeout(() => setSuccessMsg(""), 3000);
+    } catch (err) {
+      setErrorMsg(err.message || "Failed to update profile details.");
+    }
   };
 
   const handleChangePassword = async (e) => {
@@ -114,7 +140,26 @@ const Profile = () => {
       <div>
         <p className="text-xs text-indigo-500 font-bold uppercase tracking-wider">User Account</p>
         <h2 className="text-2xl font-black text-slate-800 dark:text-white">Profile Management</h2>
-        <p className="text-slate-500 text-xs mt-1">Configure your personal parameters, reset your credentials, and monitor session tokens.</p>
+        <p className="text-slate-500 text-xs mt-1">Configure your personal parameters, reset credentials, and monitor session tokens.</p>
+      </div>
+
+      {/* Completion Index Metric Card */}
+      <div className="bg-gradient-to-r from-indigo-500 via-indigo-650 to-indigo-700 p-5 rounded-3xl text-white shadow-md flex flex-col md:flex-row justify-between items-center gap-4 relative overflow-hidden">
+        <div className="absolute right-0 top-0 translate-x-12 -translate-y-12 w-32 h-32 bg-white/5 rounded-full blur-xl" />
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center text-white border border-white/20 shrink-0">
+            <Percent size={20} />
+          </div>
+          <div>
+            <span className="text-[10px] uppercase font-bold text-indigo-200">Session Progress</span>
+            <h3 className="font-extrabold text-sm text-white">Profile Setup Status</h3>
+            <p className="text-[11px] text-indigo-100/80 mt-0.5">Complete your name, mobile, and custom avatar to reach 100%.</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-4xl font-black tracking-tight">{completionPercent}%</span>
+          <span className="text-xs font-semibold text-indigo-200 uppercase">Complete</span>
+        </div>
       </div>
 
       {/* Tabs selectors */}
@@ -123,7 +168,7 @@ const Profile = () => {
           onClick={() => setActiveTab("details")}
           className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
             activeTab === "details"
-              ? 'bg-indigo-650 bg-indigo-600 text-white shadow-sm'
+              ? 'bg-indigo-600 text-white shadow-sm'
               : 'text-slate-500 hover:text-slate-800 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-850/40'
           }`}
         >
@@ -133,7 +178,7 @@ const Profile = () => {
           onClick={() => setActiveTab("security")}
           className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
             activeTab === "security"
-              ? 'bg-indigo-650 bg-indigo-600 text-white shadow-sm'
+              ? 'bg-indigo-600 text-white shadow-sm'
               : 'text-slate-500 hover:text-slate-800 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-850/40'
           }`}
         >
@@ -160,7 +205,7 @@ const Profile = () => {
               </div>
             )}
             {errorMsg && (
-              <div className="bg-red-500/10 border border-red-500/20 text-red-555 text-xs p-3.5 rounded-2xl flex items-center gap-2">
+              <div className="bg-red-500/10 border border-red-500/20 text-red-650 text-xs p-3.5 rounded-2xl flex items-center gap-2">
                 <ShieldAlert size={16} />
                 <span>{errorMsg}</span>
               </div>
@@ -207,9 +252,9 @@ const Profile = () => {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {/* Full Name */}
                 <div className="space-y-1">
-                  <label className="text-[10px] text-slate-450 uppercase font-bold tracking-wider block">Full Name</label>
-                  <div className="flex items-center bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 rounded-xl px-3 py-2.5">
-                    <User size={15} className="text-slate-400 mr-2" />
+                  <label className="text-[10px] text-slate-400 uppercase font-bold tracking-wider block">Full Name</label>
+                  <div className="flex items-center bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2.5">
+                    <User size={15} className="text-slate-450 mr-2" />
                     <input 
                       type="text" 
                       value={formName}
@@ -222,9 +267,9 @@ const Profile = () => {
 
                 {/* Email (Disabled) */}
                 <div className="space-y-1">
-                  <label className="text-[10px] text-slate-450 uppercase font-bold tracking-wider block">Email Address (Locked)</label>
-                  <div className="flex items-center bg-slate-100 dark:bg-slate-950/40 border border-slate-200/50 dark:border-slate-850/50 rounded-xl px-3 py-2.5 opacity-60">
-                    <Mail size={15} className="text-slate-400 mr-2" />
+                  <label className="text-[10px] text-slate-400 uppercase font-bold tracking-wider block">Email Address (Locked)</label>
+                  <div className="flex items-center bg-slate-100 dark:bg-slate-950/40 border border-slate-200/50 dark:border-slate-800/50 rounded-xl px-3 py-2.5 opacity-60">
+                    <Mail size={15} className="text-slate-450 mr-2" />
                     <input 
                       type="email" 
                       value={user?.email || ""}
@@ -236,23 +281,24 @@ const Profile = () => {
 
                 {/* Mobile Number */}
                 <div className="space-y-1">
-                  <label className="text-[10px] text-slate-450 uppercase font-bold tracking-wider block">Mobile Number</label>
-                  <div className="flex items-center bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 rounded-xl px-3 py-2.5">
-                    <Phone size={15} className="text-slate-400 mr-2" />
+                  <label className="text-[10px] text-slate-400 uppercase font-bold tracking-wider block">Mobile Number (10 digits)</label>
+                  <div className="flex items-center bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2.5">
+                    <Phone size={15} className="text-slate-450 mr-2" />
                     <input 
                       type="text" 
                       value={formMobile}
                       onChange={(e) => setFormMobile(e.target.value)}
                       className="bg-transparent border-none text-slate-700 dark:text-slate-200 focus:outline-none w-full"
+                      placeholder="e.g. 9876543210"
                     />
                   </div>
                 </div>
 
                 {/* College / Institution (Locked) */}
                 <div className="space-y-1">
-                  <label className="text-[10px] text-slate-455 uppercase font-bold tracking-wider block">College Campus (Locked)</label>
-                  <div className="flex items-center bg-slate-100 dark:bg-slate-950/40 border border-slate-200/50 dark:border-slate-850/50 rounded-xl px-2.5 py-2.5 opacity-60">
-                    <School size={15} className="text-slate-400 mr-2" />
+                  <label className="text-[10px] text-slate-400 uppercase font-bold tracking-wider block">College Campus (Locked)</label>
+                  <div className="flex items-center bg-slate-100 dark:bg-slate-950/40 border border-slate-200/50 dark:border-slate-800/50 rounded-xl px-2.5 py-2.5 opacity-60">
+                    <School size={15} className="text-slate-450 mr-2" />
                     <input 
                       type="text" 
                       value={formCollege}
@@ -264,8 +310,8 @@ const Profile = () => {
 
                 {/* Branch / Department */}
                 <div className="space-y-1">
-                  <label className="text-[10px] text-slate-450 uppercase font-bold tracking-wider block">Branch / Division</label>
-                  <div className="flex items-center bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 rounded-xl px-3 py-2.5">
+                  <label className="text-[10px] text-slate-400 uppercase font-bold tracking-wider block">Branch / Division</label>
+                  <div className="flex items-center bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2.5">
                     <input 
                       type="text" 
                       value={formBranch}
@@ -277,9 +323,9 @@ const Profile = () => {
 
                 {/* User Role designator (read only) */}
                 <div className="space-y-1">
-                  <label className="text-[10px] text-slate-450 uppercase font-bold tracking-wider block">Portal Access Level</label>
-                  <div className="flex items-center bg-slate-100 dark:bg-slate-950/40 border border-slate-200/50 dark:border-slate-850/50 rounded-xl px-3 py-2.5 opacity-60">
-                    <Award size={15} className="text-slate-400 mr-2" />
+                  <label className="text-[10px] text-slate-400 uppercase font-bold tracking-wider block">Portal Access Level</label>
+                  <div className="flex items-center bg-slate-100 dark:bg-slate-950/40 border border-slate-200/50 dark:border-slate-800/50 rounded-xl px-3 py-2.5 opacity-60">
+                    <Award size={15} className="text-slate-450 mr-2" />
                     <span className="font-bold text-slate-500 uppercase tracking-widest text-[10px]">
                       {user?.role} Access
                     </span>
@@ -287,10 +333,10 @@ const Profile = () => {
                 </div>
               </div>
 
-              <div className="flex gap-4 pt-4 border-t border-slate-100 dark:border-slate-850">
+              <div className="flex gap-4 pt-4 border-t border-slate-100 dark:border-slate-800">
                 <button
                   type="submit"
-                  className="px-6 py-2.5 bg-indigo-650 bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold rounded-xl transition-all shadow-md cursor-pointer text-xs"
+                  className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold rounded-xl transition-all shadow-md cursor-pointer text-xs"
                 >
                   Save Profile Changes
                 </button>
@@ -331,9 +377,9 @@ const Profile = () => {
             <form onSubmit={handleChangePassword} className="space-y-4 text-xs">
               {/* Old password */}
               <div className="space-y-1">
-                <label className="text-[10px] text-slate-455 uppercase font-bold tracking-wider block">Current Password</label>
-                <div className="flex items-center bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 rounded-xl px-3 py-2.5">
-                  <Lock size={15} className="text-slate-400 mr-2" />
+                <label className="text-[10px] text-slate-400 uppercase font-bold tracking-wider block">Current Password</label>
+                <div className="flex items-center bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2.5">
+                  <Lock size={15} className="text-slate-450 mr-2" />
                   <input 
                     type={showPassword ? "text" : "password"}
                     value={oldPassword}
@@ -346,9 +392,9 @@ const Profile = () => {
 
               {/* New Password */}
               <div className="space-y-1">
-                <label className="text-[10px] text-slate-455 uppercase font-bold tracking-wider block">New Password</label>
-                <div className="flex items-center bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 rounded-xl px-3 py-2.5">
-                  <Lock size={15} className="text-slate-400 mr-2" />
+                <label className="text-[10px] text-slate-400 uppercase font-bold tracking-wider block">New Password</label>
+                <div className="flex items-center bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2.5">
+                  <Lock size={15} className="text-slate-450 mr-2" />
                   <input 
                     type={showPassword ? "text" : "password"}
                     value={newPassword}
@@ -361,9 +407,9 @@ const Profile = () => {
 
               {/* Confirm New Password */}
               <div className="space-y-1">
-                <label className="text-[10px] text-slate-455 uppercase font-bold tracking-wider block">Confirm New Password</label>
-                <div className="flex items-center bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 rounded-xl px-3 py-2.5">
-                  <Lock size={15} className="text-slate-400 mr-2" />
+                <label className="text-[10px] text-slate-400 uppercase font-bold tracking-wider block">Confirm New Password</label>
+                <div className="flex items-center bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2.5">
+                  <Lock size={15} className="text-slate-455 mr-2" />
                   <input 
                     type={showPassword ? "text" : "password"}
                     value={confirmPassword}
@@ -381,10 +427,10 @@ const Profile = () => {
                 </div>
               </div>
 
-              <div className="pt-4 border-t border-slate-100 dark:border-slate-850">
+              <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
                 <button
                   type="submit"
-                  className="px-6 py-2.5 bg-indigo-650 bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold rounded-xl transition-all shadow-md cursor-pointer text-xs flex items-center gap-1.5"
+                  className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold rounded-xl transition-all shadow-md cursor-pointer text-xs flex items-center gap-1.5"
                 >
                   <Sparkles size={14} />
                   Update Password Credentials

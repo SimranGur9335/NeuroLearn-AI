@@ -13,14 +13,14 @@ const ClassSelection = () => {
     useEffect(() => {
         const resolveAndFetch = async () => {
             try {
-                const res = await fetch(`http://127.0.0.1:8000/faculty/by-email/${email}`);
+                const res = await fetch(`/faculty/by-email/${email}`);
                 if (!res.ok) throw new Error("Failed to resolve faculty");
                 const data = await res.json();
                 localStorage.setItem("faculty_id", data.faculty_id);
                 localStorage.setItem("faculty_name", data.full_name);
                 localStorage.setItem("faculty_email", data.email);
 
-                const classesRes = await fetch(`http://127.0.0.1:8000/faculty/${data.faculty_id}/classes`);
+                const classesRes = await fetch(`/faculty/${data.faculty_id}/classes`);
                 const classesData = await classesRes.json();
                 setClasses(classesData);
             } catch (err) {

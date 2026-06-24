@@ -52,7 +52,7 @@ const facultyId = user?.faculty_id;
     setLoading(true);
     try {
       const res = await fetch(
-        `http://localhost:8000/marks?class_id=${selectedClass.class_id}&subject_id=${selectedClass.subject_id}`
+        `/marks?class_id=${selectedClass.class_id}&subject_id=${selectedClass.subject_id}`
       );
       if (!res.ok) throw new Error("Failed to load marks");
       const data = await res.json();
@@ -116,7 +116,7 @@ const facultyId = user?.faculty_id;
         }))
       };
 
-      const res = await fetch("http://localhost:8000/marks/bulk-entry", {
+      const res = await fetch("/marks/bulk-entry", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)

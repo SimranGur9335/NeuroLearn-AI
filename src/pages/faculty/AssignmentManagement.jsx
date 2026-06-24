@@ -73,7 +73,7 @@ const AssignmentManagement = () => {
     setLoading(true);
     try {
       const res = await fetch(
-        `http://localhost:8000/assignments?class_id=${selectedClass.class_id}&subject_id=${selectedClass.subject_id}`
+        `/assignments?class_id=${selectedClass.class_id}&subject_id=${selectedClass.subject_id}`
       );
       if (!res.ok) throw new Error("Failed to load assignments");
       const data = await res.json();
@@ -91,7 +91,7 @@ const AssignmentManagement = () => {
   const fetchSubmissions = async (assignmentId) => {
     setSubmissionsLoading(true);
     try {
-      const res = await fetch(`http://localhost:8000/assignments/${assignmentId}/submissions`);
+      const res = await fetch(`/assignments/${assignmentId}/submissions`);
       if (!res.ok) throw new Error("Failed to fetch submissions");
       const data = await res.json();
       setSubmissions(data);
@@ -174,11 +174,11 @@ const AssignmentManagement = () => {
         faculty_id: facultyId
       };
 
-      let url = "http://localhost:8000/assignments";
+      let url = "/assignments";
       let method = "POST";
 
       if (formMode === "edit") {
-        url = `http://localhost:8000/assignments/${editId}`;
+        url = `/assignments/${editId}`;
         method = "PUT";
       }
 
@@ -213,7 +213,7 @@ const AssignmentManagement = () => {
 
     try {
       const res = await fetch(
-        `http://localhost:8000/assignments/${assignmentId}?faculty_id=${facultyId}`,
+        `/assignments/${assignmentId}?faculty_id=${facultyId}`,
         { method: "DELETE" }
       );
 
@@ -257,7 +257,7 @@ const AssignmentManagement = () => {
         faculty_id: facultyId
       };
 
-      const res = await fetch(`http://localhost:8000/submissions/${selectedSubmission.submission_id}/grade`, {
+      const res = await fetch(`/submissions/${selectedSubmission.submission_id}/grade`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)

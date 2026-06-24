@@ -23,6 +23,7 @@ import {
   Target
 } from 'lucide-react';
 import { useStudent } from '../../context/StudentContext';
+import { apiFetch } from '../../services/api';
 
 const PerformancePrediction = () => {
   const { xp } = useStudent();
@@ -57,13 +58,10 @@ const PerformancePrediction = () => {
   });
   const predictPerformance = async () => {
     try {
-      const response = await fetch(
-        "http://127.0.0.1:8000/predict/student-performance",
+      const response = await apiFetch(
+        "/predict/student-performance",
         {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
           body: JSON.stringify(formData),
         }
       );

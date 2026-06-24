@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Briefcase, 
@@ -43,6 +43,7 @@ import {
   CartesianGrid, 
   Tooltip 
 } from 'recharts';
+import { apiFetch } from '../services/api';
 
 const CareerGuidance = () => {
   const { nodeStates, xp } = useStudent() || { nodeStates: {}, xp: 1450 };
@@ -65,10 +66,37 @@ const CareerGuidance = () => {
   // --- Search & Filters for Learning Resources ---
   const [resourceCategory, setResourceCategory] = useState('All');
 
-  // Set the selected path and sync with local storage
-  const handleSelectPath = (id) => {
+  // Fetch target career path from Supabase on mount
+  useEffect(() => {
+    const fetchTargetCareer = async () => {
+      try {
+        const res = await apiFetch('/v1/student/target-career');
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.target_career) {
+            setSelectedPathId(data.target_career);
+            localStorage.setItem('neurolearn_target_career', data.target_career);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to load target career:", err);
+      }
+    };
+    fetchTargetCareer();
+  }, []);
+
+  // Set the selected path, sync with local storage, and save to Supabase
+  const handleSelectPath = async (id) => {
     setSelectedPathId(id);
     localStorage.setItem('neurolearn_target_career', id);
+    try {
+      await apiFetch('/v1/student/target-career', {
+        method: 'POST',
+        body: JSON.stringify({ target_career: id })
+      });
+    } catch (err) {
+      console.error("Failed to sync target career path:", err);
+    }
   };
 
   // Find the selected career metadata
@@ -539,6 +567,67 @@ const CareerGuidance = () => {
                         <span className="text-lg font-black text-slate-600 dark:text-slate-400">{skillAnalysis.missing.length}</span>
                       </div>
                     </div>
+                  </div>
+                </div>
+
+                {/* AI Smart Recommendations & Voucher Hub */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  {/* Skill Recommendations */}
+                  <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-3xl shadow-sm lg:col-span-2 space-y-4">
+                    <h3 className="font-extrabold text-slate-800 dark:text-white text-sm flex items-center gap-2">
+                      <Sparkles size={16} className="text-indigo-500" />
+                      AI Skill & Capstone Recommendations ({activeCareer.title})
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="p-4 rounded-2xl border border-slate-100 dark:border-slate-800 bg-slate-50/40 dark:bg-slate-950/30">
+                        <span className="text-[9px] font-black uppercase text-indigo-500 bg-indigo-500/10 px-2 py-0.5 rounded">
+                          Advanced Skill
+                        </span>
+                        <h4 className="font-bold text-xs text-slate-800 dark:text-white mt-2">Distributed Caching (Redis)</h4>
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
+                          Highly recommended for {activeCareer.title}. Optimizes database read latency and system scaling during heavy workloads.
+                        </p>
+                      </div>
+                      <div className="p-4 rounded-2xl border border-slate-100 dark:border-slate-800 bg-slate-50/40 dark:bg-slate-950/30">
+                        <span className="text-[9px] font-black uppercase text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded">
+                          Target Capstone
+                        </span>
+                        <h4 className="font-bold text-xs text-slate-800 dark:text-white mt-2">AeroPulse IoT Analytics Engine</h4>
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
+                          FastAPI + Redis + K8s cluster modeling IoT telemetry. Perfect project addition to build your placement profile.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Certification Voucher Panel */}
+                  <div className="bg-gradient-to-br from-indigo-900 via-indigo-950 to-slate-950 border border-indigo-500/25 p-6 rounded-3xl shadow-lg text-white flex flex-col justify-between">
+                    <div>
+                      <div className="flex items-center justify-between mb-3">
+                        <h4 className="font-extrabold text-xs uppercase tracking-wider flex items-center gap-1.5 text-indigo-300">
+                          <Award size={14} className="text-indigo-400" />
+                          Academic Voucher Hub
+                        </h4>
+                        <span className="text-[9px] bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-full font-bold">
+                          Active
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-indigo-200 leading-relaxed font-medium">
+                        Student program benefit: Get 70% off **AWS Certified Solutions Architect** or **CKA** certification exams.
+                      </p>
+                      <div className="bg-white/5 border border-white/10 p-2.5 rounded-xl mt-3 text-center">
+                        <span className="text-[10px] text-slate-450 uppercase font-bold block">Exclusive Promo Code</span>
+                        <span className="text-sm font-mono font-bold text-indigo-300 select-all">NEUROLEARN-CLOUD-70</span>
+                      </div>
+                    </div>
+                    
+                    <button 
+                      onClick={() => alert("Redirecting to AWS Academy portal to register voucher: NEUROLEARN-CLOUD-70")}
+                      className="mt-4 py-2 bg-white hover:bg-slate-100 text-indigo-950 text-xs font-bold rounded-xl flex items-center justify-center gap-1 cursor-pointer transition-colors focus:outline-none"
+                    >
+                      Redeem AWS Academy Voucher
+                      <ArrowRight size={12} />
+                    </button>
                   </div>
                 </div>
 

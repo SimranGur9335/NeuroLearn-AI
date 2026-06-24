@@ -72,6 +72,9 @@ export const StudentProvider = ({ children }) => {
         theme_color: user.theme_color || "indigo",
         institution_id: user.institution_id || 1
       });
+      if (user.xp !== undefined && user.xp !== null) {
+        setXp(user.xp);
+      }
     }
   }, [user]);
 
