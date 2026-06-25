@@ -101,13 +101,12 @@ const FacultyAnnouncements = () => {
       );
 
       const data = await res.json();
-console.log("STATUS:", res.status);
-console.log("DATA:", data);
 
-if (!Array.isArray(data)) {
-  console.error("Backend returned:", data);
-  return;
-}
+
+      if (!Array.isArray(data)) {
+        console.error("Backend returned:", data);
+        return;
+      }
       const received = data.filter(
         (ann) => ann.sender_type === "ADMIN" || ann.sender_type === "admin"
       );
@@ -199,8 +198,7 @@ if (!Array.isArray(data)) {
         }
       );
 
-      const data = await res.json();
-      console.log(data);
+
 
       alert("Announcement Published Successfully");
       setTitle("");

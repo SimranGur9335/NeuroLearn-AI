@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import { apiFetch } from "../../services/api";
 import {
   Calendar,
   Clock,
@@ -61,7 +62,9 @@ const facultyId = user?.faculty_id;
     if (!facultyId) return;
     setLoadingSessions(true);
     try {
-      const res = await fetch(`http://localhost:8000/remedial/sessions?faculty_id=${facultyId}`);
+      const res = await apiFetch(
+  `/remedial/sessions?faculty_id=${facultyId}`
+);
       if (!res.ok) throw new Error("Failed to fetch sessions");
       const data = await res.json();
       // Filter sessions for the active class if selected
@@ -82,7 +85,9 @@ const facultyId = user?.faculty_id;
     if (!selectedClass.class_id) return;
     setLoadingStudents(true);
     try {
-      const res = await fetch(`http://localhost:8000/class/${selectedClass.class_id}/students`);
+      const res = await apiFetch(
+  `/class/${selectedClass.class_id}/students`
+);
       if (!res.ok) throw new Error("Failed to fetch class students");
       const data = await res.json();
       setClassStudents(data);
@@ -98,7 +103,9 @@ const facultyId = user?.faculty_id;
   const fetchInvitations = async (sessionId) => {
     setLoadingInvitations(true);
     try {
-      const res = await fetch(`http://localhost:8000/remedial/sessions/${sessionId}/invitations?faculty_id=${facultyId}`);
+      const res = await apiFetch(
+  `/remedial/sessions/${sessionId}/invitations?faculty_id=${facultyId}`
+);
       if (!res.ok) throw new Error("Failed to fetch invitations");
       const data = await res.json();
       setInvitations(data);
@@ -157,10 +164,12 @@ const facultyId = user?.faculty_id;
 
     setSubmittingSession(true);
     try {
-      const res = await fetch("http://localhost:8000/remedial/sessions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      const res = await apiFetch(
+  `/remedial/sessions`,
+  {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
           class_id: selectedClass.class_id,
           subject_id: selectedClass.subject_id,
           topic,
@@ -201,10 +210,12 @@ const facultyId = user?.faculty_id;
   const handleUpdateStatus = async (invitationId, newStatus) => {
     setUpdatingInvitationId(invitationId);
     try {
-      const res = await fetch(`http://localhost:8000/remedial/invitations/${invitationId}/status`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      const res = await apiFetch(
+  `/remedial/invitations/${invitationId}/status`,
+  {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
           status: newStatus,
           faculty_id: facultyId
         })

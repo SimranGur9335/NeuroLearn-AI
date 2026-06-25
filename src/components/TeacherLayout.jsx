@@ -16,7 +16,8 @@ import {
   ClipboardList,
   FileSpreadsheet,
   GraduationCap,
-  User
+  User,
+  Activity
 } from 'lucide-react';
 import Header from './Header';
 import { useStudent } from '../context/StudentContext';
@@ -64,6 +65,7 @@ const FacultyLayout = () => {
     { name: 'Risk Predictions', path: '/faculty/risk', icon: AlertTriangle },
     { name: 'Remedial Sessions', path: '/faculty/remedial', icon: GraduationCap },
     { name: "Announcements", path: '/faculty/announcements', icon: Bell },
+    { name: 'Activity Stream', path: '/faculty/activity', icon: Activity },
     { name: 'My Profile', path: `/faculty/${profile.id}`, icon: User }
   ];
 
