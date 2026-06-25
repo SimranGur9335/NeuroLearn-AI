@@ -61,7 +61,7 @@ const FacultyLayout = () => {
     { name: 'Student Monitoring', path: '/faculty/performance', icon: Users },
     { name: 'Assignment Management', path: '/faculty/assignments', icon: ClipboardList },
     { name: 'Marks & Gradebook', path: '/faculty/gradebook', icon: FileSpreadsheet },
-    { name: 'LMS Analytics', path: '/faculty/analytics', icon: TrendingUp },
+    { name: 'Faculty Analytics', path: '/faculty/analytics', icon: TrendingUp },
     { name: 'Risk Predictions', path: '/faculty/risk', icon: AlertTriangle },
     { name: 'Remedial Sessions', path: '/faculty/remedial', icon: GraduationCap },
     { name: "Announcements", path: '/faculty/announcements', icon: Bell },

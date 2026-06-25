@@ -32,8 +32,28 @@ import {
   Sparkles,
   CheckCircle,
   Clock,
-  AlertCircle
+  AlertCircle,
+  User,
+  MapPin
 } from 'lucide-react';
+
+const priorityConfig = {
+  Urgent: { color: "bg-rose-500/10 text-rose-500 border-rose-500/20", dot: "bg-rose-500" },
+  Important: { color: "bg-amber-500/10 text-amber-505 border-amber-500/20", dot: "bg-amber-500" },
+  Normal: { color: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20", dot: "bg-emerald-555" },
+};
+
+const fmtDate = (d) => {
+  if (!d) return "—";
+  try {
+    return new Date(d).toLocaleDateString("en-US", {
+      day: "2-digit",
+      month: "short"
+    });
+  } catch {
+    return d;
+  }
+};
 
 const FacultyDashboard = () => {
   const navigate = useNavigate();
@@ -50,13 +70,15 @@ const FacultyDashboard = () => {
   const [facultyInfo, setFacultyInfo] = useState(null);
   const [allStudents, setAllStudents] = useState([]);
   const [commandCenterData, setCommandCenterData] = useState(null);
+  const [dashboardAnnouncements, setDashboardAnnouncements] = useState([]);
+  const [remedialSessions, setRemedialSessions] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const fetchRecentActivities = async (activeId) => {
     const id = activeId || facultyId;
     if (!id) return;
     try {
-      const res = await apiFetch(`/api/v1/faculty/${id}/activities?limit=4`);
+      const res = await apiFetch(`/api/v1/faculty/${id}/activities?limit=5`);
       if (res.ok) {
         const data = await res.json();
         setActivities(data);
@@ -171,7 +193,7 @@ const FacultyDashboard = () => {
           promises.push(commandCenterPromise);
 
           // Recent activities
-          const activitiesPromise = apiFetch(`/api/v1/faculty/${activeFacultyId}/activities?limit=4`)
+          const activitiesPromise = apiFetch(`/api/v1/faculty/${activeFacultyId}/activities?limit=5`)
             .then(async res => {
               if (res.ok) {
                 const data = await res.json();
@@ -180,6 +202,37 @@ const FacultyDashboard = () => {
             })
             .catch(err => console.error("Failed to fetch activities", err));
           promises.push(activitiesPromise);
+
+          // Announcements
+          const announcementsPromise = apiFetch("/announcements")
+            .then(async res => {
+              if (res.ok) {
+                const data = await res.json();
+                if (Array.isArray(data)) {
+                  // Filter received announcements (not self-created)
+                  const receivedAnn = data.filter(
+                    (ann) =>
+                      !((ann.sender_type === "faculty" || ann.sender_type === "FACULTY") &&
+                        Number(ann.sender_id) === Number(activeFacultyId))
+                  );
+                  const sorted = receivedAnn.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+                  setDashboardAnnouncements(sorted.slice(0, 3));
+                }
+              }
+            })
+            .catch(err => console.error("Failed to fetch dashboard announcements", err));
+          promises.push(announcementsPromise);
+
+          // Remedial Sessions
+          const remedialPromise = apiFetch(`/remedial/sessions?faculty_id=${activeFacultyId}`)
+            .then(async res => {
+              if (res.ok) {
+                const data = await res.json();
+                setRemedialSessions(data);
+              }
+            })
+            .catch(err => console.error("Failed to fetch remedial sessions", err));
+          promises.push(remedialPromise);
         }
 
         // Wait for all requests to finish concurrently
@@ -218,10 +271,13 @@ const FacultyDashboard = () => {
     switch (module) {
       case 'attendance': return Calendar;
       case 'assignment': return ClipboardCheck;
-      case 'marks': return Award;
-      case 'announcement': return Bell;
-      case 'risk': return AlertTriangle;
+      case 'gradebook': return Award;
+      case 'student_monitoring': return Users;
+      case 'risk_prediction': return AlertTriangle;
       case 'remedial': return GraduationCap;
+      case 'announcement': return Bell;
+      case 'profile': return User;
+      case 'authentication': return Shield;
       default: return Activity;
     }
   };
@@ -230,10 +286,13 @@ const FacultyDashboard = () => {
     switch (module) {
       case 'attendance': return 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400';
       case 'assignment': return 'bg-blue-500/10 text-blue-600 dark:text-blue-400';
-      case 'marks': return 'bg-amber-500/10 text-amber-600 dark:text-amber-400';
-      case 'announcement': return 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400';
-      case 'risk': return 'bg-rose-500/10 text-rose-600 dark:text-rose-400';
+      case 'gradebook': return 'bg-amber-500/10 text-amber-600 dark:text-amber-400';
+      case 'student_monitoring': return 'bg-cyan-500/10 text-cyan-600 dark:text-cyan-400';
+      case 'risk_prediction': return 'bg-rose-500/10 text-rose-600 dark:text-rose-400';
       case 'remedial': return 'bg-purple-500/10 text-purple-600 dark:text-purple-400';
+      case 'announcement': return 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400';
+      case 'profile': return 'bg-teal-500/10 text-teal-600 dark:text-teal-400';
+      case 'authentication': return 'bg-orange-500/10 text-orange-600 dark:text-orange-400';
       default: return 'bg-slate-500/10 text-slate-600 dark:text-slate-400';
     }
   };
@@ -296,6 +355,21 @@ const FacultyDashboard = () => {
       </div>
     );
   }
+
+  const upcomingRemedials = remedialSessions
+    .filter(s => {
+      if (s.status === 'Cancelled') return false;
+      try {
+        const [year, month, day] = s.session_date.split('-').map(Number);
+        const [hours, minutes] = s.session_time.split(':').map(Number);
+        const sessionDateTime = new Date(year, month - 1, day, hours, minutes);
+        return sessionDateTime >= new Date();
+      } catch {
+        return true;
+      }
+    })
+    .sort((a, b) => new Date(`${a.session_date}T${a.session_time}`) - new Date(`${b.session_date}T${b.session_time}`))
+    .slice(0, 3);
 
   return (
     <motion.div
@@ -575,6 +649,133 @@ const FacultyDashboard = () => {
 
         {/* Right column - Smart Insights & Quick Actions */}
         <div className="space-y-6">
+          {/* Faculty Hub Announcements Widget */}
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-3xl shadow-sm space-y-4 hover:shadow-md transition-all group hover:border-purple-500/25">
+            <div className="flex justify-between items-center">
+              <div>
+                <h3 className="font-extrabold text-slate-850 dark:text-white text-sm flex items-center gap-2">
+                  <Bell size={18} className="text-purple-650 animate-pulse" />
+                  Faculty Hub Notices
+                </h3>
+                <p className="text-[10px] text-slate-400 font-bold uppercase mt-0.5">Important broadcasts & updates</p>
+              </div>
+              {commandCenterData?.today_overview?.unread_announcements > 0 && (
+                <span className="text-[9px] font-black text-white bg-purple-650 px-2.5 py-0.5 rounded-full animate-bounce">
+                  {commandCenterData.today_overview.unread_announcements} New
+                </span>
+              )}
+            </div>
+
+            <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1">
+              {dashboardAnnouncements.length > 0 ? (
+                dashboardAnnouncements.map((ann) => {
+                  const pr = priorityConfig[ann.priority] || priorityConfig.Normal;
+                  return (
+                    <div
+                      key={ann.announcement_id}
+                      onClick={() => navigate("/faculty/announcements")}
+                      className={`p-3.5 rounded-xl border transition-all cursor-pointer hover:scale-[1.01] ${
+                        !ann.is_read
+                          ? "border-purple-500/25 bg-purple-50/15 dark:bg-purple-950/10"
+                          : "border-slate-100 dark:border-slate-855 bg-slate-50/20 dark:bg-slate-900/10"
+                      }`}
+                    >
+                      <div className="flex justify-between items-start gap-2">
+                        <h4 className="font-bold text-xs text-slate-850 dark:text-slate-200 line-clamp-1">
+                          {ann.title}
+                        </h4>
+                        <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-full border ${pr.color} shrink-0`}>
+                          {ann.priority}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1.5 line-clamp-2 leading-relaxed">
+                        {ann.description}
+                      </p>
+                      <div className="flex justify-between items-center mt-2.5 pt-2 border-t border-slate-100 dark:border-slate-855/50 text-[9px] text-slate-400">
+                        <span className="font-semibold">By {ann.sender_name || "Admin"}</span>
+                        <span>{fmtDate(ann.created_at)}</span>
+                      </div>
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="text-center py-10 text-slate-450 dark:text-slate-500 text-xs font-semibold">
+                  No announcements found.
+                </div>
+              )}
+            </div>
+
+            <button
+              onClick={() => navigate("/faculty/announcements")}
+              className="w-full py-3 bg-slate-50 hover:bg-slate-100 dark:bg-slate-950 dark:hover:bg-slate-850 border border-slate-200 dark:border-slate-800 text-purple-650 dark:text-purple-400 font-black rounded-xl text-xs transition-all cursor-pointer flex items-center justify-center gap-1.5 group"
+            >
+              <span>View All Notices</span>
+              <ArrowRight size={13} className="group-hover:translate-x-0.5 transition-transform" />
+            </button>
+          </div>
+
+          {/* Upcoming Remedial Sessions Widget */}
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-3xl shadow-sm space-y-4 hover:shadow-md transition-all group hover:border-purple-500/25">
+            <div className="flex justify-between items-center">
+              <div>
+                <h3 className="font-extrabold text-slate-850 dark:text-white text-sm flex items-center gap-2">
+                  <GraduationCap size={18} className="text-purple-650 animate-pulse" />
+                  Upcoming Remedial Sessions
+                </h3>
+                <p className="text-[10px] text-slate-400 font-bold uppercase mt-0.5">Next 3 support targets</p>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              {upcomingRemedials.length > 0 ? (
+                upcomingRemedials.map((session) => (
+                  <div
+                    key={session.session_id}
+                    onClick={() => navigate("/faculty/remedial")}
+                    className="p-3.5 rounded-xl border border-slate-150 dark:border-slate-850 bg-slate-50/40 dark:bg-slate-950/20 hover:border-purple-500/25 transition-all cursor-pointer hover:scale-[1.01]"
+                  >
+                    <div className="flex justify-between items-start gap-2">
+                      <h4 className="font-bold text-xs text-slate-850 dark:text-slate-200 line-clamp-1">
+                        {session.topic}
+                      </h4>
+                      <span className="text-[8px] font-black text-purple-600 bg-purple-500/10 px-2 py-0.5 rounded shrink-0">
+                        {session.subject_name}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-3 mt-2.5 pt-2 border-t border-slate-100 dark:border-slate-850/50 text-[9px] text-slate-400">
+                      <span className="flex items-center gap-1">
+                        <Calendar size={10} />
+                        {session.session_date}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <Clock size={10} />
+                        {session.session_time}
+                      </span>
+                      {session.location && (
+                        <span className="flex items-center gap-1 line-clamp-1 max-w-[100px]">
+                          <MapPin size={10} />
+                          {session.location}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-8 text-slate-450 dark:text-slate-500 text-xs font-semibold">
+                  No upcoming remedial sessions scheduled.
+                </div>
+              )}
+            </div>
+
+            <button
+              onClick={() => navigate("/faculty/remedial")}
+              className="w-full py-3 bg-slate-50 hover:bg-slate-100 dark:bg-slate-950 dark:hover:bg-slate-850 border border-slate-200 dark:border-slate-800 text-purple-650 dark:text-purple-400 font-black rounded-xl text-xs transition-all cursor-pointer flex items-center justify-center gap-1.5 group"
+            >
+              <span>View All Sessions</span>
+              <ArrowRight size={13} className="group-hover:translate-x-0.5 transition-transform" />
+            </button>
+          </div>
+
           {/* Smart Insights Widget */}
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-3xl shadow-sm space-y-4 hover:shadow-md transition-shadow">
             <div>
@@ -757,7 +958,7 @@ const FacultyDashboard = () => {
 
             <div className="space-y-3">
               {activities.length > 0 ? (
-                activities.slice(0, 4).map(act => {
+                activities.slice(0, 5).map(act => {
                   const Icon = getActivityIcon(act.module);
                   const colorClass = getActivityColor(act.module);
                   return (

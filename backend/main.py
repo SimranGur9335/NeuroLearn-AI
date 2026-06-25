@@ -2722,103 +2722,202 @@ def delete_course_subject_mapping(
 
 # --- Phase E: Announcement Center ---
 
+def fetch_announcements_helper(db, current_user: dict):
+    role = current_user["role"] 
+    iid = current_user.get("institution_id")
+    
+    if role == "admin":
+        # Admin sees all announcements in their institution
+        query = text("SELECT * FROM announcements WHERE institution_id = :iid ORDER BY announcement_id DESC")
+        result = db.execute(query, {"iid": iid}).fetchall()
+        
+    elif role == "faculty":
+        # faculty sees: Institution targets, Faculty targets, and their own sent announcements
+        faculty_id = current_user["faculty_id"]
+        faculty = db.execute(text("SELECT department FROM faculty WHERE faculty_id = :fid"), {"fid": faculty_id}).fetchone()
+        dept = faculty.department if faculty else ""
+        
+        query = text("""
+            SELECT DISTINCT a.* FROM announcements a
+            WHERE a.institution_id = :iid
+              AND (
+                a.target_type = 'Institution'
+                OR (a.target_type = 'Faculty' AND (a.target_id IS NULL OR a.target_id = :fid))
+                OR (a.target_type = 'Department' AND a.target_id IN (
+                    SELECT department_id FROM departments WHERE department_name = :dept OR department_code = :dept
+                ))
+                OR (a.sender_type = 'faculty' AND a.sender_id = :fid)
+              )
+            ORDER BY a.announcement_id DESC
+        """)
+        result = db.execute(query, {"fid": faculty_id, "dept": dept, "iid": iid}).fetchall()
+        
+    elif role == "student":
+        # Student sees: Institution, Department, Class (if enrolled), or Student (if they are the target)
+        student_id = current_user["student_id"]
+        student = db.execute(text("SELECT department, student_id FROM students WHERE student_id = :sid"), {"sid": student_id}).fetchone()
+        dept = student.department if student else ""
+        
+        # Find enrolled classes
+        enrolled_classes = db.execute(text("SELECT class_id FROM enrollments WHERE student_id = :sid"), {"sid": student_id}).fetchall()
+        class_ids = [c.class_id for c in enrolled_classes]
+        if not class_ids:
+            class_ids = [-1]
+            
+        query = text("""
+            SELECT DISTINCT a.* FROM announcements a
+            WHERE a.institution_id = :iid
+              AND (
+                a.target_type = 'Institution'
+                OR (a.target_type = 'Department' AND a.target_id IN (
+                    SELECT department_id FROM departments WHERE department_code = :dept OR department_name = :dept
+                ))
+                OR (a.target_type = 'Class' AND a.target_id IN :class_ids)
+                OR (a.target_type = 'Student' AND a.target_id = :sid)
+              )
+            ORDER BY a.announcement_id DESC
+        """)
+        result = db.execute(query.bindparams(class_ids=tuple(class_ids)), {"sid": student_id, "dept": dept, "iid": iid}).fetchall()
+    else:
+        result = []
+
+    # Seen/Unseen read status tracking
+    user_id = current_user["user_id"]
+    reads = db.execute(
+        text("SELECT announcement_id FROM announcement_reads WHERE user_id = :uid"),
+        {"uid": user_id}
+    ).fetchall()
+    read_set = {r.announcement_id for r in reads}
+
+    announcements = []
+    for r in result:
+        # Resolve sender name
+        sender_name = "System Administrator"
+        if r.sender_type == "faculty":
+            sender = db.execute(text("SELECT full_name FROM faculty WHERE faculty_id = :fid"), {"fid": r.sender_id}).fetchone()
+            if sender:
+                sender_name = sender.full_name
+        
+        announcements.append({
+            "announcement_id": r.announcement_id,
+            "title": r.title,
+            "description": r.description,
+            "sender_type": r.sender_type,
+            "sender_id": r.sender_id,
+            "sender_name": sender_name,
+            "target_type": r.target_type,
+            "target_id": r.target_id,
+            "created_at": str(r.created_at),
+            "is_read": r.announcement_id in read_set,
+            "priority": getattr(r, 'priority', 'Normal') or 'Normal',
+            "attachment_url": getattr(r, 'attachment_url', None),
+            "attachment_name": getattr(r, 'attachment_name', None),
+            "is_edited": bool(getattr(r, 'is_edited', 0))
+        })
+    return announcements
+
+def create_announcement_helper(db, data: AnnouncementInput, current_user: dict):
+    sender_type = current_user["role"]
+    sender_id = current_user["faculty_id"] if sender_type == "faculty" else current_user["user_id"]
+    iid = current_user["institution_id"]
+    
+    priority = getattr(data, 'priority', 'Normal') or 'Normal'
+    attachment_url = getattr(data, 'attachment_url', None)
+    attachment_name = getattr(data, 'attachment_name', None)
+
+    new_id = db.execute(
+        text("""
+            INSERT INTO announcements
+            (title, description, sender_type, sender_id, target_type, target_id, institution_id, priority, attachment_url, attachment_name, is_edited, created_at)
+            VALUES
+            (:title, :description, :sender_type, :sender_id, :target_type, :target_id, :iid, :priority, :attachment_url, :attachment_name, 0, CURRENT_TIMESTAMP)
+            RETURNING announcement_id
+        """),
+        {
+            "title": data.title,
+            "description": data.description,
+            "sender_type": sender_type,
+            "sender_id": sender_id,
+            "target_type": data.target_type,
+            "target_id": data.target_id,
+            "iid": iid,
+            "priority": priority,
+            "attachment_url": attachment_url,
+            "attachment_name": attachment_name
+        }
+    ).scalar()
+
+    db.commit()
+    if sender_type == "faculty":
+        log_faculty_activity(db, sender_id, "posted", "announcement", f"Posted announcement '{data.title}'.", new_id)
+        create_faculty_notification(db, sender_id, "Announcement Published", f"Announcement '{data.title}' published successfully.", "announcement", new_id)
+    log_audit(db, "CREATE", "Announcement", new_id, performed_by=f"{sender_type.capitalize()} {sender_id}")
+    return new_id
+
+def update_announcement_helper(db, announcement_id: int, data: AnnouncementInput, current_user: dict):
+    ann = db.execute(text("SELECT sender_type, sender_id, institution_id FROM announcements WHERE announcement_id = :id"), {"id": announcement_id}).fetchone()
+    if not ann:
+        raise HTTPException(status_code=404, detail="Announcement not found")
+    if ann.institution_id != current_user["institution_id"]:
+        raise HTTPException(status_code=403, detail="Access denied: Announcement belongs to another institution")
+
+    if current_user["role"] == "faculty":
+        if ann.sender_type != "faculty" or ann.sender_id != current_user["faculty_id"]:
+            raise HTTPException(status_code=403, detail="Access denied: You do not own this announcement")
+
+    priority = getattr(data, 'priority', 'Normal') or 'Normal'
+    attachment_url = getattr(data, 'attachment_url', None)
+    attachment_name = getattr(data, 'attachment_name', None)
+
+    db.execute(
+        text("""
+            UPDATE announcements
+            SET title = :title,
+                description = :description,
+                target_type = :target_type,
+                target_id = :target_id,
+                priority = :priority,
+                attachment_url = :attachment_url,
+                attachment_name = :attachment_name,
+                is_edited = 1
+            WHERE announcement_id = :announcement_id
+        """),
+        {
+            "title": data.title,
+            "description": data.description,
+            "target_type": data.target_type,
+            "target_id": data.target_id,
+            "priority": priority,
+            "attachment_url": attachment_url,
+            "attachment_name": attachment_name,
+            "announcement_id": announcement_id
+        }
+    )
+    db.commit()
+    log_audit(db, "UPDATE", "Announcement", announcement_id, performed_by=f"{current_user['role'].capitalize()} {current_user['user_id']}")
+
+def delete_announcement_helper(db, announcement_id: int, current_user: dict):
+    ann = db.execute(text("SELECT sender_type, sender_id, institution_id FROM announcements WHERE announcement_id = :id"), {"id": announcement_id}).fetchone()
+    if not ann:
+        raise HTTPException(status_code=404, detail="Announcement not found")
+    if ann.institution_id != current_user["institution_id"]:
+        raise HTTPException(status_code=403, detail="Access denied: Announcement belongs to another institution")
+
+    if current_user["role"] == "faculty":
+        if ann.sender_type != "faculty" or ann.sender_id != current_user["faculty_id"]:
+            raise HTTPException(status_code=403, detail="Access denied: You do not own this announcement")
+
+    db.execute(text("DELETE FROM announcements WHERE announcement_id = :id"), {"id": announcement_id})
+    db.commit()
+    log_audit(db, "DELETE", "Announcement", announcement_id, performed_by=f"{current_user['role'].capitalize()} {current_user['user_id']}")
+
 @app.get("/api/announcements")
 @app.get("/announcements")
 @app.get("/faculty/announcements")
 def get_announcements(current_user: dict = Depends(get_current_user)):
     db = SessionLocal()
     try:
-        role = current_user["role"] 
-        iid = current_user.get("institution_id")
-        
-        if role == "admin":
-            # Admin sees all announcements in their institution
-            query = text("SELECT * FROM announcements WHERE institution_id = :iid ORDER BY announcement_id DESC")
-            result = db.execute(query, {"iid": iid}).fetchall()
-            
-        elif role == "faculty":
-            # faculty sees: Institution targets, Faculty targets, and their own sent announcements
-            faculty_id = current_user["faculty_id"]
-            faculty = db.execute(text("SELECT department FROM faculty WHERE faculty_id = :fid"), {"fid": faculty_id}).fetchone()
-            dept = faculty.department if faculty else ""
-            
-            query = text("""
-                SELECT DISTINCT a.* FROM announcements a
-                WHERE a.institution_id = :iid
-                  AND (
-                    a.target_type = 'Institution'
-                    OR (a.target_type = 'Faculty' AND (a.target_id IS NULL OR a.target_id = :fid))
-                    OR (a.target_type = 'Department' AND a.target_id IN (
-                        SELECT department_id FROM departments WHERE department_name = :dept
-                    ))
-                    OR (a.sender_type = 'faculty' AND a.sender_id = :fid)
-                  )
-                ORDER BY a.announcement_id DESC
-            """)
-            result = db.execute(query, {"fid": faculty_id, "dept": dept, "iid": iid}).fetchall()
-            
-        elif role == "student":
-            # Student sees: Institution, Department, Class (if enrolled), or Student (if they are the target)
-            student_id = current_user["student_id"]
-            student = db.execute(text("SELECT department, student_id FROM students WHERE student_id = :sid"), {"sid": student_id}).fetchone()
-            dept = student.department if student else ""
-            
-            # Find enrolled classes
-            enrolled_classes = db.execute(text("SELECT class_id FROM enrollments WHERE student_id = :sid"), {"sid": student_id}).fetchall()
-            class_ids = [c.class_id for c in enrolled_classes]
-            if not class_ids:
-                class_ids = [-1]
-                
-            query = text("""
-                SELECT DISTINCT a.* FROM announcements a
-                WHERE a.institution_id = :iid
-                  AND (
-                    a.target_type = 'Institution'
-                    OR (a.target_type = 'Department' AND a.target_id IN (
-                        SELECT department_id FROM departments WHERE department_code = :dept OR department_name = :dept
-                    ))
-                    OR (a.target_type = 'Class' AND a.target_id IN :class_ids)
-                    OR (a.target_type = 'Student' AND a.target_id = :sid)
-                  )
-                ORDER BY a.announcement_id DESC
-            """)
-            result = db.execute(query.bindparams(class_ids=tuple(class_ids)), {"sid": student_id, "dept": dept, "iid": iid}).fetchall()
-        else:
-            result = []
-
-        # Seen/Unseen read status tracking
-        user_id = current_user["user_id"]
-        reads = db.execute(
-            text("SELECT announcement_id FROM announcement_reads WHERE user_id = :uid"),
-            {"uid": user_id}
-        ).fetchall()
-        read_set = {r.announcement_id for r in reads}
-
-        announcements = []
-        for r in result:
-            # Resolve sender name
-            sender_name = "System Administrator"
-            if r.sender_type == "faculty":
-                sender = db.execute(text("SELECT full_name FROM faculty WHERE faculty_id = :fid"), {"fid": r.sender_id}).fetchone()
-                if sender:
-                    sender_name = sender.full_name
-            
-            announcements.append({
-                "announcement_id": r.announcement_id,
-                "title": r.title,
-                "description": r.description,
-                "sender_type": r.sender_type,
-                "sender_id": r.sender_id,
-                "sender_name": sender_name,
-                "target_type": r.target_type,
-                "target_id": r.target_id,
-                "created_at": str(r.created_at),
-                "is_read": r.announcement_id in read_set,
-                "priority": getattr(r, 'priority', 'Normal') or 'Normal',
-                "attachment_url": getattr(r, 'attachment_url', None),
-                "attachment_name": getattr(r, 'attachment_name', None)
-            })
-        return announcements
+        return fetch_announcements_helper(db, current_user)
     finally:
         db.close()
 
@@ -2847,70 +2946,41 @@ def mark_announcement_as_read(announcement_id: int, current_user: dict = Depends
     finally:
         db.close()
 
+@app.post("/api/announcements/read-all")
+@app.post("/announcements/read-all")
+@app.post("/faculty/announcements/read-all")
+def mark_all_announcements_as_read(current_user: dict = Depends(get_current_user)):
+    db = SessionLocal()
+    try:
+        user_id = current_user["user_id"]
+        announcements = fetch_announcements_helper(db, current_user)
+        unread_ids = [a["announcement_id"] for a in announcements if not a["is_read"]]
+        
+        for aid in unread_ids:
+            existing = db.execute(text("""
+                SELECT 1 FROM announcement_reads 
+                WHERE announcement_id = :aid AND user_id = :uid
+            """), {"aid": aid, "uid": user_id}).fetchone()
+            if not existing:
+                db.execute(text("""
+                    INSERT INTO announcement_reads (announcement_id, user_id, read_at)
+                    VALUES (:aid, :uid, CURRENT_TIMESTAMP)
+                """), {"aid": aid, "uid": user_id})
+        db.commit()
+        return {"success": True, "message": "All announcements marked as read", "count": len(unread_ids)}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        db.close()
+
 @app.post("/api/announcements")
 @app.post("/announcements")
 @app.post("/faculty/announcements")
 def create_announcement(data: AnnouncementInput, current_user: dict = Depends(require_role(["admin", "faculty"]))):
     db = SessionLocal()
     try:
-        sender_type = current_user["role"]
-        sender_id = current_user["faculty_id"] if sender_type == "faculty" else current_user["user_id"]
-        iid = current_user["institution_id"]
-        
-        # Check if priority/attachment columns exist (graceful fallback)
-        priority = getattr(data, 'priority', 'Normal') or 'Normal'
-        attachment_url = getattr(data, 'attachment_url', None)
-        attachment_name = getattr(data, 'attachment_name', None)
-
-        try:
-            new_id = db.execute(
-                text("""
-                    INSERT INTO announcements
-                    (title, description, sender_type, sender_id, target_type, target_id, institution_id, priority, attachment_url, attachment_name, created_at)
-                    VALUES
-                    (:title, :description, :sender_type, :sender_id, :target_type, :target_id, :iid, :priority, :attachment_url, :attachment_name, CURRENT_TIMESTAMP)
-                    RETURNING announcement_id
-                """),
-                {
-                    "title": data.title,
-                    "description": data.description,
-                    "sender_type": sender_type,
-                    "sender_id": sender_id,
-                    "target_type": data.target_type,
-                    "target_id": data.target_id,
-                    "iid": iid,
-                    "priority": priority,
-                    "attachment_url": attachment_url,
-                    "attachment_name": attachment_name
-                }
-            ).scalar()
-        except Exception:
-            # Fallback: insert without new columns if they don't exist yet
-            db.rollback()
-            new_id = db.execute(
-                text("""
-                    INSERT INTO announcements
-                    (title, description, sender_type, sender_id, target_type, target_id, institution_id, created_at)
-                    VALUES
-                    (:title, :description, :sender_type, :sender_id, :target_type, :target_id, :iid, CURRENT_TIMESTAMP)
-                    RETURNING announcement_id
-                """),
-                {
-                    "title": data.title,
-                    "description": data.description,
-                    "sender_type": sender_type,
-                    "sender_id": sender_id,
-                    "target_type": data.target_type,
-                    "target_id": data.target_id,
-                    "iid": iid
-                }
-            ).scalar()
-
-        db.commit()
-        if sender_type == "faculty":
-            log_faculty_activity(db, sender_id, "posted", "announcement", f"Posted announcement '{data.title}'.", new_id)
-            create_faculty_notification(db, sender_id, "Announcement Published", f"Announcement '{data.title}' published successfully.", "announcement", new_id)
-        log_audit(db, "CREATE", "Announcement", new_id, performed_by=f"{sender_type.capitalize()} {sender_id}")
+        new_id = create_announcement_helper(db, data, current_user)
         return {
             "message": "Announcement created successfully",
             "announcement_id": new_id
@@ -2921,7 +2991,6 @@ def create_announcement(data: AnnouncementInput, current_user: dict = Depends(re
     finally:
         db.close()
 
-
 @app.put("/api/announcements/{announcement_id}")
 @app.put("/announcements/{announcement_id}")
 def update_announcement(
@@ -2931,36 +3000,13 @@ def update_announcement(
 ):
     db = SessionLocal()
     try:
-        ann = db.execute(text("SELECT sender_type, sender_id, institution_id FROM announcements WHERE announcement_id = :id"), {"id": announcement_id}).fetchone()
-        if not ann:
-            raise HTTPException(status_code=404, detail="Announcement not found")
-        if ann.institution_id != current_user["institution_id"]:
-            raise HTTPException(status_code=403, detail="Access denied: Announcement belongs to another institution")
-
-        if current_user["role"] == "faculty":
-            if ann.sender_type != "faculty" or ann.sender_id != current_user["faculty_id"]:
-                raise HTTPException(status_code=403, detail="Access denied: You do not own this announcement")
-
-        db.execute(
-            text("""
-                UPDATE announcements
-                SET title = :title,
-                    description = :description,
-                    target_type = :target_type,
-                    target_id = :target_id
-                WHERE announcement_id = :announcement_id
-            """),
-            {
-                "title": data.title,
-                "description": data.description,
-                "target_type": data.target_type,
-                "target_id": data.target_id,
-                "announcement_id": announcement_id
-            }
-        )
-        db.commit()
-        log_audit(db, "UPDATE", "Announcement", announcement_id, performed_by=f"{current_user['role'].capitalize()} {current_user['user_id']}")
+        update_announcement_helper(db, announcement_id, data, current_user)
         return {"message": "Announcement updated successfully"}
+    except Exception as e:
+        db.rollback()
+        if isinstance(e, HTTPException):
+            raise e
+        raise HTTPException(status_code=500, detail=str(e))
     finally:
         db.close()
 
@@ -2972,20 +3018,13 @@ def delete_announcement(
 ):
     db = SessionLocal()
     try:
-        ann = db.execute(text("SELECT sender_type, sender_id, institution_id FROM announcements WHERE announcement_id = :id"), {"id": announcement_id}).fetchone()
-        if not ann:
-            raise HTTPException(status_code=404, detail="Announcement not found")
-        if ann.institution_id != current_user["institution_id"]:
-            raise HTTPException(status_code=403, detail="Access denied: Announcement belongs to another institution")
-
-        if current_user["role"] == "faculty":
-            if ann.sender_type != "faculty" or ann.sender_id != current_user["faculty_id"]:
-                raise HTTPException(status_code=403, detail="Access denied: You do not own this announcement")
-
-        db.execute(text("DELETE FROM announcements WHERE announcement_id = :id"), {"id": announcement_id})
-        db.commit()
-        log_audit(db, "DELETE", "Announcement", announcement_id, performed_by=f"{current_user['role'].capitalize()} {current_user['user_id']}")
+        delete_announcement_helper(db, announcement_id, current_user)
         return {"message": "Announcement deleted successfully"}
+    except Exception as e:
+        db.rollback()
+        if isinstance(e, HTTPException):
+            raise e
+        raise HTTPException(status_code=500, detail=str(e))
     finally:
         db.close()
 
@@ -3505,6 +3544,7 @@ def update_my_profile(data: dict, current_user: dict = Depends(get_current_user)
             )
             db.commit()
             log_audit(db, "UPDATE_PROFILE", "Faculty", fid, performed_by=f"Faculty {fid}")
+            log_faculty_activity(fid, "profile", "updated", "Updated faculty profile details.", fid, db=db)
         return {"success": True, "message": "Profile updated successfully"}
     except Exception as e:
         db.rollback()
@@ -3568,6 +3608,8 @@ def change_my_password(data: PasswordChangeInput, current_user: dict = Depends(g
         )
         db.commit()
         log_audit(db, "CHANGE_PASSWORD", "User", uid, performed_by=f"User {uid}")
+        if current_user.get("role") == "faculty" and current_user.get("faculty_id"):
+            log_faculty_activity(current_user["faculty_id"], "authentication", "changed_password", "Successfully changed account password.", current_user["faculty_id"], db=db)
         return {"success": True, "message": "Password changed successfully"}
     except Exception as e:
         db.rollback()
@@ -4156,6 +4198,29 @@ class RemedialSessionCreateInput(BaseModel):
 class InvitationStatusUpdate(BaseModel):
     status: str
 
+
+class CancelRemedialSessionInput(BaseModel):
+    faculty_id: int
+
+
+class CompleteRemedialSessionInput(BaseModel):
+    faculty_id: int
+    outcome: str
+    remarks: str
+    recommendation: str
+
+
+class RemedialSessionUpdateInput(BaseModel):
+    class_id: int
+    subject_id: int
+    topic: str
+    description: Optional[str] = None
+    session_date: str
+    session_time: str
+    location: str
+    student_ids: List[int]
+    faculty_id: int
+
 class UpdateInvitationStatusInput(BaseModel):
     status: str
     faculty_id: int
@@ -4608,16 +4673,7 @@ def update_student_intervention(student_id: int, input_data: StudentIntervention
             })
             
         action_desc = f"Logged intervention for {student.full_name}: status = {input_data.intervention_status or 'Not Contacted'}"
-        db.execute(text("""
-            INSERT INTO faculty_activities (faculty_id, action, module, details, related_id, created_at)
-            VALUES (:fid, :action, :module, :details, :rel_id, CURRENT_TIMESTAMP)
-        """), {
-            "fid": current_user["faculty_id"],
-            "action": "Updated Intervention",
-            "module": "risk",
-            "details": action_desc,
-            "rel_id": student_id
-        })
+        log_faculty_activity(current_user["faculty_id"], "student_monitoring", "Updated Intervention", action_desc, student_id, db=db)
         
         db.execute(text("""
             INSERT INTO notifications (faculty_id, title, message, type, is_read, created_at)
@@ -6674,105 +6730,264 @@ def get_student_hub_calendar(current_user: dict = Depends(get_current_user)):
     finally:
         db.close()
 
+# --- Remedial Reusable Helpers ---
+
+def create_remedial_session_helper(db, payload: RemedialSessionCreateInput) -> int:
+    # 1. Insert remedial session
+    result = db.execute(
+        text("""
+        INSERT INTO remedial_sessions
+        (
+            faculty_id, class_id, subject_id, topic, description,
+            session_date, session_time, location, status, created_at
+        )
+        VALUES
+        (
+            :faculty_id, :class_id, :subject_id, :topic, :description,
+            :session_date, :session_time, :location, 'Active', CURRENT_TIMESTAMP
+        )
+        RETURNING session_id
+        """),
+        {
+            "faculty_id": payload.faculty_id,
+            "class_id": payload.class_id,
+            "subject_id": payload.subject_id,
+            "topic": payload.topic,
+            "description": payload.description,
+            "session_date": payload.session_date,
+            "session_time": payload.session_time,
+            "location": payload.location
+        }
+    )
+    session_id = result.scalar()
+
+    # 2. Insert invitations for each student
+    for student_id in payload.student_ids:
+        db.execute(
+            text("""
+            INSERT INTO remedial_invitations (session_id, student_id, status, created_at)
+            VALUES (:session_id, :student_id, 'Invited', CURRENT_TIMESTAMP)
+            """),
+            {"session_id": session_id, "student_id": student_id}
+        )
+
+    # 3. Log activity and notification
+    log_faculty_activity(payload.faculty_id, "remedial", "scheduled", f"Scheduled remedial session '{payload.topic}' for {payload.session_date}.", session_id, db=db)
+    db.execute(
+        text("""
+            INSERT INTO notifications (faculty_id, title, message, type, related_id, is_read, created_at)
+            VALUES (:fid, 'Remedial Class Scheduled', :msg, 'remedial', :rid, FALSE, CURRENT_TIMESTAMP)
+        """),
+        {"fid": payload.faculty_id, "msg": f"Remedial session '{payload.topic}' scheduled successfully.", "rid": session_id}
+    )
+    return session_id
+
+
+def update_remedial_session_helper(db, session_id: int, payload: RemedialSessionUpdateInput):
+    # 1. Update session details
+    db.execute(
+        text("""
+        UPDATE remedial_sessions
+        SET class_id = :class_id,
+            subject_id = :subject_id,
+            topic = :topic,
+            description = :description,
+            session_date = :session_date,
+            session_time = :session_time,
+            location = :location
+        WHERE session_id = :session_id
+        """),
+        {
+            "class_id": payload.class_id,
+            "subject_id": payload.subject_id,
+            "topic": payload.topic,
+            "description": payload.description,
+            "session_date": payload.session_date,
+            "session_time": payload.session_time,
+            "location": payload.location,
+            "session_id": session_id
+        }
+    )
+
+    # 2. Sync invitations
+    current_invites = db.execute(
+        text("SELECT student_id FROM remedial_invitations WHERE session_id = :session_id"),
+        {"session_id": session_id}
+    ).fetchall()
+    current_student_ids = {r.student_id for r in current_invites}
+    new_student_ids = set(payload.student_ids)
+
+    to_remove = current_student_ids - new_student_ids
+    if to_remove:
+        db.execute(
+            text("DELETE FROM remedial_invitations WHERE session_id = :session_id AND student_id IN :sids"),
+            {"session_id": session_id, "sids": tuple(to_remove)}
+        )
+
+    to_add = new_student_ids - current_student_ids
+    for sid in to_add:
+        db.execute(
+            text("""
+            INSERT INTO remedial_invitations (session_id, student_id, status, created_at)
+            VALUES (:session_id, :student_id, 'Invited', CURRENT_TIMESTAMP)
+            """),
+            {"session_id": session_id, "student_id": sid}
+        )
+
+    # 3. Log activity and notification
+    log_faculty_activity(payload.faculty_id, "remedial", "updated", f"Updated remedial session '{payload.topic}'.", session_id, db=db)
+    db.execute(
+        text("""
+            INSERT INTO notifications (faculty_id, title, message, type, related_id, is_read, created_at)
+            VALUES (:fid, 'Remedial Class Updated', :msg, 'remedial', :rid, FALSE, CURRENT_TIMESTAMP)
+        """),
+        {"fid": payload.faculty_id, "msg": f"Remedial session '{payload.topic}' was updated.", "rid": session_id}
+    )
+
+
+def cancel_remedial_session_helper(db, session_id: int, faculty_id: int):
+    # 1. Get session details for logging
+    row = db.execute(
+        text("SELECT topic FROM remedial_sessions WHERE session_id = :session_id"),
+        {"session_id": session_id}
+    ).fetchone()
+    topic = row.topic if row else "Remedial Session"
+
+    # 2. Update session status
+    db.execute(
+        text("UPDATE remedial_sessions SET status = 'Cancelled' WHERE session_id = :session_id"),
+        {"session_id": session_id}
+    )
+
+    # 3. Update all invitation statuses to Cancelled
+    db.execute(
+        text("UPDATE remedial_invitations SET status = 'Cancelled' WHERE session_id = :session_id"),
+        {"session_id": session_id}
+    )
+
+    # 4. Log activity and notification
+    log_faculty_activity(faculty_id, "remedial", "cancelled", f"Cancelled remedial session '{topic}'.", session_id, db=db)
+    db.execute(
+        text("""
+            INSERT INTO notifications (faculty_id, title, message, type, related_id, is_read, created_at)
+            VALUES (:fid, 'Remedial Class Cancelled', :msg, 'remedial', :rid, FALSE, CURRENT_TIMESTAMP)
+        """),
+        {"fid": faculty_id, "msg": f"Remedial session '{topic}' was cancelled.", "rid": session_id}
+    )
+
+
+def complete_remedial_session_helper(db, session_id: int, faculty_id: int, outcome: str, remarks: str, recommendation: str):
+    # 1. Get session details for logging
+    row = db.execute(
+        text("SELECT topic FROM remedial_sessions WHERE session_id = :session_id"),
+        {"session_id": session_id}
+    ).fetchone()
+    topic = row.topic if row else "Remedial Session"
+
+    # 2. Update session completion notes and status
+    db.execute(
+        text("""
+        UPDATE remedial_sessions
+        SET status = 'Completed',
+            outcome = :outcome,
+            remarks = :remarks,
+            recommendation = :recommendation
+        WHERE session_id = :session_id
+        """),
+        {
+            "outcome": outcome,
+            "remarks": remarks,
+            "recommendation": recommendation,
+            "session_id": session_id
+        }
+    )
+
+    # 3. Log activity and notification
+    log_faculty_activity(faculty_id, "remedial", "completed", f"Recorded completion notes for remedial session '{topic}'.", session_id, db=db)
+    db.execute(
+        text("""
+            INSERT INTO notifications (faculty_id, title, message, type, related_id, is_read, created_at)
+            VALUES (:fid, 'Remedial Class Completed', :msg, 'remedial', :rid, FALSE, CURRENT_TIMESTAMP)
+        """),
+        {"fid": faculty_id, "msg": f"Remedial session '{topic}' completion notes recorded.", "rid": session_id}
+    )
+
+
 @app.post("/remedial/sessions")
 def create_remedial_session(payload: RemedialSessionCreateInput):
     with engine.begin() as conn:
-        # 1. Insert remedial session
-        result = conn.execute(
-            text("""
-            INSERT INTO remedial_sessions
-            (
-                faculty_id,
-                class_id,
-                subject_id,
-                topic,
-                description,
-                session_date,
-                session_time,
-                location,
-                created_at
-            )
-            VALUES
-            (
-                :faculty_id,
-                :class_id,
-                :subject_id,
-                :topic,
-                :description,
-                :session_date,
-                :session_time,
-                :location,
-                CURRENT_TIMESTAMP
-            )
-            RETURNING session_id
-            """),
-            {
-                "faculty_id": payload.faculty_id,
-                "class_id": payload.class_id,
-                "subject_id": payload.subject_id,
-                "topic": payload.topic,
-                "description": payload.description,
-                "session_date": payload.session_date,
-                "session_time": payload.session_time,
-                "location": payload.location
-            }
-        )
-        session_id = result.scalar()
-
-        # 2. Insert invitations for each student
-        for student_id in payload.student_ids:
-            conn.execute(
-                text("""
-                INSERT INTO remedial_invitations (session_id, student_id, status, created_at)
-                VALUES (:session_id, :student_id, 'Invited', CURRENT_TIMESTAMP)
-                """),
-                {"session_id": session_id, "student_id": student_id}
-            )
-
-        # 3. Log activity and notification
-        conn.execute(
-            text("""
-                INSERT INTO faculty_activities (faculty_id, action, module, details, related_id, created_at)
-                VALUES (:fid, 'scheduled', 'remedial', :details, :rid, CURRENT_TIMESTAMP)
-            """),
-            {"fid": payload.faculty_id, "details": f"Scheduled remedial session '{payload.topic}' for {payload.session_date}.", "rid": session_id}
-        )
-        conn.execute(
-            text("""
-                INSERT INTO notifications (faculty_id, title, message, type, related_id, is_read, created_at)
-                VALUES (:fid, 'Remedial Class Scheduled', :msg, 'remedial', :rid, FALSE, CURRENT_TIMESTAMP)
-            """),
-            {"fid": payload.faculty_id, "msg": f"Remedial session '{payload.topic}' scheduled successfully.", "rid": session_id}
-        )
-
+        session_id = create_remedial_session_helper(conn, payload)
     return {
         "success": True,
         "session_id": session_id
     }
+
+
+@app.put("/remedial/sessions/{session_id}")
+def update_remedial_session(session_id: int, payload: RemedialSessionUpdateInput):
+    with engine.begin() as conn:
+        update_remedial_session_helper(conn, session_id, payload)
+    return {
+        "success": True
+    }
+
+
+@app.post("/remedial/sessions/{session_id}/cancel")
+def cancel_remedial_session(session_id: int, payload: CancelRemedialSessionInput):
+    with engine.begin() as conn:
+        cancel_remedial_session_helper(conn, session_id, payload.faculty_id)
+    return {
+        "success": True
+    }
+
+
+@app.post("/remedial/sessions/{session_id}/complete")
+def complete_remedial_session(session_id: int, payload: CompleteRemedialSessionInput):
+    with engine.begin() as conn:
+        complete_remedial_session_helper(conn, session_id, payload.faculty_id, payload.outcome, payload.remarks, payload.recommendation)
+    return {
+        "success": True
+    }
+
 
 @app.get("/remedial/sessions")
 def get_remedial_sessions(faculty_id: int):
     with engine.begin() as conn:
         rows = conn.execute(
             text("""
-SELECT
-    rs.session_id,
-    rs.topic,
-    rs.description,
-    rs.session_date,
-    rs.session_time,
-    rs.class_id,
-    rs.subject_id,
-    rs.location,
-    s.subject_name
+            SELECT
+                rs.session_id,
+                rs.topic,
+                rs.description,
+                rs.session_date,
+                rs.session_time,
+                rs.class_id,
+                rs.subject_id,
+                rs.location,
+                rs.status,
+                rs.outcome,
+                rs.remarks,
+                rs.recommendation,
+                s.subject_name,
+                c.class_name,
+                f.full_name AS faculty_name,
+                COALESCE((
+                    SELECT string_agg(st.full_name, ', ')
+                    FROM remedial_invitations ri
+                    JOIN students st ON ri.student_id = st.student_id
+                    WHERE ri.session_id = rs.session_id
+                ), '') AS student_names
             FROM remedial_sessions rs
             JOIN subjects s ON rs.subject_id = s.subject_id
+            JOIN classes c ON rs.class_id = c.class_id
+            JOIN faculty f ON rs.faculty_id = f.faculty_id
             WHERE rs.faculty_id = :faculty_id
             ORDER BY rs.session_date DESC
             """),
             {"faculty_id": faculty_id}
         ).mappings().all()
         return [dict(r) for r in rows]
+
 
 @app.get("/remedial/sessions/{session_id}/invitations")
 def get_session_invitations(session_id: int):
@@ -6794,14 +7009,13 @@ def get_session_invitations(session_id: int):
         ).mappings().all()
     return [dict(r) for r in rows]
 
+
 @app.post("/remedial/invitations/{invitation_id}/status")
 def update_invitation_status(
     invitation_id: int,
     payload: InvitationStatusUpdate
 ):
-
     with engine.begin() as conn:
-
         conn.execute(
             text("""
             UPDATE remedial_invitations
@@ -6813,7 +7027,6 @@ def update_invitation_status(
                 "invitation_id": invitation_id
             }
         )
-
     return {
         "success": True
     }
@@ -7051,7 +7264,65 @@ def save_subject_assessments(subject_id: int, data: SubjectAssessmentsSaveInput,
 # --- FACULTY PRODUCTIVITY HUB: NOTIFICATIONS & ACTIVITIES ---
 # =====================================================================
 
-def log_faculty_activity(db, faculty_id: int, action: str, module: str, details: str, related_id: Optional[int] = None):
+def log_faculty_activity(*args, **kwargs):
+    """
+    Flexible, backward-compatible activity logger.
+    Supports:
+      Old: log_faculty_activity(db, faculty_id, action, module, details, related_id=None)
+      New: log_faculty_activity(faculty_id, module, action, details, related_id=None)
+    """
+    db = None
+    faculty_id = None
+    module = None
+    action = None
+    details = None
+    related_id = None
+    
+    if len(args) >= 1:
+        first = args[0]
+        if isinstance(first, (int, float)) or (isinstance(first, str) and first.isdigit()):
+            # New signature: faculty_id, module, action, details, related_id=None
+            faculty_id = int(first)
+            if len(args) >= 2: module = args[1]
+            if len(args) >= 3: action = args[2]
+            if len(args) >= 4: details = args[3]
+            if len(args) >= 5: related_id = args[4]
+            db = kwargs.get("db", None)
+        else:
+            # Old signature: db, faculty_id, action, module, details, related_id=None
+            db = first
+            if len(args) >= 2: faculty_id = int(args[1])
+            if len(args) >= 3: action = args[2]
+            if len(args) >= 4: module = args[3]
+            if len(args) >= 5: details = args[4]
+            if len(args) >= 6: related_id = args[5]
+            
+    # Override/fill from kwargs
+    if "faculty_id" in kwargs: faculty_id = kwargs["faculty_id"]
+    if "module" in kwargs: module = kwargs["module"]
+    if "action" in kwargs: action = kwargs["action"]
+    if "details" in kwargs: details = kwargs["details"]
+    if "related_id" in kwargs: related_id = kwargs["related_id"]
+    if "db" in kwargs and db is None: db = kwargs["db"]
+    
+    # Map module names if any
+    if module == "marks":
+        module = "gradebook"
+    elif module == "risk":
+        if action and ("Intervention" in action or "intervention" in action.lower()):
+            module = "student_monitoring"
+        else:
+            module = "risk_prediction"
+    elif module == "auth":
+        module = "authentication"
+    elif module == "announcement":
+        module = "announcement"
+        
+    opened_db = False
+    if db is None:
+        db = SessionLocal()
+        opened_db = True
+        
     try:
         db.execute(
             text("""
@@ -7069,6 +7340,14 @@ def log_faculty_activity(db, faculty_id: int, action: str, module: str, details:
         db.commit()
     except Exception as e:
         print(f"Error logging faculty activity: {e}")
+        if opened_db:
+            db.rollback()
+    finally:
+        if opened_db:
+            db.close()
+
+# Alias log_activity to log_faculty_activity for standard conformant calls
+log_activity = log_faculty_activity
 
 def create_faculty_notification(db, faculty_id: int, title: str, message: str, type: str, related_id: Optional[int] = None):
     try:
@@ -7368,30 +7647,131 @@ def get_faculty_activities(
         params = {"fid": faculty_id}
         
         if module and module != "all":
-            query += " AND module = :module"
-            params["module"] = module
-            
+            if module == "gradebook":
+                query += " AND module IN ('gradebook', 'marks')"
+            elif module == "risk_prediction":
+                query += " AND (module = 'risk_prediction' OR (module = 'risk' AND action NOT LIKE '%Intervention%'))"
+            elif module == "student_monitoring":
+                query += " AND (module = 'student_monitoring' OR (module = 'risk' AND action LIKE '%Intervention%'))"
+            elif module == "authentication":
+                query += " AND module IN ('authentication', 'auth')"
+            elif module == "announcement":
+                query += " AND module IN ('announcement', 'announcements')"
+            else:
+                query += " AND module = :module"
+                params["module"] = module
+                
         if time_range == "today":
             query += " AND created_at >= CURRENT_DATE"
-        elif time_range == "week":
+        elif time_range in ("week", "7days"):
             query += " AND created_at >= CURRENT_DATE - INTERVAL '7 days'"
+        elif time_range in ("month", "30days"):
+            query += " AND created_at >= CURRENT_DATE - INTERVAL '30 days'"
             
         query += " ORDER BY created_at DESC LIMIT :limit"
         params["limit"] = limit
         
         rows = db.execute(text(query), params).fetchall()
         
-        return [
-            {
-                "activity_id": r.activity_id,
-                "action": r.action,
-                "module": r.module,
-                "details": r.details,
-                "related_id": r.related_id,
-                "created_at": r.created_at.isoformat() if r.created_at else None
-            }
-            for r in rows
-        ]
+        activities_list = []
+        for r in rows:
+            act_id = r.activity_id
+            action = r.action
+            
+            # Standardize module name for frontend
+            mod_name = r.module
+            if mod_name == "marks":
+                mod_name = "gradebook"
+            elif mod_name == "risk":
+                if r.action and ("Intervention" in r.action or "intervention" in r.action.lower()):
+                    mod_name = "student_monitoring"
+                else:
+                    mod_name = "risk_prediction"
+            elif mod_name == "auth":
+                mod_name = "authentication"
+                
+            details = r.details
+            related_id = r.related_id
+            created_at = r.created_at.isoformat() if r.created_at else None
+            
+            # Enrich academic context
+            related_class = None
+            related_subject = None
+            related_student = None
+            
+            if related_id:
+                try:
+                    if mod_name == 'attendance':
+                        # related_id is class_id
+                        cls = db.execute(text("SELECT class_name FROM classes WHERE class_id = :rid"), {"rid": related_id}).fetchone()
+                        if cls:
+                            related_class = cls.class_name
+                    elif mod_name == 'assignment':
+                        # related_id is assignment_id
+                        assign = db.execute(text("""
+                            SELECT a.title, c.class_name, s.subject_name 
+                            FROM assignments a
+                            LEFT JOIN classes c ON a.class_id = c.class_id
+                            LEFT JOIN subjects s ON a.subject_id = s.subject_id
+                            WHERE a.assignment_id = :rid
+                        """), {"rid": related_id}).fetchone()
+                        if assign:
+                            related_class = assign.class_name
+                            related_subject = assign.subject_name
+                    elif mod_name == 'gradebook':
+                        # related_id is class_id
+                        cls = db.execute(text("SELECT class_name FROM classes WHERE class_id = :rid"), {"rid": related_id}).fetchone()
+                        if cls:
+                            related_class = cls.class_name
+                    elif mod_name == 'remedial':
+                        # related_id is session_id
+                        session = db.execute(text("""
+                            SELECT rs.topic, c.class_name, s.subject_name 
+                            FROM remedial_sessions rs
+                            LEFT JOIN classes c ON rs.class_id = c.class_id
+                            LEFT JOIN subjects s ON rs.subject_id = s.subject_id
+                            WHERE rs.session_id = :rid
+                        """), {"rid": related_id}).fetchone()
+                        if session:
+                            related_class = session.class_name
+                            related_subject = session.subject_name
+                    elif mod_name == 'announcement':
+                        # related_id is announcement_id
+                        ann = db.execute(text("SELECT title, target_type, target_id FROM announcements WHERE announcement_id = :rid"), {"rid": related_id}).fetchone()
+                        if ann:
+                            if ann.target_type == 'class':
+                                cls = db.execute(text("SELECT class_name FROM classes WHERE class_id = :cid"), {"cid": ann.target_id}).fetchone()
+                                if cls:
+                                    related_class = cls.class_name
+                    elif mod_name in ('student_monitoring', 'risk_prediction'):
+                        # related_id is student_id
+                        stud = db.execute(text("""
+                            SELECT s.full_name, c.class_name 
+                            FROM students s
+                            LEFT JOIN enrollments e ON s.student_id = e.student_id
+                            LEFT JOIN classes c ON e.class_id = c.class_id
+                            WHERE s.student_id = :rid
+                            LIMIT 1
+                        """), {"rid": related_id}).fetchone()
+                        if stud:
+                            related_student = stud.full_name
+                            related_class = stud.class_name
+                except Exception as ex:
+                    print(f"Error enriching activity context: {ex}")
+                    
+            activities_list.append({
+                "activity_id": act_id,
+                "action": action,
+                "module": mod_name,
+                "details": details,
+                "related_id": related_id,
+                "created_at": created_at,
+                "related_class": related_class,
+                "related_subject": related_subject,
+                "related_student": related_student
+            })
+            
+        return activities_list
     finally:
         db.close()
 
@@ -7534,15 +7914,31 @@ def get_faculty_dashboard_command_center(
             {"fid": faculty_id}
         ).scalar() or 0
         
-        # Unread Announcements for faculty
+        # Unread Announcements for faculty (aligned with visibility logic)
+        iid = faculty.institution_id
+        dept = faculty.department or ""
         unread_announcements = db.execute(
             text("""
-                SELECT COUNT(*) 
+                SELECT COUNT(DISTINCT a.announcement_id)
                 FROM announcements a
                 LEFT JOIN announcement_reads r ON a.announcement_id = r.announcement_id AND r.user_id = :uid
-                WHERE r.id IS NULL AND (a.target_type = 'faculty' OR a.target_type = 'all')
+                WHERE a.institution_id = :iid
+                  AND r.id IS NULL
+                  AND NOT ((a.sender_type = 'faculty' OR a.sender_type = 'FACULTY') AND a.sender_id = :fid)
+                  AND (
+                    a.target_type = 'Institution'
+                    OR (a.target_type = 'Faculty' AND (a.target_id IS NULL OR a.target_id = :fid))
+                    OR (a.target_type = 'Department' AND a.target_id IN (
+                        SELECT department_id FROM departments WHERE department_name = :dept OR department_code = :dept
+                    ))
+                  )
             """),
-            {"uid": current_user["user_id"]}
+            {
+                "uid": current_user["user_id"],
+                "iid": iid,
+                "fid": faculty_id,
+                "dept": dept
+            }
         ).scalar() or 0
         
         today_overview = {

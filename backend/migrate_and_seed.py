@@ -150,6 +150,10 @@ def run_migrations():
                 sender_id INTEGER NOT NULL,
                 target_type VARCHAR(50) NOT NULL,
                 target_id INTEGER NULL,
+                priority VARCHAR(50) DEFAULT 'Normal',
+                attachment_url TEXT NULL,
+                attachment_name VARCHAR(255) NULL,
+                is_edited INTEGER DEFAULT 0,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
         """))
@@ -445,6 +449,21 @@ def run_migrations():
         if 'target_career' not in metrics_cols:
             db.execute(text("ALTER TABLE student_metrics ADD COLUMN target_career VARCHAR(100) DEFAULT 'ai-engineer';"))
             print("Altered table student_metrics to add target_career column.")
+            
+        # Add new columns to announcements if missing
+        ann_cols = [c['name'] for c in inspector.get_columns('announcements')]
+        if 'priority' not in ann_cols:
+            db.execute(text("ALTER TABLE announcements ADD COLUMN priority VARCHAR(50) DEFAULT 'Normal';"))
+            print("Altered table announcements to add priority column.")
+        if 'attachment_url' not in ann_cols:
+            db.execute(text("ALTER TABLE announcements ADD COLUMN attachment_url TEXT;"))
+            print("Altered table announcements to add attachment_url column.")
+        if 'attachment_name' not in ann_cols:
+            db.execute(text("ALTER TABLE announcements ADD COLUMN attachment_name VARCHAR(255);"))
+            print("Altered table announcements to add attachment_name column.")
+        if 'is_edited' not in ann_cols:
+            db.execute(text("ALTER TABLE announcements ADD COLUMN is_edited INTEGER DEFAULT 0;"))
+            print("Altered table announcements to add is_edited column.")
         
         db.commit()
 
@@ -519,7 +538,7 @@ def run_seeding():
         ]
 
         for inst in institutions_to_seed:
-            existing = db.execute(text("SELECT institution_id FROM institutions WHERE short_name = :short_name"), {"short_name": inst["short_name"]}).fetchone()
+            existing = db.execute(text("SELECT institution_id FROM institutions WHERE short_name = :short_name OR institution_id = :institution_id"), {"short_name": inst["short_name"], "institution_id": inst["institution_id"]}).fetchone()
             if not existing:
                 db.execute(text("""
                     INSERT INTO institutions (institution_id, institution_name, short_name, domain_name, logo_url, theme_color, website, address, status, contact_email, contact_phone, academic_year)
