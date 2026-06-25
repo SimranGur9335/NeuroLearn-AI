@@ -58,6 +58,7 @@ import AssignmentManagement from "./pages/faculty/AssignmentManagement";
 import MarksGradebook from "./pages/faculty/MarksGradebook";
 import RemedialSessions from "./pages/faculty/RemedialSessions";
 import FacultySelfProfile from './pages/faculty/FacultyProfile';
+import FacultyActivityStream from './pages/faculty/FacultyActivityStream';
 
 // Admin Portal Pages
 import AdminDashboard from './pages/admin/AdminDashboard';
@@ -123,7 +124,6 @@ function App() {
               <Route path="/ai/chat" element={<AiMentorChat />} />
               <Route path="/ai/predictions" element={<PerformancePrediction />} />
               <Route path="/ai/emotions" element={<EmotionAnalysis />} />
-              <Route path="/ai/recommendations" element={<RecommendationEngine />} />
 
               {/* Student Hub Routes */}
               <Route path="/student-hub" element={<StudentHubHome />} />
@@ -159,6 +159,10 @@ function App() {
               <Route path="/faculty/announcements" element={<FacultyAnnouncement />} />
               <Route path="/faculty/assignments" element={<AssignmentManagement />} />
               <Route path="/faculty/gradebook" element={<MarksGradebook />} />
+              <Route path="/faculty/remedial" element={<RemedialSessions />} />
+              <Route path="/faculty/profile" element={<FacultySelfProfile />} />
+              <Route path="/faculty/activity" element={<FacultyActivityStream />} />
+
             </Route>
 
             {/* Admin Portal Layout & Routes */}

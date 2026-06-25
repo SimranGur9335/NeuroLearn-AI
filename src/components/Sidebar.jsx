@@ -139,7 +139,7 @@ const Sidebar = () => {
 
       {/* User Footer Profile & Change Role Trigger */}
       <div
-        onClick={() => navigate('/profile')}
+        onClick={() => navigate('/faculty/profile')}
         className="p-4 border-t border-slate-800 bg-slate-950/40 flex items-center gap-3 cursor-pointer hover:bg-slate-850 transition-colors group"
       >
         <div className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center text-lg shrink-0 border border-slate-700 relative">

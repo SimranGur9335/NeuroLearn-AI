@@ -5,12 +5,7 @@ export default defineConfig({
   plugins: [react()],
   server: {
     proxy: {
-      '/api': {
-        target: 'http://localhost:8000',
-        changeOrigin: true,
-        secure: false
-      },
-      '/admin': {
+      '^/(api|admin|faculty|student|student-hub|class|attendance|assignments|announcements|marks|remedial)': {
         target: 'http://localhost:8000',
         changeOrigin: true,
         secure: false

@@ -10,10 +10,14 @@ import { useAuth } from "../../context/AuthContext";
 
 /* ── helpers ── */
 const priorityConfig = {
-  Urgent:    { color: "bg-red-500/10 text-red-500 border-red-500/20",    dot: "bg-red-500" },
+  Urgent: { color: "bg-red-500/10 text-red-500 border-red-500/20", dot: "bg-red-500" },
   Important: { color: "bg-amber-500/10 text-amber-500 border-amber-500/20", dot: "bg-amber-500" },
-  Normal:    { color: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20", dot: "bg-emerald-500" },
+  Normal: { color: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20", dot: "bg-emerald-500" },
 };
+
+
+
+
 
 const fmtDate = (d) => {
   if (!d) return "—";
@@ -32,8 +36,8 @@ const Toast = ({ msg, type, onClose }) => {
     <motion.div initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 40 }}
       className={`fixed bottom-6 right-6 z-50 flex items-center gap-3 px-5 py-3 rounded-2xl text-white text-sm font-semibold shadow-2xl ${cfg[type] || cfg.info}`}>
       {type === "success" && <CheckCircle size={16} />}
-      {type === "error"   && <XCircle size={16} />}
-      {type === "info"    && <Info size={16} />}
+      {type === "error" && <XCircle size={16} />}
+      {type === "info" && <Info size={16} />}
       {msg}
       <button onClick={onClose}><X size={14} /></button>
     </motion.div>
@@ -66,154 +70,185 @@ const FacultyAnnouncements = () => {
   /* ── tabs ── */
   const [activeTab, setActiveTab] = useState("received");
 
-    const [stats, setStats] = useState({
-        received: 0,
-        sent: 0,
-        unread: 0
-    });
-    const [targetType, setTargetType] = useState("CLASS");
+  const [stats, setStats] = useState({
+    received: 0,
+    sent: 0,
+    unread: 0
+  });
+  const [targetType, setTargetType] = useState("CLASS");
 
-    const [announcements, setAnnouncements] = useState([]);
-    const [title, setTitle] = useState("");
-    const [message, setMessage] = useState("");
-    const [selectedClass, setSelectedClass] = useState("");
+  const [title, setTitle] = useState("");
+  const [message, setMessage] = useState("");
+  const [selectedClass, setSelectedClass] = useState("");
+  const [received, setReceived] = useState([]);
+  const unreadCount = stats.unread;
+  const thisWeekCount = received.filter(a => {
+    if (!a.created_at) return false;
+    const created = new Date(a.created_at);
+    return created.toISOString() >= fmtWeekAgo();
+  }).length;
+  const loadAnnouncements = async () => {
+    try {
+      const token = localStorage.getItem("accessToken");
 
-    const loadAnnouncements = async () => {
-        try {
-            const res = await fetch(
-                "http://127.0.0.1:8000/faculty/announcements"
-            );
-
-            const data = await res.json();
-
-            const received = data.filter(
-              (ann) => ann.sender_type === "ADMIN" || ann.sender_type === "admin"
-            );
-
-            const sent = data.filter(
-              (ann) => ann.sender_type === "FACULTY" || ann.sender_type === "faculty"
-            );
-
-            setAnnouncements(received);
-            setSentAnnouncements(sent);
-            setStats({
-                received: received.length,
-                sent: sent.length,
-                unread: received.filter(a => !a.is_read).length
-            });
-
-        } catch (err) {
-            console.error(err);
-        }
-    };
-
-    const handleMarkAsRead = async (announcementId) => {
-        try {
-            const res = await fetch(`http://127.0.0.1:8000/faculty/announcements/${announcementId}/read`, {
-                method: "POST"
-            });
-            if (res.ok) {
-                setAnnouncements(prev => prev.map(a => a.announcement_id === announcementId ? { ...a, is_read: true } : a));
-                setStats(prev => ({
-                    ...prev,
-                    unread: Math.max(0, prev.unread - 1)
-                }));
-            }
-        } catch (err) {
-            console.error("Failed to mark announcement as read:", err);
-        }
-    };
-
-    useEffect(() => {
-        loadAnnouncements();
-    }, []);
-    
-
-    const [classes] = useState([
+      const res = await fetch(
+        "http://127.0.0.1:8000/faculty/announcements",
         {
-            class_id: 1,
-            class_name: "TE Computer A"
-        },
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        }
+      );
+
+      const data = await res.json();
+
+
+      if (!Array.isArray(data)) {
+        console.error("Backend returned:", data);
+        return;
+      }
+      const received = data.filter(
+        (ann) => ann.sender_type === "ADMIN" || ann.sender_type === "admin"
+      );
+
+      const sent = data.filter(
+        (ann) => ann.sender_type === "FACULTY" || ann.sender_type === "faculty"
+      );
+
+      setReceived(received);
+      setSentAnnouncements(sent);
+      setStats({
+        received: received.length,
+        sent: sent.length,
+        unread: received.filter(a => !a.is_read).length
+      });
+
+    } catch (err) {
+      console.error(err);
+    }
+  };
+  const [toast, setToast] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [priority, setPriority] = useState("Normal");
+  const [loading, setLoading] = useState(false);
+  const [classes, setClasses] = useState([]);
+
+  const handleMarkAsRead = async (announcementId) => {
+    try {
+      const res = await fetch(`http://127.0.0.1:8000/faculty/announcements/${announcementId}/read`, {
+        method: "POST"
+      });
+      if (res.ok) {
+        setReceived(prev => prev.map(a => a.announcement_id === announcementId ? { ...a, is_read: true } : a));
+        setStats(prev => ({
+          ...prev,
+          unread: Math.max(0, prev.unread - 1)
+        }));
+      }
+    } catch (err) {
+      console.error("Failed to mark announcement as read:", err);
+    }
+  };
+
+  useEffect(() => {
+    loadAnnouncements();
+  }, []);
+
+  const [sentAnnouncements, setSentAnnouncements] =
+    useState([]);
+  const tabs = [
+    {
+      id: "received",
+      label: "Received",
+      icon: Inbox,
+      count: received.length
+    },
+    {
+      id: "sent",
+      label: "Sent",
+      icon: Send,
+      count: sentAnnouncements.length
+    },
+    {
+      id: "compose",
+      label: "Compose",
+      icon: Plus,
+      count: null
+    }
+  ];
+
+
+  const handlePublish = async () => {
+    try {
+      const res = await fetch(
+        "http://127.0.0.1:8000/faculty/announcements",
         {
-            class_id: 2,
-            class_name: "TE Computer B"
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            title,
+            description: message,
+            sender_type: "FACULTY",
+            sender_id: facultyId,
+            target_type: "CLASS",
+            target_id: Number(selectedClass)
+          })
         }
-    ]);
-    const [sentAnnouncements, setSentAnnouncements] =
-  useState([]);
+      );
 
-    const handlePublish = async () => {
-        try {
-            const res = await fetch(
-                "http://127.0.0.1:8000/faculty/announcements",
-                {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json"
-                    },
-                    body: JSON.stringify({
-                        title,
-                        description: message,
-                        sender_type: "FACULTY",
-                        sender_id: 1,
-                        target_type: "CLASS",
-                        target_id: Number(selectedClass)
-                    })
-                }
-            );
 
-            const data = await res.json();
-            console.log(data);
 
-            alert("Announcement Published Successfully");
-            setTitle("");
-            setMessage("");
-            setSelectedClass("");
-            loadAnnouncements();
-        } catch (err) {
-            console.error(err);
-        }
-    };
+      alert("Announcement Published Successfully");
+      setTitle("");
+      setMessage("");
+      setSelectedClass("");
+      loadAnnouncements();
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
-    return (
-        <motion.div
-            initial={{ opacity: 0, y: 15 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="space-y-6"
-        >
-            {/* Header */}
-            <div>
-                <p className="text-xs text-blue-500 font-bold uppercase tracking-wider">
-                    Communication Center
-                </p>
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 15 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="space-y-6"
+    >
+      {/* Header */}
+      <div>
+        <p className="text-xs text-blue-500 font-bold uppercase tracking-wider">
+          Communication Center
+        </p>
 
-                <h2 className="text-2xl font-black text-slate-800 dark:text-white">
-                    Faculty Announcements
-                </h2>
+        <h2 className="text-2xl font-black text-slate-800 dark:text-white">
+          Faculty Announcements
+        </h2>
 
-                <p className="text-slate-500 text-sm mt-1">
-                    Manage incoming notices and communicate with students.
-                </p>
-            </div>
+        <p className="text-slate-500 text-sm mt-1">
+          Manage incoming notices and communicate with students.
+        </p>
+      </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border">
-                    <p className="text-xs text-slate-500">
-                        Received
-                    </p>
-                    <h2 className="text-2xl font-black">
-                        {stats.received}
-                    </h2>
-                </div>
-            </div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border">
+          <p className="text-xs text-slate-500">
+            Received
+          </p>
+          <h2 className="text-2xl font-black">
+            {stats.received}
+          </h2>
+        </div>
+      </div>
 
       {/* ── Metric Cards ── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: "Received",   value: received.length, icon: Inbox,    color: "text-blue-500",   bg: "bg-blue-500/10" },
-          { label: "Sent",       value: sent.length,     icon: Send,     color: "text-purple-500", bg: "bg-purple-500/10" },
-          { label: "Unread",     value: unreadCount,     icon: Bell,     color: "text-amber-500",  bg: "bg-amber-500/10" },
-          { label: "This Week",  value: thisWeekCount,   icon: Calendar, color: "text-emerald-500",bg: "bg-emerald-500/10" },
+          { label: "Received", value: received.length, icon: Inbox, color: "text-blue-500", bg: "bg-blue-500/10" },
+          { label: "Sent", value: sentAnnouncements.length, icon: Send, color: "text-purple-500", bg: "bg-purple-500/10" },
+          { label: "Unread", value: unreadCount, icon: Bell, color: "text-amber-500", bg: "bg-amber-500/10" },
+          { label: "This Week", value: thisWeekCount, icon: Calendar, color: "text-emerald-500", bg: "bg-emerald-500/10" },
         ].map(({ label, value, icon: Icon, color, bg }) => (
           <div key={label}
             className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 rounded-2xl shadow-sm hover:shadow-md transition-shadow">
@@ -232,17 +267,15 @@ const FacultyAnnouncements = () => {
       <div className="flex gap-2 flex-wrap">
         {tabs.map(({ id, label, icon: Icon, count }) => (
           <button key={id} onClick={() => setActiveTab(id)}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black transition-all border ${
-              activeTab === id
-                ? "bg-purple-600 text-white border-purple-600 shadow-lg shadow-purple-500/20"
-                : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50"
-            }`}>
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black transition-all border ${activeTab === id
+              ? "bg-purple-600 text-white border-purple-600 shadow-lg shadow-purple-500/20"
+              : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50"
+              }`}>
             <Icon size={13} />
             {label}
             {count !== null && (
-              <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-black ${
-                activeTab === id ? "bg-white/20" : "bg-slate-100 dark:bg-slate-800"
-              }`}>{count}</span>
+              <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-black ${activeTab === id ? "bg-white/20" : "bg-slate-100 dark:bg-slate-800"
+                }`}>{count}</span>
             )}
           </button>
         ))}
@@ -270,7 +303,7 @@ const FacultyAnnouncements = () => {
 
             <div className="space-y-3">
               {loading ? (
-                [1,2,3].map(i => <SkeletonCard key={i} />)
+                [1, 2, 3].map(i => <SkeletonCard key={i} />)
               ) : received.length === 0 ? (
                 <EmptyState icon={Inbox} title="No announcements received yet"
                   sub="Admin notices and institution-wide broadcasts will appear here." />
@@ -278,12 +311,11 @@ const FacultyAnnouncements = () => {
                 const pr = priorityConfig[ann.priority] || priorityConfig.Normal;
                 return (
                   <motion.div key={ann.announcement_id} layout
-                    onClick={() => !ann.is_read && handleMarkRead(ann.announcement_id)}
-                    className={`border rounded-2xl p-4 transition-all cursor-pointer group relative overflow-hidden ${
-                      !ann.is_read
-                        ? "border-purple-500/30 bg-purple-50/40 dark:bg-purple-950/20 hover:bg-purple-50/60"
-                        : "border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50"
-                    }`}>
+                    onClick={() => !ann.is_read && handleMarkAsRead(ann.announcement_id)}
+                    className={`border rounded-2xl p-4 transition-all cursor-pointer group relative overflow-hidden ${!ann.is_read
+                      ? "border-purple-500/30 bg-purple-50/40 dark:bg-purple-950/20 hover:bg-purple-50/60"
+                      : "border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50"
+                      }`}>
                     {!ann.is_read && (
                       <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-purple-500 rounded-full" />
                     )}
@@ -345,11 +377,11 @@ const FacultyAnnouncements = () => {
             </div>
             <div className="space-y-3">
               {loading ? (
-                [1,2].map(i => <SkeletonCard key={i} />)
-              ) : sent.length === 0 ? (
+                [1, 2].map(i => <SkeletonCard key={i} />)
+              ) : sentAnnouncements.length === 0 ? (
                 <EmptyState icon={Send} title="No announcements sent yet"
                   sub='Use the "Compose" tab to broadcast a message to your class.' />
-              ) : sent.map(ann => {
+              ) : sentAnnouncements.map(ann => {
                 const pr = priorityConfig[ann.priority] || priorityConfig.Normal;
                 return (
                   <div key={ann.announcement_id}
@@ -423,9 +455,8 @@ const FacultyAnnouncements = () => {
                     const pr = priorityConfig[p];
                     return (
                       <button key={p} onClick={() => setPriority(p)}
-                        className={`px-4 py-2 rounded-xl text-xs font-black border transition-all ${
-                          priority === p ? pr.color + " scale-105" : "border-slate-200 dark:border-slate-700 text-slate-500 hover:border-slate-300"
-                        }`}>
+                        className={`px-4 py-2 rounded-xl text-xs font-black border transition-all ${priority === p ? pr.color + " scale-105" : "border-slate-200 dark:border-slate-700 text-slate-500 hover:border-slate-300"
+                          }`}>
                         <span className={`inline-block w-1.5 h-1.5 rounded-full mr-1.5 ${pr.dot}`} />
                         {p}
                       </button>
@@ -440,11 +471,10 @@ const FacultyAnnouncements = () => {
                 <div className="flex gap-2">
                   {["Class", "Institution"].map(t => (
                     <button key={t} onClick={() => setTargetType(t)}
-                      className={`px-4 py-2 rounded-xl text-xs font-black border transition-all ${
-                        targetType === t
-                          ? "bg-purple-600 text-white border-purple-600"
-                          : "border-slate-200 dark:border-slate-700 text-slate-500 hover:border-purple-300"
-                      }`}>
+                      className={`px-4 py-2 rounded-xl text-xs font-black border transition-all ${targetType === t
+                        ? "bg-purple-600 text-white border-purple-600"
+                        : "border-slate-200 dark:border-slate-700 text-slate-500 hover:border-purple-300"
+                        }`}>
                       {t === "Class" ? <><BookOpen size={11} className="inline mr-1" />Specific Class</> : <><Users size={11} className="inline mr-1" />All (Institution)</>}
                     </button>
                   ))}

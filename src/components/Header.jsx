@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { 
   Search, 
@@ -12,7 +12,14 @@ import {
   X,
   Sparkles,
   Award,
-  AlertCircle
+  AlertCircle,
+  Calendar,
+  Clipboard,
+  FileText,
+  AlertTriangle,
+  GraduationCap,
+  Trash2,
+  Check
 } from 'lucide-react';
 import { useStudent } from '../context/StudentContext';
 
@@ -33,14 +40,164 @@ const Header = () => {
   const [showNotifications, setShowNotifications] = useState(false);
   const [showHeartsModal, setShowHeartsModal] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [loadingNotifications, setLoadingNotifications] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
 
-  const notifications = [
-    { id: 1, text: "Prof. Verma assigned the 'Generative AI & LLMs' quiz.", time: "10m ago", read: false },
-    { id: 2, text: "Streak Alert! 7 Days of learning. Keep it up! 🔥", time: "2h ago", read: false },
-    { id: 3, text: "Earned badge: 'Week of Fire'!", time: "1d ago", read: true }
-  ];
+  const fetchNotifications = async () => {
+    if (role !== 'faculty' || !profile?.id) return;
+    setLoadingNotifications(true);
+    try {
+      const res = await fetch(`http://localhost:8000/api/v1/faculty/${profile.id}/notifications`);
+      if (res.ok) {
+        const data = await res.json();
+        setNotifications(data);
+      }
+    } catch (err) {
+      console.error("Error fetching notifications:", err);
+    } finally {
+      setLoadingNotifications(false);
+    }
+  };
+
+  useEffect(() => {
+    if (role === 'faculty' && profile?.id) {
+      fetchNotifications();
+      const interval = setInterval(fetchNotifications, 20000);
+      return () => clearInterval(interval);
+    } else if (role === 'student') {
+      // Mock student notifications
+      setNotifications([
+        { notification_id: 1, title: "Assignment Due", message: "Prof. Verma assigned the 'Generative AI & LLMs' quiz.", is_read: false, created_at: new Date(Date.now() - 600000).toISOString(), type: 'assignment' },
+        { notification_id: 2, title: "Streak Alert", message: "Streak Alert! 7 Days of learning. Keep it up! 🔥", is_read: false, created_at: new Date(Date.now() - 7200000).toISOString(), type: 'streak' },
+        { notification_id: 3, title: "Badge Earned", message: "Earned badge: 'Week of Fire'!", is_read: true, created_at: new Date(Date.now() - 86400000).toISOString(), type: 'badge' }
+      ]);
+    }
+  }, [role, profile?.id]);
+
+  const handleMarkRead = async (id) => {
+    if (role !== 'faculty') {
+      setNotifications(prev => prev.map(n => n.notification_id === id ? { ...n, is_read: true } : n));
+      return;
+    }
+    try {
+      const res = await fetch(`http://localhost:8000/api/v1/faculty/notifications/${id}/read`, {
+        method: 'PATCH'
+      });
+      if (res.ok) {
+        setNotifications(prev => prev.map(n => n.notification_id === id ? { ...n, is_read: true } : n));
+      }
+    } catch (err) {
+      console.error("Error marking notification read:", err);
+    }
+  };
+
+  const handleMarkAllRead = async () => {
+    if (role !== 'faculty') {
+      setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
+      return;
+    }
+    try {
+      const res = await fetch(`http://localhost:8000/api/v1/faculty/${profile.id}/notifications/read-all`, {
+        method: 'PATCH'
+      });
+      if (res.ok) {
+        setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
+      }
+    } catch (err) {
+      console.error("Error marking all read:", err);
+    }
+  };
+
+  const handleDelete = async (id, e) => {
+    e.stopPropagation();
+    if (role !== 'faculty') {
+      setNotifications(prev => prev.filter(n => n.notification_id !== id));
+      return;
+    }
+    try {
+      const res = await fetch(`http://localhost:8000/api/v1/faculty/notifications/${id}`, {
+        method: 'DELETE'
+      });
+      if (res.ok) {
+        setNotifications(prev => prev.filter(n => n.notification_id !== id));
+      }
+    } catch (err) {
+      console.error("Error deleting notification:", err);
+    }
+  };
+
+  const handleNotificationClick = (item) => {
+    handleMarkRead(item.notification_id);
+    setShowNotifications(false);
+    if (role !== 'faculty') return;
+    
+    switch (item.type) {
+      case 'attendance':
+        navigate('/faculty/attendance');
+        break;
+      case 'assignment':
+        navigate('/faculty/assignments');
+        break;
+      case 'gradebook':
+        navigate('/faculty/gradebook');
+        break;
+      case 'risk':
+        navigate('/faculty/risk');
+        break;
+      case 'remedial':
+        navigate('/faculty/remedial');
+        break;
+      case 'announcement':
+        navigate('/faculty/announcements');
+        break;
+      default:
+        navigate('/faculty/dashboard');
+    }
+  };
+
+  const getNotificationIcon = (type) => {
+    switch (type) {
+      case 'attendance': return Calendar;
+      case 'assignment': return Clipboard;
+      case 'gradebook': return FileText;
+      case 'risk': return AlertCircle;
+      case 'remedial': return GraduationCap;
+      case 'announcement': return Bell;
+      default: return Bell;
+    }
+  };
+
+  const getNotificationColor = (type) => {
+    switch (type) {
+      case 'attendance': return 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400';
+      case 'assignment': return 'bg-blue-500/10 text-blue-600 dark:text-blue-400';
+      case 'gradebook': return 'bg-amber-500/10 text-amber-600 dark:text-amber-400';
+      case 'risk': return 'bg-rose-500/10 text-rose-600 dark:text-rose-400';
+      case 'remedial': return 'bg-purple-500/10 text-purple-600 dark:text-purple-400';
+      case 'announcement': return 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400';
+      default: return 'bg-slate-500/10 text-slate-600 dark:text-slate-400';
+    }
+  };
+
+  const formatTime = (isoString) => {
+    if (!isoString) return '';
+    try {
+      const date = new Date(isoString);
+      const now = new Date();
+      const diffMs = now - date;
+      const diffMins = Math.floor(diffMs / 60000);
+      const diffHours = Math.floor(diffMins / 60);
+      
+      if (diffMins < 1) return 'Just now';
+      if (diffMins < 60) return `${diffMins}m ago`;
+      if (diffHours < 24) return `${diffHours}h ago`;
+      return date.toLocaleDateString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    } catch (e) {
+      return '';
+    }
+  };
 
   const handleRefillHearts = () => {
     if (xp >= 150) {
@@ -54,18 +211,17 @@ const Header = () => {
   const getPageTitle = () => {
     const path = location.pathname;
     
-    // Faculty Portal Paths
     if (path.startsWith('/faculty')) {
-      if (path.includes('dashboard')) return 'Faculty Analytics Console';
+      if (path.includes('dashboard')) return 'Faculty Hub & Productivity Center';
       if (path.includes('performance')) return 'Student Performance Monitoring';
       if (path.includes('analytics')) return 'LMS Academic Analytics';
       if (path.includes('risk')) return 'At-Risk Early Warnings';
       if (path.includes('attendance')) return 'Attendance Registry Matrix';
       if (path.includes('ai-chat')) return 'Research & Faculty AI Assistant';
+      if (path.includes('activity')) return 'Faculty Activity Stream';
       return 'Faculty Workspace';
     }
 
-    // Admin Portal Paths
     if (path.startsWith('/admin')) {
       if (path.includes('dashboard')) return 'Institutional Controller Dashboard';
       if (path.includes('users')) return 'User Directory & Control';
@@ -75,7 +231,6 @@ const Header = () => {
       return 'Admin Portal';
     }
 
-    // AI Student Paths
     if (path.startsWith('/ai')) {
       if (path.includes('chat')) return 'AI Personal Mentor';
       if (path.includes('predictions')) return 'Academic Predictors';
@@ -86,7 +241,6 @@ const Header = () => {
       return 'Academic Outcome Forecasts';
     }
 
-    // Student Portal Paths
     if (path.includes('dashboard')) return 'Engineering Student Hub';
     if (path.includes('domains')) return 'Academic Learning Domains';
     if (path.includes('roadmap')) return 'Dynamic Roadmap Track';
@@ -106,6 +260,8 @@ const Header = () => {
     { name: 'Career', path: '/career' },
     { name: 'Leaderboard', path: '/leaderboard' },
   ];
+
+  const unreadCount = notifications.filter(n => !n.is_read).length;
 
   return (
     <header className="glass-nav px-4 md:px-8 py-3 flex items-center justify-between border-slate-200 dark:border-slate-800/80">
@@ -140,19 +296,16 @@ const Header = () => {
       <div className="flex items-center gap-2 md:gap-4">
         {role === 'student' ? (
           <>
-            {/* XP Trophy */}
             <div className="flex items-center gap-1.5 bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 px-3 py-1.5 rounded-full border border-yellow-500/20 text-sm font-bold shadow-sm">
               <Trophy size={16} />
               <span>{xp} XP</span>
             </div>
 
-            {/* Streak Fire */}
             <div className="flex items-center gap-1.5 bg-orange-500/10 text-orange-600 dark:text-orange-500 px-3 py-1.5 rounded-full border border-orange-500/20 text-sm font-bold shadow-sm animate-fire">
               <Flame size={16} />
               <span>{streak}d</span>
             </div>
 
-            {/* Hearts Life (Duolingo style) */}
             <button 
               onClick={() => setShowHeartsModal(true)}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-sm font-bold shadow-sm transition-all duration-200 cursor-pointer ${
@@ -182,16 +335,13 @@ const Header = () => {
           </>
         ) : (
           <>
-            {/* Institution Badge */}
             <div className="hidden lg:flex items-center gap-1.5 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-3 py-1.5 rounded-full border border-emerald-500/20 text-xs font-extrabold tracking-wide uppercase">
               <span>{profile.college}</span>
             </div>
-            {/* Server load indicator */}
             <div className="hidden sm:flex items-center gap-1.5 bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 px-3 py-1.5 rounded-full border border-cyan-500/20 text-xs font-semibold">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
               <span className="font-mono">Sys: Active</span>
             </div>
-            {/* Role designation */}
             <div className="bg-emerald-600 text-white text-[10px] font-black tracking-widest uppercase px-3.5 py-1.5 rounded-full shadow-md">
               System Admin
             </div>
@@ -201,32 +351,16 @@ const Header = () => {
         {/* Notifications */}
         <div className="relative">
           <button 
-            onClick={() => setShowNotifications(!showNotifications)}
-            className="p-2.5 text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-850 rounded-xl transition-colors cursor-pointer"
+            onClick={() => setShowNotifications(true)}
+            className="relative p-2.5 text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-850 rounded-xl transition-colors cursor-pointer"
           >
             <Bell size={18} />
-            {notifications.some(n => !n.read) && (
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-indigo-600 rounded-full animate-ping" />
+            {unreadCount > 0 && (
+              <span className="absolute top-1.5 right-1.5 w-4 h-4 bg-red-500 text-white text-[9px] font-black rounded-full flex items-center justify-center border border-white dark:border-slate-900 animate-bounce">
+                {unreadCount}
+              </span>
             )}
           </button>
-
-          {/* Notifications Dropdown */}
-          {showNotifications && (
-            <div className="absolute right-0 mt-2 w-72 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl z-50 overflow-hidden">
-              <div className="p-3 bg-slate-50 dark:bg-slate-950 font-bold border-b border-slate-100 dark:border-slate-800 text-xs uppercase tracking-wider text-slate-400 flex justify-between items-center">
-                <span>System Notifications</span>
-                <button className="text-[10px] text-indigo-500 hover:underline cursor-pointer">Mark all read</button>
-              </div>
-              <div className="divide-y divide-slate-100 dark:divide-slate-800">
-                {notifications.map(item => (
-                  <div key={item.id} className={`p-3 text-xs leading-relaxed hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors ${!item.read ? 'bg-indigo-50/20 dark:bg-indigo-950/10' : ''}`}>
-                    <p className="text-slate-700 dark:text-slate-300 font-medium">{item.text}</p>
-                    <span className="text-[10px] text-slate-400 block mt-1">{item.time}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
 
         {/* Dark Mode Toggle */}
@@ -282,6 +416,104 @@ const Header = () => {
                   Refill Now
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Notifications Drawer (Side-sheet) */}
+      {showNotifications && (
+        <div className="fixed inset-0 z-[100] flex justify-end">
+          <div 
+            className="fixed inset-0 bg-slate-950/40 backdrop-blur-sm transition-opacity" 
+            onClick={() => setShowNotifications(false)} 
+          />
+          <div className="relative w-full max-w-md bg-white dark:bg-slate-900 h-full shadow-2xl flex flex-col z-50 border-l border-slate-200 dark:border-slate-800 transition-all duration-300">
+            {/* Drawer Header */}
+            <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-slate-900/50">
+              <div className="flex items-center gap-2">
+                <Bell className="text-indigo-600 dark:text-indigo-400 animate-pulse" size={20} />
+                <h3 className="font-extrabold text-lg text-slate-800 dark:text-white">Notifications</h3>
+                {unreadCount > 0 && (
+                  <span className="bg-red-500 text-white text-xs px-2.5 py-0.5 rounded-full font-black">
+                    {unreadCount} new
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-3">
+                {notifications.length > 0 && (
+                  <button 
+                    onClick={handleMarkAllRead}
+                    className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline font-extrabold flex items-center gap-1 cursor-pointer"
+                  >
+                    Mark all read
+                  </button>
+                )}
+                <button 
+                  onClick={() => setShowNotifications(false)}
+                  className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-white rounded-lg cursor-pointer transition-colors"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+            </div>
+
+            {/* Notifications List */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-50/30 dark:bg-slate-950/20">
+              {notifications.length === 0 ? (
+                <div className="h-full flex flex-col items-center justify-center text-center p-6">
+                  <div className="w-16 h-16 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400 dark:text-slate-500 mb-4">
+                    <Bell size={28} />
+                  </div>
+                  <p className="font-bold text-slate-700 dark:text-slate-300">All caught up!</p>
+                  <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">No new notifications at the moment.</p>
+                </div>
+              ) : (
+                notifications.map(item => {
+                  const Icon = getNotificationIcon(item.type);
+                  const colorClass = getNotificationColor(item.type);
+                  return (
+                    <div 
+                      key={item.notification_id}
+                      onClick={() => handleNotificationClick(item)}
+                      className={`group relative p-4 rounded-2xl border transition-all duration-200 cursor-pointer flex gap-3 ${
+                        !item.is_read 
+                          ? 'bg-indigo-50/20 dark:bg-indigo-950/10 border-indigo-100 dark:border-indigo-900/50 hover:bg-indigo-50/40 dark:hover:bg-indigo-950/20' 
+                          : 'bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800/80 hover:bg-slate-50 dark:hover:bg-slate-850/30'
+                      }`}
+                    >
+                      <div className={`p-2.5 rounded-xl shrink-0 ${colorClass}`}>
+                        <Icon size={16} />
+                      </div>
+                      <div className="flex-1 min-w-0 pr-4">
+                        <div className="flex items-start justify-between gap-2">
+                          <p className={`text-xs font-black ${!item.is_read ? 'text-slate-800 dark:text-white' : 'text-slate-600 dark:text-slate-400'}`}>
+                            {item.title}
+                          </p>
+                          {!item.is_read && (
+                            <span className="w-1.5 h-1.5 rounded-full bg-red-500 shrink-0 mt-1 animate-ping" />
+                          )}
+                        </div>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
+                          {item.message}
+                        </p>
+                        <span className="text-[10px] text-slate-400 dark:text-slate-500 block mt-2">
+                          {formatTime(item.created_at)}
+                        </span>
+                      </div>
+                      
+                      {/* Delete Button */}
+                      <button 
+                        onClick={(e) => handleDelete(item.notification_id, e)}
+                        className="absolute right-3 bottom-3 p-1.5 text-slate-400 hover:text-red-500 dark:hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg hover:bg-slate-100 dark:hover:bg-slate-850 cursor-pointer"
+                        title="Delete notification"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  );
+                })
+              )}
             </div>
           </div>
         </div>
