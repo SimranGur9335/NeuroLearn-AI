@@ -11,7 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 from sqlalchemy import text
-from backend.database import SessionLocal
+from backend.database import SessionLocal, engine
 from typing import Optional
 
 app = FastAPI()
@@ -4149,6 +4149,10 @@ class RemedialSessionCreateInput(BaseModel):
     student_ids: List[int]
     faculty_id: int
 
+
+class InvitationStatusUpdate(BaseModel):
+    status: str
+
 class UpdateInvitationStatusInput(BaseModel):
     status: str
     faculty_id: int
@@ -6357,6 +6361,110 @@ def get_student_hub_calendar(current_user: dict = Depends(get_current_user)):
         return events
     finally:
         db.close()
+
+@app.post("/remedial/sessions")
+def create_remedial_session(payload: RemedialSessionCreateInput):
+
+    with engine.begin() as conn:
+        result = conn.execute(
+            text("""
+            INSERT INTO remedial_sessions
+            (
+                faculty_id,
+                class_id,
+                title,
+                description,
+                scheduled_date
+            )
+            VALUES
+            (
+                :faculty_id,
+                :class_id,
+                :title,
+                :description,
+                :scheduled_date
+            )
+            RETURNING session_id
+            """),
+            payload.dict()
+        )
+
+        session_id = result.scalar()
+
+    return {
+        "success": True,
+        "session_id": session_id
+    }
+
+@app.get("/remedial/sessions")
+def get_remedial_sessions(faculty_id: int):
+
+    with engine.begin() as conn:
+
+        rows = conn.execute(
+        text("""
+        SELECT
+            session_id,
+            topic AS title,
+            description,
+            session_date AS scheduled_date,
+            session_time,
+            class_id,
+            subject_id,
+            location
+        FROM remedial_sessions
+        WHERE faculty_id = :faculty_id
+        ORDER BY session_date DESC
+            """),
+             {"faculty_id": faculty_id}
+        ).mappings().all()
+
+        return [dict(r) for r in rows]
+
+@app.get("/remedial/sessions/{session_id}/invitations")
+def get_session_invitations(session_id: int):
+
+    with engine.begin() as conn:
+
+        rows = conn.execute(
+            text("""
+            SELECT
+                invitation_id,
+                student_id,
+                status
+            FROM remedial_invitations
+            WHERE session_id = :session_id
+            """),
+            {"session_id": session_id}
+        ).mappings().all()
+
+    return [dict(r) for r in rows]
+
+@app.post("/remedial/invitations/{invitation_id}/status")
+def update_invitation_status(
+    invitation_id: int,
+    payload: InvitationStatusUpdate
+):
+
+    with engine.begin() as conn:
+
+        conn.execute(
+            text("""
+            UPDATE remedial_invitations
+            SET status = :status
+            WHERE invitation_id = :invitation_id
+            """),
+            {
+                "status": payload.status,
+                "invitation_id": invitation_id
+            }
+        )
+
+    return {
+        "success": True
+    }
+
+
 
 @app.get("/api/v1/admin/monitoring/status")
 def get_monitoring_status(current_user: dict = Depends(require_role(["admin", "super_admin"]))):

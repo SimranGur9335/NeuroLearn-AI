@@ -20,7 +20,7 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import { apiFetch } from '../../services/api';
 
-const FacultyProfile = () => {
+const FacultySelfProfile = () => {
   const { user, changePassword } = useAuth();
   const [profileData, setProfileData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -521,4 +521,4 @@ const FacultyProfile = () => {
 );
 };
 
-export default FacultyProfile;
+export default FacultySelfProfile;

@@ -1,13 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { 
-  BookOpen, 
-  ClipboardList, 
-  UserCheck, 
-  Trophy, 
-  Bell, 
-  Calendar, 
+import {
+  BookOpen,
+  ClipboardList,
+  UserCheck,
+  Trophy,
+  Bell,
+  Calendar,
   Activity,
   ArrowRight,
   GraduationCap,
@@ -40,7 +40,7 @@ const StudentHubHome = () => {
     const fetchSummary = async () => {
       try {
         setLoading(true);
-        const res = await apiFetch('/student-hub/dashboard-summary');
+        const res = await apiFetch('/student-hub/dashboard-summary')
         if (!res.ok) {
           throw new Error('Failed to load operations data');
         }
@@ -129,7 +129,7 @@ const StudentHubHome = () => {
       <div className="bg-red-500/10 border border-red-500/30 p-6 rounded-2xl max-w-xl mx-auto mt-12 text-center space-y-4">
         <h2 className="text-red-400 font-extrabold text-lg">Failed to Connect to Hub</h2>
         <p className="text-slate-300 text-sm leading-relaxed">{error}</p>
-        <button 
+        <button
           onClick={() => window.location.reload()}
           className="bg-red-600 hover:bg-red-500 text-white font-bold px-4 py-2 rounded-xl transition-all text-xs"
         >
@@ -163,29 +163,29 @@ const StudentHubHome = () => {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <SummaryMetricCard 
-          title="Overall Attendance" 
-          value={`${data.attendance_pct}%`} 
-          subtext="Minimum target: 75.00%" 
-          icon={UserCheck} 
+        <SummaryMetricCard
+          title="Overall Attendance"
+          value={`${data.attendance_pct}%`}
+          subtext="Minimum target: 75.00%"
+          icon={UserCheck}
         />
-        <SummaryMetricCard 
-          title="Predicted CGPA" 
-          value={data.cgpa.toFixed(2)} 
-          subtext="Based on last performance" 
-          icon={Trophy} 
+        <SummaryMetricCard
+          title="Predicted CGPA"
+          value={data.cgpa.toFixed(2)}
+          subtext="Based on last performance"
+          icon={Trophy}
         />
-        <SummaryMetricCard 
-          title="Pending Submissions" 
-          value={data.pending_assignments} 
-          subtext="Action required soon" 
-          icon={ClipboardList} 
+        <SummaryMetricCard
+          title="Pending Submissions"
+          value={data.pending_assignments}
+          subtext="Action required soon"
+          icon={ClipboardList}
         />
-        <SummaryMetricCard 
-          title="Unread Notices" 
-          value={data.unread_announcements} 
-          subtext="Announcements bulletin" 
-          icon={Bell} 
+        <SummaryMetricCard
+          title="Unread Notices"
+          value={data.unread_announcements}
+          subtext="Announcements bulletin"
+          icon={Bell}
         />
       </div>
 
@@ -212,7 +212,7 @@ const StudentHubHome = () => {
           <Activity className={theme.text} size={20} />
           <h2 className="text-lg font-extrabold text-white">Academic Activity Stream</h2>
         </div>
-        
+
         {data.activities.length === 0 ? (
           <div className="text-center py-6 text-slate-500 text-sm">
             No recent academic activity found. Everything is quiet!
@@ -223,7 +223,7 @@ const StudentHubHome = () => {
               <div key={idx} className="relative group">
                 {/* Dot */}
                 <div className={`absolute -left-[31px] top-1.5 w-3.5 h-3.5 rounded-full bg-slate-900 border-2 ${theme.border} group-hover:scale-125 transition-transform duration-200`} />
-                
+
                 <div className="space-y-1">
                   <div className="flex items-center justify-between gap-4">
                     <h4 className="text-sm font-extrabold text-white group-hover:text-slate-300 transition-colors">

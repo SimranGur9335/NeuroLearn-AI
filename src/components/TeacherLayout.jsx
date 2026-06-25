@@ -64,7 +64,7 @@ const FacultyLayout = () => {
     { name: 'Risk Predictions', path: '/faculty/risk', icon: AlertTriangle },
     { name: 'Remedial Sessions', path: '/faculty/remedial', icon: GraduationCap },
     { name: "Announcements", path: '/faculty/announcements', icon: Bell },
-    { name: 'My Profile', path: '/faculty/profile', icon: User }
+    { name: 'My Profile', path: `/faculty/${profile.id}`, icon: User }
   ];
 
   const handleLogout = () => {

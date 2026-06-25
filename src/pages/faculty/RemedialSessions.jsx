@@ -490,7 +490,7 @@ const facultyId = user?.faculty_id;
                           <p className="font-extrabold text-sm text-slate-800 dark:text-white">
                             {invite.student_name}
                           </p>
-                          <p className="text-slate-400 text-[10px] mt-0.5">
+                          <p className="text-slate-400 dark:text-slate-500 text-[10px] mt-0.5">
                             Roll No: {invite.roll_no} | {invite.email}
                           </p>
                         </div>
