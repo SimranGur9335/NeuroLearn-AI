@@ -118,7 +118,7 @@ const RiskPrediction = () => {
     if (!selectedClass.class_id) return;
     setLoading(true);
     try {
-      const res = await fetch(`http://127.0.0.1:8000/faculty/${facultyId}/students`);
+      const res = await apiFetch(`/class/${selectedClass.class_id}/student-metrics`);
       if (!res.ok) throw new Error("Failed to fetch student data");
       const data = await res.json();
       setStudents(data);
@@ -126,9 +126,7 @@ const RiskPrediction = () => {
       // Check for preselected student in routing state
       if (location.state?.preselectedStudentId) {
         const targetId = Number(location.state.preselectedStudentId);
-        const division = selectedClass.class_name.includes(" A") ? "A" : selectedClass.class_name.includes(" B") ? "B" : "";
-        const classStudentsFiltered = data.filter(s => s.division === division);
-        const student = classStudentsFiltered.find(s => s.student_id === targetId);
+        const student = data.find(s => s.student_id === targetId);
         if (student) {
           handleSelectStudent(student);
         }
@@ -189,7 +187,7 @@ const RiskPrediction = () => {
     if (!selectedClass.class_id) return;
     setEngineRunning(true);
     try {
-      const res = await fetch("http://127.0.0.1:8000/faculty/run-risk-engine", {
+      const res = await apiFetch("/faculty/run-risk-engine", {
         method: "POST",
         body: JSON.stringify({
           class_id: selectedClass.class_id,
@@ -262,10 +260,8 @@ const RiskPrediction = () => {
     }
   };
 
-  // filter students belonging to current class
-  const classStudents = students.filter(s => 
-    s.division === (selectedClass.class_name.includes(" A") ? "A" : selectedClass.class_name.includes(" B") ? "B" : "")
-  );
+  // Since we fetch class-specific student metrics, classStudents is just the students list!
+  const classStudents = students;
 
   const highRiskCount = classStudents.filter(s => s.risk_level === "High").length;
   const mediumRiskCount = classStudents.filter(s => s.risk_level === "Medium").length;

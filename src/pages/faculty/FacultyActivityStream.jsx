@@ -136,7 +136,7 @@ const FacultyActivityStream = () => {
         <div className="flex items-center gap-3">
           <button 
             onClick={() => navigate('/faculty/dashboard')}
-            className="p-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-850 text-slate-505 transition-colors cursor-pointer"
+            className="p-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-850 text-slate-500 transition-colors cursor-pointer"
             title="Back to Dashboard"
           >
             <ArrowLeft size={18} />
@@ -156,7 +156,7 @@ const FacultyActivityStream = () => {
         
         <button 
           onClick={fetchActivities}
-          className="self-start md:self-center flex items-center gap-2 px-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-855 text-xs font-bold rounded-xl shadow-sm transition-all cursor-pointer"
+          className="self-start md:self-center flex items-center gap-2 px-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-850 text-xs font-bold rounded-xl shadow-sm transition-all cursor-pointer"
         >
           <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
           Refresh Log
@@ -175,8 +175,8 @@ const FacultyActivityStream = () => {
                 onClick={() => setModuleFilter(m.id)}
                 className={`px-3.5 py-1.5 rounded-full text-xs font-bold border transition-all cursor-pointer ${
                   moduleFilter === m.id 
-                    ? 'bg-purple-650 bg-purple-600 border-purple-600 text-white shadow-md shadow-purple-500/15 scale-[1.03]' 
-                    : 'bg-slate-50 hover:bg-slate-100 dark:bg-slate-950 dark:hover:bg-slate-850 border-slate-200 dark:border-slate-800 text-slate-655 dark:text-slate-350'
+                    ? 'bg-purple-600 border-purple-600 text-white shadow-md shadow-purple-500/15 scale-[1.03]' 
+                    : 'bg-slate-50 hover:bg-slate-100 dark:bg-slate-950 dark:hover:bg-slate-850 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300'
                 }`}
               >
                 {m.name}
@@ -195,8 +195,8 @@ const FacultyActivityStream = () => {
                 onClick={() => setTimeFilter(t.id)}
                 className={`px-4 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
                   timeFilter === t.id 
-                    ? 'bg-slate-900 border-slate-900 text-white dark:bg-white dark:border-white dark:text-slate-905 shadow-sm scale-102' 
-                    : 'bg-slate-50 hover:bg-slate-100 dark:bg-slate-950 dark:hover:bg-slate-850 border-slate-200 dark:border-slate-800 text-slate-605 dark:text-slate-350'
+                    ? 'bg-slate-900 border-slate-900 text-white dark:bg-white dark:border-white dark:text-slate-900 shadow-sm scale-[1.03]' 
+                    : 'bg-slate-50 hover:bg-slate-100 dark:bg-slate-950 dark:hover:bg-slate-850 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300'
                 }`}
               >
                 {t.name}
@@ -215,7 +215,7 @@ const FacultyActivityStream = () => {
           </div>
         ) : activities.length === 0 ? (
           <div className="h-[350px] flex flex-col items-center justify-center text-center p-6">
-            <div className="w-16 h-16 rounded-full bg-slate-100 dark:bg-slate-805 flex items-center justify-center text-slate-400 mb-4">
+            <div className="w-16 h-16 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400 mb-4">
               <Activity size={28} />
             </div>
             <h4 className="font-bold text-slate-800 dark:text-slate-200">No logs discovered</h4>
@@ -245,7 +245,7 @@ const FacultyActivityStream = () => {
                     {/* Left: Details */}
                     <div className="space-y-1.5 flex-1 min-w-0">
                       <div className="flex items-center gap-2.5 flex-wrap">
-                        <h4 className="font-extrabold text-slate-850 dark:text-white text-sm leading-tight">
+                        <h4 className="font-extrabold text-slate-800 dark:text-white text-sm leading-tight">
                           {act.action}
                         </h4>
                         <span className={`text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border ${colorClass}`}>
@@ -259,7 +259,7 @@ const FacultyActivityStream = () => {
 
                     {/* Right: Timestamp */}
                     <div className="flex flex-row md:flex-col md:items-end justify-between md:justify-start gap-1 shrink-0 mt-1">
-                      <span className="text-[11px] font-bold text-slate-700 dark:text-slate-250 flex items-center gap-1">
+                      <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1">
                         <Clock size={12} className="text-slate-400" />
                         {formatRelativeTime(act.created_at)}
                       </span>

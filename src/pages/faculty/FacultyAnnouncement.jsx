@@ -7,6 +7,7 @@ import {
   RefreshCw, Download, X
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
+import { apiFetch } from "../../services/api";
 
 /* ── helpers ── */
 const priorityConfig = {
@@ -75,67 +76,62 @@ const FacultyAnnouncements = () => {
     sent: 0,
     unread: 0
   });
-  const [targetType, setTargetType] = useState("CLASS");
+  const [targetType, setTargetType] = useState("Class");
 
   const [title, setTitle] = useState("");
   const [message, setMessage] = useState("");
   const [selectedClass, setSelectedClass] = useState("");
   const [received, setReceived] = useState([]);
-  const unreadCount = stats.unread;
-  const thisWeekCount = received.filter(a => {
-    if (!a.created_at) return false;
-    const created = new Date(a.created_at);
-    return created.toISOString() >= fmtWeekAgo();
-  }).length;
-  const loadAnnouncements = async () => {
-    try {
-      const token = localStorage.getItem("accessToken");
-
-      const res = await fetch(
-        "http://127.0.0.1:8000/faculty/announcements",
-        {
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
-        }
-      );
-
-      const data = await res.json();
-
-
-      if (!Array.isArray(data)) {
-        console.error("Backend returned:", data);
-        return;
-      }
-      const received = data.filter(
-        (ann) => ann.sender_type === "ADMIN" || ann.sender_type === "admin"
-      );
-
-      const sent = data.filter(
-        (ann) => ann.sender_type === "FACULTY" || ann.sender_type === "faculty"
-      );
-
-      setReceived(received);
-      setSentAnnouncements(sent);
-      setStats({
-        received: received.length,
-        sent: sent.length,
-        unread: received.filter(a => !a.is_read).length
-      });
-
-    } catch (err) {
-      console.error(err);
-    }
-  };
+  const [sentAnnouncements, setSentAnnouncements] = useState([]);
   const [toast, setToast] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [priority, setPriority] = useState("Normal");
   const [loading, setLoading] = useState(false);
   const [classes, setClasses] = useState([]);
 
+  const unreadCount = stats.unread;
+  const thisWeekCount = received.filter(a => {
+    if (!a.created_at) return false;
+    const created = new Date(a.created_at);
+    return created.toISOString() >= fmtWeekAgo();
+  }).length;
+
+  const loadAnnouncements = async () => {
+    try {
+      setLoading(true);
+      const res = await apiFetch("/announcements");
+      if (!res.ok) throw new Error("Failed to load announcements from backend.");
+      const data = await res.json();
+
+      if (!Array.isArray(data)) {
+        console.error("Backend returned:", data);
+        return;
+      }
+      const receivedList = data.filter(
+        (ann) => ann.sender_type === "ADMIN" || ann.sender_type === "admin"
+      );
+
+      const sentList = data.filter(
+        (ann) => ann.sender_type === "FACULTY" || ann.sender_type === "faculty"
+      );
+
+      setReceived(receivedList);
+      setSentAnnouncements(sentList);
+      setStats({
+        received: receivedList.length,
+        sent: sentList.length,
+        unread: receivedList.filter(a => !a.is_read).length
+      });
+    } catch (err) {
+      console.error("Error loading announcements:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleMarkAsRead = async (announcementId) => {
     try {
-      const res = await fetch(`http://127.0.0.1:8000/faculty/announcements/${announcementId}/read`, {
+      const res = await apiFetch(`/announcements/${announcementId}/read`, {
         method: "POST"
       });
       if (res.ok) {
@@ -152,10 +148,22 @@ const FacultyAnnouncements = () => {
 
   useEffect(() => {
     loadAnnouncements();
-  }, []);
+    const fetchClasses = async () => {
+      if (facultyId) {
+        try {
+          const res = await apiFetch(`/faculty/${facultyId}/classes`);
+          if (res.ok) {
+            const data = await res.json();
+            setClasses(data);
+          }
+        } catch (err) {
+          console.error("Failed to load assigned classes:", err);
+        }
+      }
+    };
+    fetchClasses();
+  }, [facultyId]);
 
-  const [sentAnnouncements, setSentAnnouncements] =
-    useState([]);
   const tabs = [
     {
       id: "received",
@@ -177,36 +185,46 @@ const FacultyAnnouncements = () => {
     }
   ];
 
-
   const handlePublish = async () => {
+    if (!title.trim() || !message.trim()) {
+      setToast({ msg: "Title and message are required.", type: "error" });
+      return;
+    }
+    if (targetType === "Class" && !selectedClass) {
+      setToast({ msg: "Please select a target class.", type: "error" });
+      return;
+    }
+
     try {
-      const res = await fetch(
-        "http://127.0.0.1:8000/faculty/announcements",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            title,
-            description: message,
-            sender_type: "FACULTY",
-            sender_id: facultyId,
-            target_type: "CLASS",
-            target_id: Number(selectedClass)
-          })
-        }
-      );
+      setSubmitting(true);
+      const res = await apiFetch("/announcements", {
+        method: "POST",
+        body: JSON.stringify({
+          title,
+          description: message,
+          sender_type: "FACULTY",
+          sender_id: facultyId,
+          target_type: targetType === "Class" ? "Class" : "Institution",
+          target_id: targetType === "Class" ? Number(selectedClass) : null,
+          priority: priority
+        })
+      });
 
+      if (!res.ok) {
+        throw new Error("Failed to publish announcement.");
+      }
 
-
-      alert("Announcement Published Successfully");
+      setToast({ msg: "Announcement Published Successfully", type: "success" });
       setTitle("");
       setMessage("");
       setSelectedClass("");
       loadAnnouncements();
+      setActiveTab("sent"); // Auto-switch to Sent tab to see the post!
     } catch (err) {
       console.error(err);
+      setToast({ msg: err.message || "Failed to publish announcement.", type: "error" });
+    } finally {
+      setSubmitting(false);
     }
   };
 

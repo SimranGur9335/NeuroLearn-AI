@@ -42,11 +42,11 @@ const MarksGradebook = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [publishing, setPublishing] = useState(false);
-  
+
   // Search & Filter
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("ALL"); // ALL, PASSED, FAILED, AT_RISK, UNPUBLISHED
-  
+
   // Input validations & error tracking
   const [errors, setErrors] = useState({}); // key: `${studentId}_${assessmentId}`, value: error message
   const [alertInfo, setAlertInfo] = useState(null);
@@ -81,12 +81,12 @@ const MarksGradebook = () => {
       );
       if (!res.ok) throw new Error("Failed to load marks");
       const data = await res.json();
-      
+
       const structure = data.assessment_structure || [];
       const marksList = data.students_marks || [];
-      
+
       setAssessmentStructure(structure);
-      
+
       // Map students marks ensuring all configured components exist in the marks dict
       const normalizedMarks = marksList.map(s => {
         const studentMarksDict = { ...s.marks };
@@ -170,11 +170,11 @@ const MarksGradebook = () => {
       prev.map(s => {
         if (s.student_id === studentId) {
           const updatedMarks = { ...s.marks, [assessmentId]: numericVal };
-          
+
           // Recalculate dynamic weighted total score: (marks_obtained / max_marks) * weightage
           let weightedSum = 0;
           let totalWeightage = 0;
-          
+
           assessmentStructure.forEach(c => {
             const marksObt = updatedMarks[c.subject_assessment_id] || 0;
             if (c.max_marks > 0) {
@@ -238,7 +238,7 @@ const MarksGradebook = () => {
           : "Gradebook draft saved successfully!",
         "success"
       );
-      
+
       await fetchGradebook();
     } catch (err) {
       console.error(err);
@@ -261,7 +261,7 @@ const MarksGradebook = () => {
   // CSV Export Functionality
   const handleExportCSV = () => {
     if (studentsMarks.length === 0) return;
-    
+
     const headers = ["Roll No", "Full Name"];
     assessmentStructure.forEach(c => {
       headers.push(`${c.name} (Max ${c.max_marks})`);
@@ -269,7 +269,7 @@ const MarksGradebook = () => {
     headers.push("Total Marks (100)", "Grade", "Status");
 
     const csvRows = [headers.join(",")];
-    
+
     studentsMarks.forEach((s) => {
       const row = [s.roll_no, `"${s.full_name}"`];
       assessmentStructure.forEach(c => {
@@ -299,14 +299,14 @@ const MarksGradebook = () => {
       try {
         const text = event.target.result;
         const lines = text.split("\n").map(l => l.trim()).filter(l => l.length > 0);
-        
+
         if (lines.length < 2) {
           showAlert("CSV file appears to be empty or lacks data rows", "error");
           return;
         }
 
         const headers = lines[0].split(",").map(h => h.trim().replace(/^"|"$/g, '').toLowerCase());
-        
+
         const rollIdx = headers.findIndex(h => h.includes("roll"));
         if (rollIdx === -1) {
           showAlert("CSV must contain a 'Roll No' column", "error");
@@ -336,10 +336,10 @@ const MarksGradebook = () => {
 
           const rollNo = cols[rollIdx];
           const studentIdx = updatedMarks.findIndex(s => s.roll_no.toLowerCase() === rollNo.toLowerCase());
-          
+
           if (studentIdx !== -1) {
             const studentMarksDict = { ...updatedMarks[studentIdx].marks };
-            
+
             assessmentStructure.forEach(c => {
               const colIdx = compIndices[c.subject_assessment_id];
               if (colIdx !== undefined) {
@@ -568,11 +568,10 @@ const MarksGradebook = () => {
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
-            className={`fixed top-4 right-4 z-50 flex items-center gap-3 px-6 py-3 rounded-2xl border shadow-2xl ${
-              alertInfo.type === "success"
-                ? "bg-emerald-950/90 border-emerald-500/30 text-emerald-300"
-                : "bg-red-950/90 border-red-500/30 text-red-300"
-            } backdrop-blur-md`}
+            className={`fixed top-4 right-4 z-50 flex items-center gap-3 px-6 py-3 rounded-2xl border shadow-2xl ${alertInfo.type === "success"
+              ? "bg-emerald-950/90 border-emerald-500/30 text-emerald-300"
+              : "bg-red-950/90 border-red-500/30 text-red-300"
+              } backdrop-blur-md`}
           >
             {alertInfo.type === "success" ? <CheckCircle size={20} /> : <AlertTriangle size={20} />}
             <span className="font-semibold text-xs">{alertInfo.message}</span>
@@ -605,7 +604,7 @@ const MarksGradebook = () => {
           {/* Action buttons */}
           <div className="flex flex-wrap gap-2 shrink-0">
             <label className="bg-slate-800 hover:bg-slate-700 text-white font-extrabold px-4 py-2.5 rounded-xl transition-all shadow-md text-xs cursor-pointer flex items-center gap-1.5 border border-slate-700">
-              <Upload size={14} /> 
+              <Upload size={14} />
               <span>Import CSV</span>
               <input
                 type="file"
@@ -618,7 +617,7 @@ const MarksGradebook = () => {
               onClick={handleExportCSV}
               className="bg-slate-800 hover:bg-slate-700 text-white font-extrabold px-4 py-2.5 rounded-xl transition-all shadow-md text-xs cursor-pointer flex items-center gap-1.5 border border-slate-700"
             >
-              <Download size={14} /> 
+              <Download size={14} />
               <span>Export CSV</span>
             </button>
             <button
@@ -626,7 +625,7 @@ const MarksGradebook = () => {
               disabled={saving || publishing}
               className="bg-slate-800 hover:bg-indigo-900/50 hover:text-indigo-200 text-white font-extrabold px-4 py-2.5 rounded-xl transition-all shadow-md text-xs cursor-pointer flex items-center gap-1.5 border border-indigo-800/30"
             >
-              <EyeOff size={14} /> 
+              <EyeOff size={14} />
               <span>{saving ? "Saving..." : "Save Draft"}</span>
             </button>
             <button
@@ -634,7 +633,7 @@ const MarksGradebook = () => {
               disabled={saving || publishing}
               className="bg-indigo-650 hover:bg-indigo-650 text-white font-extrabold px-5 py-2.5 rounded-xl transition-all shadow-lg text-xs cursor-pointer flex items-center gap-1.5"
             >
-              <Eye size={14} /> 
+              <Eye size={14} />
               <span>{publishing ? "Publishing..." : "Publish to Portal"}</span>
             </button>
           </div>
@@ -700,7 +699,7 @@ const MarksGradebook = () => {
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 shadow-sm space-y-4 lg:col-span-2">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="font-extrabold text-sm text-slate-850 dark:text-white">Grade Distribution</h3>
+              <h3 className="font-extrabold text-sm text-slate-800 dark:text-white">Grade Distribution</h3>
               <p className="text-[10px] text-slate-400">Relative curve analysis of overall student totals.</p>
             </div>
             <span className="text-[10px] text-indigo-500 font-bold bg-indigo-500/10 px-2.5 py-1 rounded-full">
@@ -716,14 +715,14 @@ const MarksGradebook = () => {
               if (grade === "A+") barColor = "from-emerald-600 to-emerald-500";
               else if (grade === "A") barColor = "from-teal-600 to-teal-500";
               else if (grade === "F") barColor = "from-red-600 to-red-500 animate-pulse";
-              
+
               return (
                 <div key={grade} className="flex flex-col items-center gap-2 w-12 group relative">
                   {/* Tooltip */}
                   <div className="absolute -top-10 scale-0 group-hover:scale-100 transition-all bg-slate-950 text-white text-[10px] font-bold px-2 py-1 rounded-lg shadow z-30">
                     {count} Students
                   </div>
-                  
+
                   {/* Bar */}
                   <div className="w-8 bg-slate-100 dark:bg-slate-950 rounded-t-lg h-36 flex items-end">
                     <motion.div
@@ -743,7 +742,7 @@ const MarksGradebook = () => {
         {/* Quick Students Insights List */}
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 shadow-sm space-y-4">
           <div>
-            <h3 className="font-extrabold text-sm text-slate-850 dark:text-white">Performance Insights</h3>
+            <h3 className="font-extrabold text-sm text-slate-900 dark:text-white">Performance Insights</h3>
             <p className="text-[10px] text-slate-400">Instant tracking of high-risk and top-performing learners.</p>
           </div>
 
@@ -753,10 +752,10 @@ const MarksGradebook = () => {
               <span className="text-[9px] font-black uppercase tracking-wider text-emerald-500 bg-emerald-500/10 px-2.5 py-0.5 rounded-full border border-emerald-500/10">
                 Top Performers
               </span>
-              <div className="divide-y divide-slate-100 dark:divide-slate-850 bg-slate-50/50 dark:bg-slate-950/20 rounded-2xl p-2.5 space-y-2">
+              <div className="divide-y divide-slate-100 dark:divide-slate-800 bg-slate-50/50 dark:bg-slate-950/20 rounded-2xl p-2.5 space-y-2">
                 {topAchievers.map(s => (
-                  <div 
-                    key={s.student_id} 
+                  <div
+                    key={s.student_id}
                     onClick={() => handleOpenStudentDrawer(s)}
                     className="flex justify-between items-center text-[11px] font-semibold text-slate-700 dark:text-slate-300 hover:text-indigo-500 cursor-pointer pt-1.5 first:pt-0"
                   >
@@ -773,10 +772,10 @@ const MarksGradebook = () => {
               <span className="text-[9px] font-black uppercase tracking-wider text-red-500 bg-red-500/10 px-2.5 py-0.5 rounded-full border border-red-500/10">
                 Needs Attention
               </span>
-              <div className="divide-y divide-slate-100 dark:divide-slate-850 bg-slate-50/50 dark:bg-slate-955/20 rounded-2xl p-2.5 space-y-2">
+              <div className="divide-y divide-slate-100 dark:divide-slate-800 bg-slate-50/50 dark:bg-slate-955/20 rounded-2xl p-2.5 space-y-2">
                 {atRiskStudents.map(s => (
-                  <div 
-                    key={s.student_id} 
+                  <div
+                    key={s.student_id}
                     onClick={() => handleOpenStudentDrawer(s)}
                     className="flex justify-between items-center text-[11px] font-semibold text-slate-700 dark:text-slate-300 hover:text-red-500 cursor-pointer pt-1.5 first:pt-0"
                   >
@@ -793,11 +792,11 @@ const MarksGradebook = () => {
 
       {/* Main Ledger Section */}
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm space-y-5">
-        
+
         {/* Ledger Header & Search/Filters */}
-        <div className="flex flex-col lg:flex-row justify-between lg:items-center gap-4 border-b border-slate-100 dark:border-slate-850 pb-4">
+        <div className="flex flex-col lg:flex-row justify-between lg:items-center gap-4 border-b border-slate-100 dark:border-slate-0 pb-4">
           <div>
-            <h2 className="text-lg font-black text-slate-850 dark:text-white flex items-center gap-2">
+            <h2 className="text-lg font-black text-slate-800 dark:text-white flex items-center gap-2">
               <FileSpreadsheet className="text-indigo-500" />
               <span>Academic Assessment Ledger</span>
             </h2>
@@ -819,11 +818,10 @@ const MarksGradebook = () => {
                 <button
                   key={f.id}
                   onClick={() => setFilterStatus(f.id)}
-                  className={`px-3 py-1.5 text-[10px] font-black uppercase rounded-lg transition-colors cursor-pointer whitespace-nowrap ${
-                    filterStatus === f.id
-                      ? "bg-indigo-650 text-white shadow-sm"
-                      : "text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-850"
-                  }`}
+                  className={`px-3 py-1.5 text-[10px] font-black uppercase rounded-lg transition-colors cursor-pointer whitespace-nowrap ${filterStatus === f.id
+                    ? "bg-indigo-650 text-white shadow-sm"
+                    : "text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
+                    }`}
                 >
                   {f.label}
                 </button>
@@ -856,30 +854,30 @@ const MarksGradebook = () => {
         ) : (
           <div className="overflow-x-auto rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 max-h-[600px] overflow-y-auto scrollbar-thin">
             <table className="w-full border-collapse text-left text-xs table-fixed">
-              <thead className="bg-slate-50 dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 sticky top-0 z-30">
+              <thead className="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 sticky top-0 z-30">
                 {/* Category Groupings Row */}
                 <tr className="border-b border-slate-200 dark:border-slate-800 text-[9px] font-black uppercase text-slate-450 tracking-wider">
-                  <th className="px-4 py-2 bg-slate-100 dark:bg-slate-955 sticky left-0 z-45 w-[90px] border-r border-slate-200 dark:border-slate-800">Student ID</th>
-                  <th className="px-4 py-2 bg-slate-100 dark:bg-slate-955 sticky left-[90px] z-45 w-[160px] border-r border-slate-200 dark:border-slate-800">Student Profile</th>
-                  
+                  <th className="px-4 py-2 bg-slate-100 dark:bg-slate-900 sticky left-[90px] z-35 w-[200px] border-r border-slate-200 dark:border-slate-800">Student ID</th>
+                  <th className="px-4 py-2 bg-slate-100 dark:bg-slate-900 sticky left-[90px] z-35 w-[160px] border-r border-slate-200 dark:border-slate-800">Student Profile</th>
+
                   {/* Internal Assessments Header Group */}
-                  <th 
-                    colSpan={internalAssessments.length + (internalAssessments.length > 0 ? 1 : 0)} 
+                  <th
+                    colSpan={internalAssessments.length + (internalAssessments.length > 0 ? 1 : 0)}
                     className="px-4 py-2 text-center bg-indigo-500/5 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-r border-slate-200 dark:border-slate-800"
                   >
                     INTERNAL ASSESSMENT (Max {internalMaxSum} Marks)
                   </th>
-                  
+
                   {/* External Assessments Header Group */}
-                  <th 
-                    colSpan={externalAssessments.length + (externalAssessments.length > 0 ? 1 : 0)} 
+                  <th
+                    colSpan={externalAssessments.length + (externalAssessments.length > 0 ? 1 : 0)}
                     className="px-4 py-2 text-center bg-emerald-500/5 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-r border-slate-200 dark:border-slate-800"
                   >
                     EXTERNAL ASSESSMENT (Max {externalMaxSum} Marks)
                   </th>
-                  
+
                   {/* Final Results Header Group */}
-                  <th colSpan={4} className="px-4 py-2 text-center bg-slate-100 dark:bg-slate-955 text-slate-600 dark:text-slate-300">
+                  <th colSpan={4} className="px-4 py-2 text-center bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-300">
                     FINAL ACADEMIC RESULT
                   </th>
                 </tr>
@@ -887,12 +885,12 @@ const MarksGradebook = () => {
                 {/* Subcomponent Headers Row */}
                 <tr className="border-b border-slate-200 dark:border-slate-800 text-[10px] font-extrabold text-slate-450">
                   {/* Left Column Sticky Spacers */}
-                  <th className="px-4 py-3 bg-slate-50 dark:bg-slate-950 sticky left-0 z-40 border-r border-slate-100 dark:border-slate-850">Roll No</th>
-                  <th className="px-4 py-3 bg-slate-50 dark:bg-slate-950 sticky left-[90px] z-40 border-r border-slate-100 dark:border-slate-850">Full Name</th>
-                  
+                  <th className="px-4 py-3 bg-slate-50 dark:bg-slate-950 sticky left-0 z-40 border-r border-slate-100 dark:border-slate-800">Roll No</th>
+                  <th className="px-4 py-3 bg-slate-50 dark:bg-slate-950 sticky left-[90px] z-40 border-r border-slate-100 dark:border-slate-800">Full Name</th>
+
                   {/* Render Internals */}
                   {internalAssessments.map(c => (
-                    <th key={c.subject_assessment_id} className="px-2 py-3 text-center w-24 border-r border-slate-100 dark:border-slate-850">
+                    <th key={c.subject_assessment_id} className="px-2 py-3 text-center w-24 border-r border-slate-100 dark:border-slate-800">
                       <span className="block truncate" title={c.name}>{c.name}</span>
                       <span className="block text-[8px] text-slate-400 font-bold mt-0.5">Max: {c.max_marks} • Wt: {c.weightage}%</span>
                     </th>
@@ -902,10 +900,10 @@ const MarksGradebook = () => {
                       Internal Total
                     </th>
                   )}
-                  
+
                   {/* Render Externals */}
                   {externalAssessments.map(c => (
-                    <th key={c.subject_assessment_id} className="px-2 py-3 text-center w-24 border-r border-slate-100 dark:border-slate-850">
+                    <th key={c.subject_assessment_id} className="px-2 py-3 text-center w-24 border-r border-slate-100 dark:border-slate-800 text-slate-700 dark:text-slate-300">
                       <span className="block truncate" title={c.name}>{c.name}</span>
                       <span className="block text-[8px] text-slate-400 font-bold mt-0.5">Max: {c.max_marks} • Wt: {c.weightage}%</span>
                     </th>
@@ -915,11 +913,11 @@ const MarksGradebook = () => {
                       External Total
                     </th>
                   )}
-                  
+
                   {/* Result Columns */}
-                  <th className="px-4 py-3 text-center w-24 border-r border-slate-100 dark:border-slate-850 font-black">Weighted Total</th>
-                  <th className="px-4 py-3 text-center w-20 border-r border-slate-100 dark:border-slate-850 font-black">Grade</th>
-                  <th className="px-4 py-3 text-center w-24 border-r border-slate-100 dark:border-slate-850 font-black">Portal Status</th>
+                  <th className="px-4 py-3 text-center w-24 border-r border-slate-100 dark:border-slate-800 font-black">Weighted Total</th>
+                  <th className="px-4 py-3 text-center w-20 border-r border-slate-100 dark:border-slate-800 font-black">Grade</th>
+                  <th className="px-4 py-3 text-center w-24 border-r border-slate-100 dark:border-slate-800 font-black">Portal Status</th>
                   <th className="px-4 py-3 text-center w-16 font-black">Action</th>
                 </tr>
               </thead>
@@ -947,11 +945,10 @@ const MarksGradebook = () => {
                   });
 
                   return (
-                    <tr 
-                      key={s.student_id} 
-                      className={`hover:bg-slate-50/60 dark:hover:bg-slate-850/30 transition-colors ${
-                        isEdited ? "bg-amber-500/5 dark:bg-amber-500/5" : ""
-                      }`}
+                    <tr
+                      key={s.student_id}
+                      className={`hover:bg-slate-50/60 dark:hover:bg-slate-850/30 transition-colors ${isEdited ? "bg-amber-500/5 dark:bg-amber-500/5" : ""
+                        }`}
                     >
                       {/* Roll No Sticky */}
                       <td className="px-4 py-3 bg-white dark:bg-slate-900 sticky left-0 z-20 font-bold text-slate-400 border-r border-slate-100 dark:border-slate-850 shadow-[2px_0_5px_rgba(0,0,0,0.02)]">
@@ -960,10 +957,10 @@ const MarksGradebook = () => {
                           <span>{s.roll_no}</span>
                         </div>
                       </td>
-                      
+
                       {/* Name Sticky */}
                       <td className="px-4 py-3 bg-white dark:bg-slate-900 sticky left-[90px] z-20 font-black text-slate-850 dark:text-white border-r border-slate-100 dark:border-slate-850 shadow-[2px_0_5px_rgba(0,0,0,0.02)] truncate">
-                        <button 
+                        <button
                           onClick={() => handleOpenStudentDrawer(s)}
                           className="text-left hover:text-indigo-500 focus:outline-none truncate"
                         >
@@ -979,17 +976,16 @@ const MarksGradebook = () => {
                           <td key={c.subject_assessment_id} className="px-2 py-2 whitespace-nowrap relative border-r border-slate-100 dark:border-slate-850">
                             <input
                               type="number"
-                              step="0.1"
+                              step="1"
                               min="0"
                               max={c.max_marks}
                               value={s.marks[c.subject_assessment_id] || 0}
                               disabled={!c.editable_by_faculty}
                               onChange={(e) => handleMarkChange(s.student_id, c.subject_assessment_id, e.target.value)}
-                              className={`w-full text-center bg-slate-50 dark:bg-slate-950 border rounded-xl px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500 font-bold transition-all ${
-                                errorMsg 
-                                  ? "border-red-500 ring-1 ring-red-500 bg-red-50/20 text-red-500" 
-                                  : "border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200"
-                              }`}
+                              className={`w-full text-center bg-slate-50 dark:bg-slate-950 border rounded-xl px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500 font-bold transition-all ${errorMsg
+                                ? "border-red-500 ring-1 ring-red-500 bg-red-50/20 text-red-500"
+                                : "border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200"
+                                }`}
                             />
                             {errorMsg && (
                               <span className="absolute right-3 top-1/2 -translate-y-1/2 text-red-500 pointer-events-none" title={errorMsg}>
@@ -1000,7 +996,7 @@ const MarksGradebook = () => {
                         );
                       })}
                       {internalAssessments.length > 0 && (
-                        <td className="px-2 py-3 text-center bg-indigo-500/5 dark:bg-indigo-500/10 font-bold text-slate-700 dark:text-slate-350 border-r border-slate-200 dark:border-slate-800">
+                        <td className="px-2 py-3 text-center bg-indigo-500/5 dark:bg-indigo-500/10 font-bold text-slate-700 dark:text-slate-300 border-r border-slate-200 dark:border-slate-800">
                           {studentInternalSum.toFixed(1)} / {internalMaxSum}
                         </td>
                       )}
@@ -1010,20 +1006,19 @@ const MarksGradebook = () => {
                         const cellKey = `${s.student_id}_${c.subject_assessment_id}`;
                         const errorMsg = errors[cellKey];
                         return (
-                          <td key={c.subject_assessment_id} className="px-2 py-2 whitespace-nowrap relative border-r border-slate-100 dark:border-slate-850">
+                          <td key={c.subject_assessment_id} className="px-2 py-2 whitespace-nowrap relative border-r border-slate-100 dark:border-slate-800 text-slate-700 dark:text-slate-300">
                             <input
                               type="number"
-                              step="0.1"
+                              step="1"
                               min="0"
                               max={c.max_marks}
                               value={s.marks[c.subject_assessment_id] || 0}
                               disabled={!c.editable_by_faculty}
                               onChange={(e) => handleMarkChange(s.student_id, c.subject_assessment_id, e.target.value)}
-                              className={`w-full text-center bg-slate-50 dark:bg-slate-955 border rounded-xl px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500 font-bold transition-all ${
-                                errorMsg 
-                                  ? "border-red-500 ring-1 ring-red-500 bg-red-50/20 text-red-500" 
-                                  : "border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200"
-                              }`}
+                              className={`w-full text-center bg-slate-50 dark:bg-slate-950 border rounded-xl px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500 font-bold transition-all ${errorMsg
+                                ? "border-red-500 ring-1 ring-red-500 bg-red-50/20 text-red-500"
+                                : "border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200"
+                                }`}
                             />
                             {errorMsg && (
                               <span className="absolute right-3 top-1/2 -translate-y-1/2 text-red-500 pointer-events-none" title={errorMsg}>
@@ -1034,7 +1029,7 @@ const MarksGradebook = () => {
                         );
                       })}
                       {externalAssessments.length > 0 && (
-                        <td className="px-2 py-3 text-center bg-emerald-500/5 dark:bg-emerald-500/10 font-bold text-slate-700 dark:text-slate-350 border-r border-slate-200 dark:border-slate-800">
+                        <td className="px-2 py-3 text-center bg-emerald-500/5 dark:bg-emerald-500/10 font-bold text-slate-700 dark:text-slate-300 border-r border-slate-200 dark:border-slate-800">
                           {studentExternalSum.toFixed(1)} / {externalMaxSum}
                         </td>
                       )}
@@ -1089,7 +1084,7 @@ const MarksGradebook = () => {
             disabled={saving || publishing || studentsMarks.length === 0}
             className="bg-indigo-650 hover:bg-indigo-500 disabled:bg-indigo-900/40 disabled:text-indigo-300 text-white font-extrabold px-6 py-3.5 rounded-xl transition-all shadow-lg text-xs flex items-center gap-2 cursor-pointer"
           >
-            <Save size={16} /> 
+            <Save size={16} />
             <span>{saving ? "Saving Changes..." : "Commit Gradebook Updates"}</span>
           </button>
         </div>
@@ -1171,7 +1166,7 @@ const MarksGradebook = () => {
 
               {/* Drawer Tabs Navigation */}
               {!drawerLoading && drawerDetail && (
-                <div className="flex border-b border-slate-100 dark:border-slate-800 overflow-x-auto scrollbar-none shrink-0 bg-slate-50 dark:bg-slate-955 px-3 py-1 gap-1">
+                <div className="flex border-b border-slate-100 dark:border-slate-800 overflow-x-auto scrollbar-none shrink-0 bg-slate-50 dark:bg-slate-950 px-3 py-1 gap-1">
                   {[
                     { id: "academics", label: "Academic Breakdown" },
                     { id: "interventions", label: "Risk & Interventions" }
@@ -1179,11 +1174,10 @@ const MarksGradebook = () => {
                     <button
                       key={t.id}
                       onClick={() => setDrawerTab(t.id)}
-                      className={`px-3 py-2 text-[10px] font-extrabold uppercase rounded-lg transition-all cursor-pointer shrink-0 whitespace-nowrap ${
-                        drawerTab === t.id 
-                          ? 'bg-indigo-600 text-white shadow-sm' 
-                          : 'text-slate-550 hover:bg-slate-100 dark:hover:bg-slate-850'
-                      }`}
+                      className={`px-3 py-2 text-[10px] font-extrabold uppercase rounded-lg transition-all cursor-pointer shrink-0 whitespace-nowrap ${drawerTab === t.id
+                        ? 'bg-indigo-600 text-white shadow-sm'
+                        : 'text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800'
+                        }`}
                     >
                       {t.label}
                     </button>
@@ -1209,12 +1203,11 @@ const MarksGradebook = () => {
                             {selectedStudentForDrawer.total_marks}%
                           </h3>
                         </div>
-                        <span className={`inline-block px-4 py-2 rounded-xl font-black text-base ${
-                          selectedStudentForDrawer.grade === "A+" ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20" :
+                        <span className={`inline-block px-4 py-2 rounded-xl font-black text-base ${selectedStudentForDrawer.grade === "A+" ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20" :
                           selectedStudentForDrawer.grade === "A" ? "bg-teal-500/10 text-teal-500 border border-teal-500/20" :
-                          selectedStudentForDrawer.grade === "F" ? "bg-red-500/10 text-red-500 border border-red-500/20" :
-                          "bg-indigo-500/10 text-indigo-500 border border-indigo-500/20"
-                        }`}>
+                            selectedStudentForDrawer.grade === "F" ? "bg-red-500/10 text-red-500 border border-red-500/20" :
+                              "bg-indigo-500/10 text-indigo-500 border border-indigo-500/20"
+                          }`}>
                           {selectedStudentForDrawer.grade}
                         </span>
                       </div>
@@ -1227,7 +1220,7 @@ const MarksGradebook = () => {
                             const studentVal = selectedStudentForDrawer.marks[c.subject_assessment_id] || 0;
                             const classAvg = componentAverages[c.subject_assessment_id] || 0;
                             const maxVal = c.max_marks;
-                            
+
                             // percentages
                             const studentPct = maxVal > 0 ? (studentVal / maxVal) * 100 : 0;
                             const avgPct = maxVal > 0 ? (classAvg / maxVal) * 100 : 0;
@@ -1235,27 +1228,26 @@ const MarksGradebook = () => {
                             return (
                               <div key={c.subject_assessment_id} className="space-y-1.5">
                                 <div className="flex justify-between items-center font-bold text-[11px]">
-                                  <span className="text-slate-700 dark:text-slate-350">{c.name}</span>
+                                  <span className="text-slate-700 dark:text-slate-300">{c.name}</span>
                                   <span className="text-slate-500">
                                     <span className="text-slate-850 dark:text-white font-black">{studentVal}</span> / {maxVal} (Avg: {classAvg})
                                   </span>
                                 </div>
-                                
+
                                 {/* Comparison progress bar */}
                                 <div className="w-full bg-slate-100 dark:bg-slate-950 h-3 rounded-full overflow-hidden relative border border-slate-200 dark:border-slate-850">
                                   {/* Class average marker */}
-                                  <div 
-                                    className="absolute top-0 bottom-0 w-0.5 bg-indigo-400 z-10" 
+                                  <div
+                                    className="absolute top-0 bottom-0 w-0.5 bg-indigo-400 z-10"
                                     style={{ left: `${avgPct}%` }}
                                     title={`Class Avg: ${classAvg}`}
                                   />
                                   {/* Student value */}
-                                  <div 
-                                    className={`h-full rounded-full ${
-                                      studentVal >= classAvg 
-                                        ? "bg-gradient-to-r from-emerald-600 to-emerald-500" 
-                                        : "bg-gradient-to-r from-indigo-600 to-indigo-500"
-                                    }`}
+                                  <div
+                                    className={`h-full rounded-full ${studentVal >= classAvg
+                                      ? "bg-gradient-to-r from-emerald-600 to-emerald-500"
+                                      : "bg-gradient-to-r from-indigo-600 to-indigo-500"
+                                      }`}
                                     style={{ width: `${studentPct}%` }}
                                   />
                                 </div>
@@ -1278,10 +1270,9 @@ const MarksGradebook = () => {
                       <div className="grid grid-cols-2 gap-4">
                         <div className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 p-4 rounded-xl text-left">
                           <span className="text-[9px] text-slate-400 font-bold block uppercase">Attendance Rate</span>
-                          <span className={`font-black text-xl block mt-1 ${
-                            drawerDetail.metrics?.attendance < 75 ? "text-red-500 animate-pulse" :
+                          <span className={`font-black text-xl block mt-1 ${drawerDetail.metrics?.attendance < 75 ? "text-red-500 animate-pulse" :
                             drawerDetail.metrics?.attendance < 85 ? "text-amber-500" : "text-emerald-500"
-                          }`}>
+                            }`}>
                             {drawerDetail.metrics?.attendance}%
                           </span>
                         </div>
@@ -1299,10 +1290,9 @@ const MarksGradebook = () => {
                         </div>
                         <div className="bg-slate-55 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 p-4 rounded-xl text-left">
                           <span className="text-[9px] text-slate-400 font-bold block uppercase">Calculated Risk level</span>
-                          <span className={`font-black text-base block mt-1 uppercase ${
-                            drawerDetail.metrics?.risk_level === 'High' ? 'text-red-500' :
+                          <span className={`font-black text-base block mt-1 uppercase ${drawerDetail.metrics?.risk_level === 'High' ? 'text-red-500' :
                             drawerDetail.metrics?.risk_level === 'Medium' ? 'text-amber-500' : 'text-emerald-500'
-                          }`}>
+                            }`}>
                             {drawerDetail.metrics?.risk_level || "Low"} Risk
                           </span>
                         </div>
@@ -1321,7 +1311,7 @@ const MarksGradebook = () => {
                             <select
                               value={interventionStatus}
                               onChange={(e) => setInterventionStatus(e.target.value)}
-                              className="w-full bg-white dark:bg-slate-900 border border-slate-250 dark:border-slate-800 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-700 dark:text-slate-350 font-bold"
+                              className="w-full bg-white dark:bg-slate-900 border border-slate-250 dark:border-slate-800 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-700 dark:text-slate-300 font-bold"
                             >
                               <option value="Not Contacted">Not Contacted</option>
                               <option value="Contacted">Contacted / Notified</option>
@@ -1367,10 +1357,10 @@ const MarksGradebook = () => {
               )}
 
               {/* Drawer footer */}
-              <div className="p-5 border-t border-slate-100 dark:border-slate-850 flex gap-3 bg-slate-50 dark:bg-slate-955 shrink-0">
+              <div className="p-5 border-t border-slate-100 dark:border-slate-800 flex gap-3 bg-slate-50 dark:bg-slate-950 shrink-0">
                 <button
                   onClick={() => setSelectedStudentForDrawer(null)}
-                  className="w-full py-2.5 border border-slate-250 dark:border-slate-800 rounded-xl text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-850 font-bold transition-all text-xs cursor-pointer"
+                  className="w-full py-2.5 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 font-bold transition-all text-xs cursor-pointer"
                 >
                   Close Profile
                 </button>

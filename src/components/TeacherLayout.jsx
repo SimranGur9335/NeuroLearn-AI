@@ -66,7 +66,7 @@ const FacultyLayout = () => {
     { name: 'Remedial Sessions', path: '/faculty/remedial', icon: GraduationCap },
     { name: "Announcements", path: '/faculty/announcements', icon: Bell },
     { name: 'Activity Stream', path: '/faculty/activity', icon: Activity },
-    { name: 'My Profile', path: `/faculty/${profile.id}`, icon: User }
+    { name: 'My Profile', path: `/faculty/profile`, icon: User }
   ];
 
   const handleLogout = () => {
