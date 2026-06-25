@@ -24,14 +24,14 @@ const RemedialSessions = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const selectedClass = JSON.parse(localStorage.getItem("selectedClass") || "{}");
-const { user } = useAuth();
-const facultyId = user?.faculty_id;
+  const { user } = useAuth();
+  const facultyId = user?.faculty_id;
   // State Management
   const [sessions, setSessions] = useState([]);
   const [selectedSession, setSelectedSession] = useState(null);
   const [invitations, setInvitations] = useState([]);
   const [classStudents, setClassStudents] = useState([]);
-  
+
   // Loaders & Errors
   const [loadingSessions, setLoadingSessions] = useState(true);
   const [loadingInvitations, setLoadingInvitations] = useState(false);
@@ -63,8 +63,8 @@ const facultyId = user?.faculty_id;
     setLoadingSessions(true);
     try {
       const res = await apiFetch(
-  `/remedial/sessions?faculty_id=${facultyId}`
-);
+        `/remedial/sessions?faculty_id=${facultyId}`
+      );
       if (!res.ok) throw new Error("Failed to fetch sessions");
       const data = await res.json();
       // Filter sessions for the active class if selected
@@ -86,8 +86,8 @@ const facultyId = user?.faculty_id;
     setLoadingStudents(true);
     try {
       const res = await apiFetch(
-  `/class/${selectedClass.class_id}/students`
-);
+        `/class/${selectedClass.class_id}/students`
+      );
       if (!res.ok) throw new Error("Failed to fetch class students");
       const data = await res.json();
       setClassStudents(data);
@@ -104,8 +104,8 @@ const facultyId = user?.faculty_id;
     setLoadingInvitations(true);
     try {
       const res = await apiFetch(
-  `/remedial/sessions/${sessionId}/invitations?faculty_id=${facultyId}`
-);
+        `/remedial/sessions/${sessionId}/invitations?faculty_id=${facultyId}`
+      );
       if (!res.ok) throw new Error("Failed to fetch invitations");
       const data = await res.json();
       setInvitations(data);
@@ -165,22 +165,22 @@ const facultyId = user?.faculty_id;
     setSubmittingSession(true);
     try {
       const res = await apiFetch(
-  `/remedial/sessions`,
-  {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-          class_id: selectedClass.class_id,
-          subject_id: selectedClass.subject_id,
-          topic,
-          description,
-          session_date: sessionDate,
-          session_time: sessionTime,
-          location: locationStr,
-          student_ids: selectedStudentIds,
-          faculty_id: facultyId
-        })
-      });
+        `/remedial/sessions`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            class_id: selectedClass.class_id,
+            subject_id: selectedClass.subject_id,
+            topic,
+            description,
+            session_date: sessionDate,
+            session_time: sessionTime,
+            location: locationStr,
+            student_ids: selectedStudentIds,
+            faculty_id: facultyId
+          })
+        });
 
       if (!res.ok) {
         const err = await res.json();
@@ -211,15 +211,15 @@ const facultyId = user?.faculty_id;
     setUpdatingInvitationId(invitationId);
     try {
       const res = await apiFetch(
-  `/remedial/invitations/${invitationId}/status`,
-  {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-          status: newStatus,
-          faculty_id: facultyId
-        })
-      });
+        `/remedial/invitations/${invitationId}/status`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            status: newStatus,
+            faculty_id: facultyId
+          })
+        });
 
       if (!res.ok) {
         const err = await res.json();
@@ -228,7 +228,7 @@ const facultyId = user?.faculty_id;
 
       showAlert("Attendance status updated successfully!");
       // Update local state list
-      setInvitations(prev => prev.map(inv => 
+      setInvitations(prev => prev.map(inv =>
         inv.invitation_id === invitationId ? { ...inv, status: newStatus } : inv
       ));
     } catch (err) {
@@ -240,7 +240,7 @@ const facultyId = user?.faculty_id;
   };
 
   const toggleStudentSelection = (studId) => {
-    setSelectedStudentIds(prev => 
+    setSelectedStudentIds(prev =>
       prev.includes(studId) ? prev.filter(id => id !== studId) : [...prev, studId]
     );
   };
@@ -254,7 +254,7 @@ const facultyId = user?.faculty_id;
   };
 
   // Filter student checklist
-  const filteredStudentsToChecklist = classStudents.filter(s => 
+  const filteredStudentsToChecklist = classStudents.filter(s =>
     s.full_name.toLowerCase().includes(studentSearchTerm.toLowerCase()) ||
     s.roll_no.toLowerCase().includes(studentSearchTerm.toLowerCase())
   );
@@ -264,8 +264,8 @@ const facultyId = user?.faculty_id;
   const attendedCount = invitations.filter(i => i.status === "Attended").length;
   const absentCount = invitations.filter(i => i.status === "Absent").length;
   const totalLoggedAttendance = attendedCount + absentCount;
-  const attendanceRate = totalLoggedAttendance > 0 
-    ? Math.round((attendedCount / totalLoggedAttendance) * 100) 
+  const attendanceRate = totalLoggedAttendance > 0
+    ? Math.round((attendedCount / totalLoggedAttendance) * 100)
     : 0;
 
   if (!selectedClass.class_id) {
@@ -300,9 +300,8 @@ const facultyId = user?.faculty_id;
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
-            className={`fixed top-4 right-4 z-50 flex items-center gap-2 px-4 py-3 rounded-xl shadow-xl text-white font-bold text-xs ${
-              alertInfo.type === "error" ? "bg-red-500" : "bg-emerald-500"
-            }`}
+            className={`fixed top-4 right-4 z-50 flex items-center gap-2 px-4 py-3 rounded-xl shadow-xl text-white font-bold text-xs ${alertInfo.type === "error" ? "bg-red-500" : "bg-emerald-500"
+              }`}
           >
             {alertInfo.type === "error" ? <AlertCircle size={16} /> : <CheckCircle size={16} />}
             <span>{alertInfo.message}</span>
@@ -399,11 +398,10 @@ const facultyId = user?.faculty_id;
                     key={session.session_id}
                     onClick={() => handleSelectSession(session)}
                     whileHover={{ scale: 1.01 }}
-                    className={`p-4 rounded-2xl border text-left cursor-pointer transition-all ${
-                      isSelected
-                        ? "bg-purple-500/10 border-purple-500 dark:border-purple-400 shadow-sm"
-                        : "bg-slate-55/40 dark:bg-slate-950/40 border-slate-150 dark:border-slate-850 hover:bg-slate-100 dark:hover:bg-slate-850/60"
-                    }`}
+                    className={`p-4 rounded-2xl border text-left cursor-pointer transition-all ${isSelected
+                      ? "bg-purple-500/10 border-purple-500 dark:border-purple-400 shadow-sm"
+                      : "bg-slate-55/40 dark:bg-slate-950/40 border-slate-150 dark:border-slate-850 hover:bg-slate-100 dark:hover:bg-slate-850/60"
+                      }`}
                   >
                     <div className="flex justify-between items-start gap-2">
                       <h4 className="font-extrabold text-sm text-slate-900 dark:text-white">
@@ -463,7 +461,7 @@ const facultyId = user?.faculty_id;
                       setSelectedSession(null);
                       setInvitations([]);
                     }}
-                    className="p-1.5 bg-slate-100 dark:bg-slate-850 rounded-full hover:bg-slate-200 dark:hover:bg-slate-750 transition-colors"
+                    className="p-1.5 bg-slate-100 dark:bg-slate-100 text-slate-700 dark:text-slate-700 rounded-full"
                   >
                     <X size={14} />
                   </button>
@@ -508,15 +506,14 @@ const facultyId = user?.faculty_id;
 
                         <div className="flex items-center gap-2">
                           {/* Attendance Status Badge */}
-                          <span className={`text-[10px] font-black uppercase px-2.5 py-1.5 rounded-xl border shrink-0 ${
-                            invite.status === "Attended"
-                              ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20"
-                              : invite.status === "Absent"
+                          <span className={`text-[10px] font-black uppercase px-2.5 py-1.5 rounded-xl border shrink-0 ${invite.status === "Attended"
+                            ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20"
+                            : invite.status === "Absent"
                               ? "bg-red-500/10 text-red-500 border-red-500/20"
                               : invite.status === "Cancelled"
-                              ? "bg-slate-500/10 text-slate-500 border-slate-500/20"
-                              : "bg-amber-500/10 text-amber-500 border-amber-500/20"
-                          }`}>
+                                ? "bg-slate-500/10 text-slate-500 border-slate-500/20"
+                                : "bg-amber-500/10 text-amber-500 border-amber-500/20"
+                            }`}>
                             {invite.status}
                           </span>
 
@@ -690,11 +687,10 @@ const facultyId = user?.faculty_id;
                           <div
                             key={student.student_id}
                             onClick={() => toggleStudentSelection(student.student_id)}
-                            className={`p-2.5 rounded-xl border flex items-center gap-3 cursor-pointer transition-all select-none ${
-                              isChecked
-                                ? "bg-purple-500/10 border-purple-500/30 dark:border-purple-400/30"
-                                : "bg-slate-50 dark:bg-slate-950 border-slate-100 dark:border-slate-850 hover:bg-slate-100 dark:hover:bg-slate-850/60"
-                            }`}
+                            className={`p-2.5 rounded-xl border flex items-center gap-3 cursor-pointer transition-all select-none ${isChecked
+                              ? "bg-purple-500/10 border-purple-500/30 dark:border-purple-400/30"
+                              : "bg-slate-50 dark:bg-slate-950 border-slate-100 dark:border-slate-850 hover:bg-slate-100 dark:hover:bg-slate-850/60"
+                              }`}
                           >
                             <input
                               type="checkbox"

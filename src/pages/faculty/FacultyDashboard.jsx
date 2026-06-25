@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { apiFetch } from '../../services/api';
 import {
   ResponsiveContainer,
   AreaChart,
@@ -39,7 +40,7 @@ const FacultyDashboard = () => {
   const { user } = useAuth();
   const selectedClass = JSON.parse(localStorage.getItem("selectedClass") || "{}");
   const facultyId = user?.faculty_id;
-  
+
   const [dashboardData, setDashboardData] = useState(null);
   const [classesList, setClassesList] = useState([]);
   const [activities, setActivities] = useState([]);
@@ -55,7 +56,7 @@ const FacultyDashboard = () => {
     const id = activeId || facultyId;
     if (!id) return;
     try {
-      const res = await fetch(`/api/v1/faculty/${id}/activities?limit=4`);
+      const res = await apiFetch(`/api/v1/faculty/${id}/activities?limit=4`);
       if (res.ok) {
         const data = await res.json();
         setActivities(data);
@@ -71,58 +72,118 @@ const FacultyDashboard = () => {
       setLoading(true);
       try {
         let activeFacultyId = facultyId || user?.faculty_id;
+        const promises = [];
 
-        if (user?.email) {
-          try {
-            const facRes = await fetch(`/faculty/by-email/${user.email}`);
-            if (facRes.ok) {
-              const facData = await facRes.json();
-              setFacultyInfo(facData);
-              if (!activeFacultyId) {
-                activeFacultyId = facData.faculty_id;
+        // 1. Resolve faculty ID if not already in state
+        let facPromise = null;
+        if (user?.email && !facultyInfo) {
+          facPromise = apiFetch(`/faculty/by-email/${user.email}`)
+            .then(async res => {
+              if (res.ok) {
+                const facData = await res.json();
+                setFacultyInfo(facData);
+                if (!activeFacultyId) {
+                  activeFacultyId = facData.faculty_id;
+                }
               }
+            })
+            .catch(err => console.error("Failed to fetch faculty info", err));
+
+          if (!activeFacultyId) {
+            // Must block to get the faculty ID first
+            await facPromise;
+          } else {
+            // Can run in parallel
+            promises.push(facPromise);
+          }
+        }
+
+        // 2. Fire all class-specific and faculty-specific requests in parallel
+
+        // Dashboard summary
+        const summaryPromise = apiFetch(`/class/${selectedClass.class_id}/dashboard-summary`)
+          .then(async res => {
+            if (res.ok) {
+              const data = await res.json();
+              setDashboardData(data);
             }
-          } catch (err) {
-            console.error("Failed to fetch faculty info", err);
-          }
-        }
+          })
+          .catch(err => console.error("Failed to fetch dashboard summary", err));
+        promises.push(summaryPromise);
 
-        const summaryRes = await fetch(`/class/${selectedClass.class_id}/dashboard-summary`);
-        const summaryData = await summaryRes.json();
-        setDashboardData(summaryData);
+        // Assignments
+        const assignPromise = apiFetch(`/assignments?class_id=${selectedClass.class_id}&subject_id=${selectedClass.subject_id}`)
+          .then(async res => {
+            if (res.ok) {
+              const data = await res.json();
+              setAssignments(data.slice(0, 4));
+            }
+          })
+          .catch(err => console.error("Failed to fetch assignments", err));
+        promises.push(assignPromise);
 
+        // Attendance history
+        const attPromise = apiFetch(`/attendance/history?class_id=${selectedClass.class_id}&subject_id=${selectedClass.subject_id}`)
+          .then(async res => {
+            if (res.ok) {
+              const data = await res.json();
+              setAttHistory(data.slice(0, 6));
+            }
+          })
+          .catch(err => console.error("Failed to fetch attendance history", err));
+        promises.push(attPromise);
+
+        // Class students with metrics (filtered by class on database level)
+        const studentsPromise = apiFetch(`/class/${selectedClass.class_id}/student-metrics`)
+          .then(async res => {
+            if (res.ok) {
+              const data = await res.json();
+              setAllStudents(data);
+              const atRisk = data.filter(s => s.risk_level === "High" || s.risk_level === "Medium");
+              setAtRiskStudents(atRisk.slice(0, 4));
+            }
+          })
+          .catch(err => console.error("Failed to fetch class student metrics", err));
+        promises.push(studentsPromise);
+
+        // Faculty-dependent parallel calls
         if (activeFacultyId) {
-          const classesRes = await fetch(`/faculty/${activeFacultyId}/classes`);
-          const classesData = await classesRes.json();
-          setClassesList(classesData);
+          // Classes list
+          const classesPromise = apiFetch(`/faculty/${activeFacultyId}/classes`)
+            .then(async res => {
+              if (res.ok) {
+                const data = await res.json();
+                setClassesList(data);
+              }
+            })
+            .catch(err => console.error("Failed to fetch classes list", err));
+          promises.push(classesPromise);
 
-          // Fetch unified command center telemetry
-          const commandCenterRes = await fetch(`/api/v1/faculty/${activeFacultyId}/dashboard-command-center?class_id=${selectedClass.class_id}&subject_id=${selectedClass.subject_id}`);
-          if (commandCenterRes.ok) {
-            const ccData = await commandCenterRes.json();
-            setCommandCenterData(ccData);
-          }
+          // Command Center data
+          const commandCenterPromise = apiFetch(`/api/v1/faculty/${activeFacultyId}/dashboard-command-center?class_id=${selectedClass.class_id}&subject_id=${selectedClass.subject_id}`)
+            .then(async res => {
+              if (res.ok) {
+                const data = await res.json();
+                setCommandCenterData(data);
+              }
+            })
+            .catch(err => console.error("Failed to fetch command center data", err));
+          promises.push(commandCenterPromise);
+
+          // Recent activities
+          const activitiesPromise = apiFetch(`/api/v1/faculty/${activeFacultyId}/activities?limit=4`)
+            .then(async res => {
+              if (res.ok) {
+                const data = await res.json();
+                setActivities(data);
+              }
+            })
+            .catch(err => console.error("Failed to fetch activities", err));
+          promises.push(activitiesPromise);
         }
 
-        await fetchRecentActivities(activeFacultyId);
-
-        const studentsRes = await fetch(`/faculty/${activeFacultyId || facultyId}/students`);
-        const studentsData = await studentsRes.json();
-        setAllStudents(studentsData);
-
-        const currentClassStudents = studentsData.filter(s =>
-          s.division === (selectedClass.class_name.includes(" A") ? "A" : selectedClass.class_name.includes(" B") ? "B" : "")
-        );
-        const atRisk = currentClassStudents.filter(s => s.risk_level === "High" || s.risk_level === "Medium");
-        setAtRiskStudents(atRisk.slice(0, 4));
-
-        const assignRes = await fetch(`/assignments?class_id=${selectedClass.class_id}&subject_id=${selectedClass.subject_id}`);
-        const assignData = await assignRes.json();
-        setAssignments(assignData.slice(0, 4));
-
-        const attRes = await fetch(`/attendance/history?class_id=${selectedClass.class_id}&subject_id=${selectedClass.subject_id}`);
-        const attData = await attRes.json();
-        setAttHistory(attData.slice(0, 6));
+        // Wait for all requests to finish concurrently
+        await Promise.all(promises);
 
       } catch (err) {
         console.error("Failed to load dashboard metrics", err);
@@ -141,9 +202,8 @@ const FacultyDashboard = () => {
 
   const handleRunRiskEngine = async () => {
     try {
-      const res = await fetch("/faculty/run-risk-engine", {
+      const res = await apiFetch("/faculty/run-risk-engine", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ class_id: selectedClass.class_id, faculty_id: facultyId || facultyInfo?.faculty_id })
       });
       if (!res.ok) throw new Error();
@@ -186,7 +246,7 @@ const FacultyDashboard = () => {
       const diffMs = now - date;
       const diffMins = Math.floor(diffMs / 60000);
       const diffHours = Math.floor(diffMins / 60);
-      
+
       if (diffMins < 1) return 'Just now';
       if (diffMins < 60) return `${diffMins}m ago`;
       if (diffHours < 24) return `${diffHours}h ago`;
@@ -217,7 +277,7 @@ const FacultyDashboard = () => {
             ))}
           </div>
         </div>
-        
+
         {/* Today's Overview Skeleton */}
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
           {[...Array(8)].map((_, i) => (
@@ -248,7 +308,7 @@ const FacultyDashboard = () => {
       <div className="bg-gradient-to-r from-purple-900 via-purple-950 to-slate-900 border border-purple-900/50 p-6 md:p-8 rounded-3xl relative overflow-hidden shadow-xl text-white">
         <div className="absolute right-0 top-0 w-80 h-80 bg-radial-gradient(circle,rgba(168,85,247,0.18)_0%,transparent_75%) pointer-events-none" />
         <div className="absolute left-1/3 bottom-0 w-60 h-60 bg-radial-gradient(circle,rgba(10,185,129,0.06)_0%,transparent_70%) pointer-events-none" />
-        
+
         <div className="relative z-10 space-y-6">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
@@ -319,9 +379,7 @@ const FacultyDashboard = () => {
             <Sparkles size={18} className="text-purple-600 animate-pulse" />
             Today's Executive Overview
           </h2>
-          <span className="text-[9px] font-extrabold px-3 py-1 rounded-full bg-slate-100 dark:bg-slate-900 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-800">
-            Real-time Telemetry
-          </span>
+
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
@@ -437,7 +495,7 @@ const FacultyDashboard = () => {
                 commandCenterData.my_tasks.map((task) => {
                   const isHigh = task.priority === 'High';
                   const isMedium = task.priority === 'Medium';
-                  
+
                   let priorityBadge = "text-blue-600 bg-blue-500/10 border-blue-500/20";
                   if (isHigh) priorityBadge = "text-red-600 bg-red-500/10 border-red-500/20";
                   else if (isMedium) priorityBadge = "text-amber-600 bg-amber-500/10 border-amber-500/20";
@@ -495,8 +553,8 @@ const FacultyDashboard = () => {
                   <AreaChart data={attendanceChartData}>
                     <defs>
                       <linearGradient id="colorAtt" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#a855f7" stopOpacity={0.2}/>
-                        <stop offset="95%" stopColor="#a855f7" stopOpacity={0}/>
+                        <stop offset="5%" stopColor="#a855f7" stopOpacity={0.2} />
+                        <stop offset="95%" stopColor="#a855f7" stopOpacity={0} />
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.15} />
@@ -532,7 +590,7 @@ const FacultyDashboard = () => {
                 commandCenterData.smart_insights.map((insight, idx) => {
                   let badgeColor = "bg-blue-500/10 border-blue-500/20 text-blue-600 dark:text-blue-400";
                   let iconText = "ℹ️";
-                  
+
                   if (insight.severity === "danger") {
                     badgeColor = "bg-rose-500/10 border-rose-500/20 text-rose-600 dark:text-rose-400";
                     iconText = "🚨";

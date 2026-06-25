@@ -16,10 +16,11 @@ export const apiFetch = async (endpoint, options = {}) => {
     const isDirect = directPrefixes.some(
         prefix =>
             (cleanEndpoint === prefix ||
-                cleanEndpoint.startsWith(prefix + '/')) &&
+                cleanEndpoint.startsWith(prefix + '/') ||
+                cleanEndpoint.startsWith(prefix + '?')) &&
             !cleanEndpoint.startsWith('/api')
     );
-    const apiBase = isDirect
+    const apiBase = (isDirect || cleanEndpoint.startsWith('/api'))
         ? ''
         : (import.meta.env.DEV ? '/api' : (import.meta.env.VITE_API_URL || '/api'));
 

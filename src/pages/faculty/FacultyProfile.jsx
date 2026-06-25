@@ -18,11 +18,13 @@ import {
   Activity
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { useStudent } from '../../context/StudentContext';
 import { apiFetch } from '../../services/api';
 
 const FacultySelfProfile = () => {
   const { user, changePassword } = useAuth();
-  const [profileData, setProfileData] = useState(null);
+  const { profile } = useStudent();
+  const [profileData, setProfileData] = useState(profile);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState("");
 
@@ -274,8 +276,8 @@ const FacultySelfProfile = () => {
                   <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-100 dark:border-slate-850/40">
                     <span className="text-slate-450 font-semibold">Mandatory Password Reset</span>
                     <span className={`font-bold px-2 py-0.5 rounded text-[10px] ${profileData.must_change_password
-                        ? 'bg-amber-500/10 text-amber-500'
-                        : 'bg-emerald-500/10 text-emerald-500'
+                      ? 'bg-amber-500/10 text-amber-500'
+                      : 'bg-emerald-500/10 text-emerald-500'
                       }`}>
                       {profileData.must_change_password ? "Required" : "Not Required"}
                     </span>
@@ -434,9 +436,9 @@ const FacultySelfProfile = () => {
                 <span className="text-purple-600 dark:text-purple-400 font-bold">Optimal Capacity</span>
               </div>
               <div className="h-2 w-full bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
-                <div 
-                  className="h-full bg-gradient-to-r from-purple-500 to-indigo-500 rounded-full" 
-                  style={{ width: `${Math.min(100, Math.max(20, (assignedClasses.length + assignedSubjects.length) * 12))}%` }} 
+                <div
+                  className="h-full bg-gradient-to-r from-purple-500 to-indigo-500 rounded-full"
+                  style={{ width: `${Math.min(100, Math.max(20, (assignedClasses.length + assignedSubjects.length) * 12))}%` }}
                 />
               </div>
               <p className="text-[9px] text-slate-400 leading-relaxed font-medium">
@@ -467,8 +469,8 @@ const FacultySelfProfile = () => {
               ) : (
                 <div className="space-y-2">
                   {assignedSubjects.map((sub) => (
-                    <div 
-                      key={sub.subject_id} 
+                    <div
+                      key={sub.subject_id}
                       className="p-3 bg-slate-50 dark:bg-slate-950 border-l-4 border-l-purple-500 border border-slate-100/60 dark:border-slate-850/60 rounded-r-xl rounded-l-md flex items-center justify-between text-xs hover:bg-slate-100/50 dark:hover:bg-slate-900/50 transition-all"
                     >
                       <div className="space-y-0.5">
@@ -496,8 +498,8 @@ const FacultySelfProfile = () => {
               ) : (
                 <div className="space-y-2">
                   {assignedClasses.map((cls) => (
-                    <div 
-                      key={cls.class_id} 
+                    <div
+                      key={cls.class_id}
                       className="p-3 bg-slate-50 dark:bg-slate-950 border-l-4 border-l-indigo-500 border border-slate-100/60 dark:border-slate-850/60 rounded-r-xl rounded-l-md flex items-center justify-between text-xs hover:bg-slate-100/50 dark:hover:bg-slate-900/50 transition-all font-bold text-slate-800 dark:text-slate-200"
                     >
                       <div className="space-y-0.5">
@@ -511,14 +513,14 @@ const FacultySelfProfile = () => {
                   ))}
                 </div>
               )}
+            </div>
+
           </div>
 
         </div>
-
       </div>
-    </div>
-  </motion.div>
-);
+    </motion.div>
+  );
 };
 
 export default FacultySelfProfile;

@@ -5693,11 +5693,15 @@ def get_faculty_analytics(
 
         return {
             "attendance_trend": [
-                {"date": str(a.attendance_date), "rate": float(a.attendance_rate)}
+                {"date": str(a.attendance_date), "rate": float(a.attendance_rate) if a.attendance_rate is not None else 0.0}
                 for a in reversed(att_trend)
             ],
             "performance_trend": [
-                {"branch": p.branch, "attendance": float(p.attendance), "average": float(p.average)}
+                {
+                    "branch": p.branch,
+                    "attendance": float(p.attendance) if p.attendance is not None else 0.0,
+                    "average": float(p.average) if p.average is not None else 0.0
+                }
                 for p in perf_trend
             ],
             "top_students": [
@@ -5711,13 +5715,13 @@ def get_faculty_analytics(
             "subject_averages": subj_perf,
             "risk_distribution": risk_counts,
             "engagement_metrics": {
-                "avg_xp": float(avg_xp),
+                "avg_xp": float(avg_xp) if avg_xp is not None else 0.0,
                 "total_students": total_students
             },
             "assignment_metrics": {
                 "total_assignments": total_assignments,
-                "submission_rate": float(submission_rate),
-                "avg_score": float(avg_assign_score)
+                "submission_rate": float(submission_rate) if submission_rate is not None else 0.0,
+                "avg_score": float(avg_assign_score) if avg_assign_score is not None else 0.0
             }
         }
     finally:

@@ -61,18 +61,24 @@ const StudentPerformance = () => {
   useEffect(() => {
     const fetchMetadataAndStudents = async () => {
       try {
-        const classesRes = await fetch(`http://127.0.0.1:8000/faculty/${facultyId}/classes`);
-        const classesData = await classesRes.json();
-        setAssignedClasses(classesData);
+        const classesRes = await apiFetch(`/faculty/${facultyId}/classes`);
+        if (classesRes.ok) {
+          const classesData = await classesRes.json();
+          setAssignedClasses(classesData);
+        }
 
-        const studentsRes = await fetch(`http://127.0.0.1:8000/faculty/${facultyId}/students`);
-        const studentsData = await studentsRes.json();
-        setStudents(studentsData);
+        const studentsRes = await apiFetch(`/faculty/${facultyId}/students`);
+        if (studentsRes.ok) {
+          const studentsData = await studentsRes.json();
+          setStudents(studentsData);
+        }
       } catch (err) {
         console.error("Error fetching student performance metadata", err);
       }
     };
-    fetchMetadataAndStudents();
+    if (facultyId) {
+      fetchMetadataAndStudents();
+    }
   }, [facultyId]);
 
   // Handle incoming routing state (preselected student)
@@ -94,7 +100,7 @@ const StudentPerformance = () => {
     setProfileLoading(true);
     setDrawerTab("overview");
     try {
-      const res = await fetch(`http://127.0.0.1:8000/student/${student.student_id}/profile`);
+      const res = await apiFetch(`/student/${student.student_id}/profile`);
       if (!res.ok) throw new Error("Failed to load profile details");
       const data = await res.json();
       setProfileDetail(data);
@@ -226,11 +232,16 @@ const StudentPerformance = () => {
     const matchesBranch = branchFilter === "All" || student.department === branchFilter;
 
     // Class filter matching (Check if student is in selected class)
-    // To match correctly: we look up the class_name from our assignedClasses or verify.
-    // If student has branch/division that maps to class division.
-    // Actually, we can check if we want to filter by class name or branch.
-    // Let's implement filters:
-    const matchesClass = classFilter === "All" || student.division === (classFilter.includes(" A") ? "A" : classFilter.includes(" B") ? "B" : "");
+    const getDivisionFromClassName = (className) => {
+      if (!className) return "";
+      const normalized = className.toUpperCase().replace(/\s+/g, "");
+      if (normalized.endsWith("A")) return "A";
+      if (normalized.endsWith("B")) return "B";
+      if (normalized.includes("-A") || normalized.includes("A")) return "A";
+      if (normalized.includes("-B") || normalized.includes("B")) return "B";
+      return "";
+    };
+    const matchesClass = classFilter === "All" || student.division === getDivisionFromClassName(classFilter);
     const matchesSubject = subjectFilter === "All" || true; // Subject filter is theoretical since students study multiple subjects in a class
 
     return matchesSearch && matchesBranch && matchesClass && matchesSubject;

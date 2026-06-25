@@ -46,6 +46,7 @@ import {
   TrendingUp as TrendUpIcon
 } from 'lucide-react';
 import { useAuth } from "../../context/AuthContext";
+import { apiFetch } from "../../services/api";
 
 const FacultyAnalytics = () => {
   const selectedClass = JSON.parse(localStorage.getItem("selectedClass") || "{}");
@@ -69,7 +70,7 @@ const FacultyAnalytics = () => {
     const loadClasses = async () => {
       if (!facultyId) return;
       try {
-        const res = await fetch(`http://127.0.0.1:8000/faculty/${facultyId}/classes`);
+        const res = await apiFetch(`/faculty/${facultyId}/classes`);
         if (res.ok) {
           const data = await res.json();
           setClasses(data);
@@ -85,7 +86,7 @@ const FacultyAnalytics = () => {
   const fetchAnalytics = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`http://127.0.0.1:8000/faculty/${facultyId}/analytics`);
+      const res = await apiFetch(`/faculty/${facultyId}/analytics`);
       const data = await res.json();
       setAnalytics(data);
     } catch (err) {
