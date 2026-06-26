@@ -22,11 +22,12 @@ import { useStudent } from '../../context/StudentContext';
 import { apiFetch } from '../../services/api';
 
 const FacultySelfProfile = () => {
-  const { user, changePassword } = useAuth();
-  const { profile } = useStudent();
+  const { user, changePassword, updateAvatar } = useAuth();
+  const { profile, setProfile } = useStudent();
   const [profileData, setProfileData] = useState(profile);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState("");
+  const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false);
 
   // Password reset form state
   const [oldPassword, setOldPassword] = useState("");
@@ -67,8 +68,15 @@ const FacultySelfProfile = () => {
       return;
     }
 
-    if (newPassword.length < 6) {
-      setPassErrorMsg("New Password must be at least 6 characters.");
+    if (newPassword.length < 8) {
+      setPassErrorMsg("New Password must be at least 8 characters.");
+      return;
+    }
+
+    // Double check strength requirements
+    const pwdStrength = evaluatePasswordStrength(newPassword);
+    if (pwdStrength.score < 3) {
+      setPassErrorMsg("New password is too weak. Please meet at least 3 strength criteria.");
       return;
     }
 
@@ -98,10 +106,144 @@ const FacultySelfProfile = () => {
     }
   };
 
+  const evaluatePasswordStrength = (pwd) => {
+    if (!pwd) {
+      return {
+        score: 0,
+        label: "Very Weak",
+        color: "bg-slate-250 dark:bg-slate-800",
+        textColor: "text-slate-400",
+        checks: { length: false, uppercase: false, lowercase: false, number: false, special: false }
+      };
+    }
+
+    const checks = {
+      length: pwd.length >= 8,
+      uppercase: /[A-Z]/.test(pwd),
+      lowercase: /[a-z]/.test(pwd),
+      number: /[0-9]/.test(pwd),
+      special: /[^A-Za-z0-9]/.test(pwd)
+    };
+
+    let score = 0;
+    if (checks.length) score += 1;
+    if (checks.uppercase) score += 1;
+    if (checks.lowercase) score += 1;
+    if (checks.number) score += 1;
+    if (checks.special) score += 1;
+
+    let label = "Weak";
+    let color = "bg-red-500";
+    let textColor = "text-red-500";
+
+    if (score >= 5) {
+      label = "Very Strong";
+      color = "bg-emerald-500";
+      textColor = "text-emerald-500";
+    } else if (score >= 4) {
+      label = "Strong";
+      color = "bg-indigo-500";
+      textColor = "text-indigo-500";
+    } else if (score >= 3) {
+      label = "Medium";
+      color = "bg-amber-500";
+      textColor = "text-amber-500";
+    }
+
+    return { score, label, color, textColor, checks };
+  };
+
+  const pwdStrength = evaluatePasswordStrength(newPassword);
+
   if (loading) {
     return (
-      <div className="flex h-64 items-center justify-center">
-        <div className="h-10 w-10 animate-spin rounded-full border-4 border-purple-500 border-t-transparent"></div>
+      <div className="space-y-6 font-sans animate-pulse">
+        {/* Skeleton Identity Top Banner */}
+        <div className="bg-slate-900/40 border border-slate-800 p-8 rounded-3xl relative overflow-hidden h-[160px] flex items-center gap-6">
+          <div className="w-24 h-24 rounded-2xl bg-slate-800 shrink-0" />
+          <div className="space-y-3 flex-1">
+            <div className="h-4 bg-slate-800 rounded w-24" />
+            <div className="h-8 bg-slate-800 rounded w-1/2" />
+            <div className="h-4 bg-slate-800 rounded w-1/3" />
+          </div>
+        </div>
+
+        {/* Skeleton Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Left Col (2 cols span) */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Account Overview Skeleton */}
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 space-y-6">
+              <div className="space-y-2">
+                <div className="h-5 bg-slate-200 dark:bg-slate-800 rounded w-40" />
+                <div className="h-3 bg-slate-100 dark:bg-slate-850 rounded w-24" />
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {[1, 2, 3, 4, 5, 6].map((i) => (
+                  <div key={i} className="h-16 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-100 dark:border-slate-850/60" />
+                ))}
+              </div>
+            </div>
+
+            {/* Password Section (Account Security) Skeleton */}
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 space-y-6">
+              <div className="space-y-2">
+                <div className="h-5 bg-slate-200 dark:bg-slate-800 rounded w-40" />
+                <div className="h-3 bg-slate-100 dark:bg-slate-850 rounded w-24" />
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-3">
+                  <div className="h-12 bg-slate-50 dark:bg-slate-950 rounded-xl" />
+                  <div className="h-12 bg-slate-50 dark:bg-slate-950 rounded-xl" />
+                  <div className="h-12 bg-slate-50 dark:bg-slate-950 rounded-xl" />
+                </div>
+                <div className="space-y-3">
+                  <div className="h-12 bg-slate-50 dark:bg-slate-950 rounded-xl" />
+                  <div className="h-12 bg-slate-50 dark:bg-slate-950 rounded-xl" />
+                  <div className="h-12 bg-slate-50 dark:bg-slate-950 rounded-xl" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Right Col (1 col span) */}
+          <div className="space-y-6">
+            {/* Profile Completion Skeleton */}
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 space-y-4">
+              <div className="h-5 bg-slate-200 dark:bg-slate-800 rounded w-1/2" />
+              <div className="h-8 bg-slate-100 dark:bg-slate-850 rounded w-1/3" />
+              <div className="h-3 bg-slate-200 dark:bg-slate-800 rounded-full w-full" />
+              <div className="space-y-2 pt-2">
+                {[1, 2, 3, 4, 5, 6, 7].map((i) => (
+                  <div key={i} className="h-4 bg-slate-50 dark:bg-slate-950 rounded w-3/4" />
+                ))}
+              </div>
+            </div>
+
+            {/* Academic Summary Skeleton */}
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 space-y-4">
+              <div className="h-5 bg-slate-200 dark:bg-slate-800 rounded w-1/2" />
+              <div className="space-y-3">
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <div key={i} className="flex justify-between">
+                    <div className="h-3 bg-slate-200 dark:bg-slate-800 rounded w-20" />
+                    <div className="h-3 bg-slate-100 dark:bg-slate-850 rounded w-24" />
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Academic Workload Skeleton */}
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 space-y-4">
+              <div className="h-5 bg-slate-200 dark:bg-slate-800 rounded w-1/2" />
+              <div className="space-y-2">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="h-12 bg-slate-50 dark:bg-slate-950 rounded-xl" />
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -125,6 +267,19 @@ const FacultySelfProfile = () => {
   const assignedClasses = profileData.assigned_classes || [];
   const assignedSubjects = profileData.assigned_subjects || [];
 
+  // Calculate profile completeness
+  const checklist = [
+    { label: 'Profile Details', completed: !!(profileData.name && profileData.email) },
+    { label: 'Department', completed: !!profileData.branch },
+    { label: 'Designation', completed: !!profileData.designation },
+    { label: 'Institution', completed: !!profileData.institution_name },
+    { label: 'Assigned Classes', completed: !!(assignedClasses.length > 0) },
+    { label: 'Assigned Subjects', completed: !!(assignedSubjects.length > 0) },
+    { label: 'Password Updated', completed: !profileData.must_change_password }
+  ];
+  const completedCount = checklist.filter(item => item.completed).length;
+  const completionPercentage = Math.round((completedCount / checklist.length) * 100);
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 15 }}
@@ -138,9 +293,25 @@ const FacultySelfProfile = () => {
         <div className="absolute left-1/3 bottom-0 w-72 h-72 bg-[radial-gradient(circle,rgba(59,130,246,0.1)_0%,transparent_70%)] pointer-events-none" />
 
         <div className="flex flex-col md:flex-row items-center gap-6 relative z-10">
-          {/* Avatar Area */}
-          <div className="relative w-24 h-24 rounded-2xl bg-purple-500/10 border-2 border-purple-500/30 flex items-center justify-center text-5xl shadow-inner select-none shrink-0">
-            {profileData.avatar || "👨‍🏫"}
+          {/* Avatar Area with upgrade */}
+          <div className="relative group/avatar shrink-0">
+            <div className="relative w-24 h-24 rounded-2xl bg-purple-500/10 border-2 border-purple-500/30 flex items-center justify-center text-5xl shadow-inner select-none overflow-hidden">
+              {profileData.avatar || "👨‍🏫"}
+              <div
+                onClick={() => setIsAvatarModalOpen(true)}
+                className="absolute inset-0 bg-black/60 opacity-0 group-hover/avatar:opacity-100 flex flex-col items-center justify-center gap-1 cursor-pointer transition-all duration-200 text-white text-[10px] font-bold"
+              >
+                <Sparkles size={14} className="text-purple-400" />
+                <span>Change Avatar</span>
+              </div>
+            </div>
+            <button
+              onClick={() => setIsAvatarModalOpen(true)}
+              className="absolute -bottom-2 -right-2 bg-purple-600 hover:bg-purple-500 text-white p-1.5 rounded-lg border border-slate-900 shadow-lg cursor-pointer transition-all hover:scale-105"
+              title="Change Avatar"
+            >
+              <Sparkles size={12} />
+            </button>
           </div>
 
           <div className="space-y-2 text-center md:text-left flex-1">
@@ -187,16 +358,16 @@ const FacultySelfProfile = () => {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
               {/* Faculty Code */}
-              <div className="flex items-center gap-3 bg-slate-50 dark:bg-slate-950 p-4 rounded-xl border border-slate-100 dark:border-slate-850/60">
+              <div className="flex items-center gap-3 bg-slate-50 dark:bg-slate-900 p-4 rounded-xl border border-slate-100 dark:border-slate-855/60">
                 <Award className="text-purple-500" size={18} />
                 <div>
                   <span className="text-[9px] text-slate-400 block font-bold uppercase tracking-wider">Faculty Code</span>
-                  <span className="font-mono font-bold text-slate-850 dark:text-slate-200">{profileData.faculty_code || "N/A"}</span>
+                  <span className="font-mono font-bold text-slate-800 dark:text-slate-200">{profileData.faculty_code || "N/A"}</span>
                 </div>
               </div>
 
               {/* Role */}
-              <div className="flex items-center gap-3 bg-slate-50 dark:bg-slate-950 p-4 rounded-xl border border-slate-100 dark:border-slate-850/60">
+              <div className="flex items-center gap-3 bg-slate-50 dark:bg-slate-900 p-4 rounded-xl border border-slate-100 dark:border-slate-855/60">
                 <Shield className="text-purple-500" size={18} />
                 <div>
                   <span className="text-[9px] text-slate-400 block font-bold uppercase tracking-wider">System Role</span>
@@ -207,7 +378,7 @@ const FacultySelfProfile = () => {
               </div>
 
               {/* Department */}
-              <div className="flex items-center gap-3 bg-slate-50 dark:bg-slate-950 p-4 rounded-xl border border-slate-100 dark:border-slate-850/60">
+              <div className="flex items-center gap-3 bg-slate-50 dark:bg-slate-900 p-4 rounded-xl border border-slate-100 dark:border-slate-855/60">
                 <Landmark className="text-purple-500" size={18} />
                 <div>
                   <span className="text-[9px] text-slate-400 block font-bold uppercase tracking-wider">Department</span>
@@ -216,7 +387,7 @@ const FacultySelfProfile = () => {
               </div>
 
               {/* Designation */}
-              <div className="flex items-center gap-3 bg-slate-50 dark:bg-slate-950 p-4 rounded-xl border border-slate-100 dark:border-slate-850/60">
+              <div className="flex items-center gap-3 bg-slate-50 dark:bg-slate-900 p-4 rounded-xl border border-slate-100 dark:border-slate-855/60">
                 <Briefcase className="text-purple-500" size={18} />
                 <div>
                   <span className="text-[9px] text-slate-400 block font-bold uppercase tracking-wider">Designation</span>
@@ -225,7 +396,7 @@ const FacultySelfProfile = () => {
               </div>
 
               {/* Institution */}
-              <div className="flex items-center gap-3 bg-slate-50 dark:bg-slate-950 p-4 rounded-xl border border-slate-100 dark:border-slate-850/60">
+              <div className="flex items-center gap-3 bg-slate-50 dark:bg-slate-900 p-4 rounded-xl border border-slate-100 dark:border-slate-855/60">
                 <Landmark className="text-purple-500" size={18} />
                 <div>
                   <span className="text-[9px] text-slate-400 block font-bold uppercase tracking-wider">Institution</span>
@@ -234,7 +405,7 @@ const FacultySelfProfile = () => {
               </div>
 
               {/* Account Status */}
-              <div className="flex items-center gap-3 bg-slate-50 dark:bg-slate-950 p-4 rounded-xl border border-slate-100 dark:border-slate-850/60">
+              <div className="flex items-center gap-3 bg-slate-50 dark:bg-slate-900 p-4 rounded-xl border border-slate-100 dark:border-slate-855/60">
                 <CheckCircle className="text-purple-500" size={18} />
                 <div>
                   <span className="text-[9px] text-slate-400 block font-bold uppercase tracking-wider">Account Status</span>
@@ -255,7 +426,7 @@ const FacultySelfProfile = () => {
           {/* Section 2: Account Security (Password Reset) */}
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm space-y-6">
             <div>
-              <h3 className="font-extrabold text-slate-850 dark:text-white text-sm flex items-center gap-2">
+              <h3 className="font-extrabold text-slate-855 dark:text-white text-sm flex items-center gap-2">
                 <Lock className="text-purple-500" size={18} />
                 Account Security
               </h3>
@@ -268,13 +439,13 @@ const FacultySelfProfile = () => {
                 <h4 className="font-bold text-slate-700 dark:text-slate-350 text-[10px] uppercase tracking-wider">System Security State</h4>
 
                 <div className="space-y-3">
-                  <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-100 dark:border-slate-850/40">
-                    <span className="text-slate-450 font-semibold">Institutional Email</span>
+                  <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-100 dark:border-slate-855/40">
+                    <span className="text-slate-455 font-semibold">Institutional Email</span>
                     <span className="font-mono text-slate-700 dark:text-slate-300 font-semibold">{profileData.email || "N/A"}</span>
                   </div>
 
-                  <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-100 dark:border-slate-850/40">
-                    <span className="text-slate-450 font-semibold">Mandatory Password Reset</span>
+                  <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-100 dark:border-slate-855/40">
+                    <span className="text-slate-455 font-semibold">Mandatory Password Reset</span>
                     <span className={`font-bold px-2 py-0.5 rounded text-[10px] ${profileData.must_change_password
                       ? 'bg-amber-500/10 text-amber-500'
                       : 'bg-emerald-500/10 text-emerald-500'
@@ -283,8 +454,8 @@ const FacultySelfProfile = () => {
                     </span>
                   </div>
 
-                  <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-100 dark:border-slate-850/40">
-                    <span className="text-slate-450 font-semibold">Last Login Security</span>
+                  <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-100 dark:border-slate-855/40">
+                    <span className="text-slate-455 font-semibold">Last Login Security</span>
                     <span className="font-semibold text-slate-500 dark:text-slate-455 flex items-center gap-1">
                       <CheckCircle size={11} className="text-emerald-500" />
                       IP Verified
@@ -328,7 +499,7 @@ const FacultySelfProfile = () => {
                 {/* Old Password */}
                 <div className="space-y-1">
                   <label className="text-[9px] text-slate-450 uppercase font-bold tracking-wider block">Current Password</label>
-                  <div className="flex items-center bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 rounded-xl px-3 py-2">
+                  <div className="flex items-center bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-855 rounded-xl px-3 py-2">
                     <input
                       type={showPassword ? "text" : "password"}
                       value={oldPassword}
@@ -343,8 +514,8 @@ const FacultySelfProfile = () => {
 
                 {/* New Password */}
                 <div className="space-y-1">
-                  <label className="text-[9px] text-slate-450 uppercase font-bold tracking-wider block">New Password</label>
-                  <div className="flex items-center bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 rounded-xl px-3 py-2">
+                  <label className="text-[9px] text-slate-455 uppercase font-bold tracking-wider block">New Password</label>
+                  <div className="flex items-center bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-855 rounded-xl px-3 py-2">
                     <input
                       type={showPassword ? "text" : "password"}
                       value={newPassword}
@@ -355,12 +526,62 @@ const FacultySelfProfile = () => {
                       disabled={isSubmitting}
                     />
                   </div>
+
+                  {/* Real-time Password Strength Meter */}
+                  {newPassword && (
+                    <div className="space-y-2 mt-2 bg-slate-50 dark:bg-slate-955 p-3 rounded-xl border border-slate-100 dark:border-slate-855/40">
+                      <div className="flex justify-between items-center text-[10px]">
+                        <span className="font-bold text-slate-400 uppercase tracking-wider">Strength:</span>
+                        <span className={`font-extrabold uppercase ${pwdStrength.textColor}`}>{pwdStrength.label}</span>
+                      </div>
+                      {/* Progress Bar */}
+                      <div className="h-1.5 w-full bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
+                        <div
+                          className={`h-full ${pwdStrength.color} transition-all duration-350`}
+                          style={{ width: `${(pwdStrength.score / 5) * 100}%` }}
+                        />
+                      </div>
+                      {/* Live Criteria list */}
+                      <div className="grid grid-cols-2 gap-1 text-[9px] font-semibold text-slate-500">
+                        <div className="flex items-center gap-1">
+                          <span className={pwdStrength.checks.length ? "text-emerald-500 font-bold" : "text-slate-400"}>
+                            {pwdStrength.checks.length ? "✓" : "○"}
+                          </span>
+                          <span>8+ Characters</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <span className={pwdStrength.checks.uppercase ? "text-emerald-500 font-bold" : "text-slate-400"}>
+                            {pwdStrength.checks.uppercase ? "✓" : "○"}
+                          </span>
+                          <span>Uppercase (A-Z)</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <span className={pwdStrength.checks.lowercase ? "text-emerald-500 font-bold" : "text-slate-400"}>
+                            {pwdStrength.checks.lowercase ? "✓" : "○"}
+                          </span>
+                          <span>Lowercase (a-z)</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <span className={pwdStrength.checks.number ? "text-emerald-500 font-bold" : "text-slate-400"}>
+                            {pwdStrength.checks.number ? "✓" : "○"}
+                          </span>
+                          <span>Number (0-9)</span>
+                        </div>
+                        <div className="flex items-center gap-1 col-span-2">
+                          <span className={pwdStrength.checks.special ? "text-emerald-500 font-bold" : "text-slate-400"}>
+                            {pwdStrength.checks.special ? "✓" : "○"}
+                          </span>
+                          <span>Special (@, #, $, etc.)</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Confirm Password */}
                 <div className="space-y-1">
                   <label className="text-[9px] text-slate-450 uppercase font-bold tracking-wider block">Confirm New Password</label>
-                  <div className="flex items-center bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 rounded-xl px-3 py-2">
+                  <div className="flex items-center bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-855 rounded-xl px-3 py-2">
                     <input
                       type={showPassword ? "text" : "password"}
                       value={confirmPassword}
@@ -402,10 +623,96 @@ const FacultySelfProfile = () => {
         {/* Right Col (1 col span): Teaching Statistics & Academic Workload */}
         <div className="space-y-6">
 
+          {/* Feature 1: Profile Completion Card (Top Right) */}
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm space-y-4">
+            <div className="flex justify-between items-center">
+              <div>
+                <h3 className="font-extrabold text-slate-855 dark:text-white text-sm flex items-center gap-2">
+                  <CheckCircle className="text-purple-500" size={18} />
+                  Profile Completion
+                </h3>
+                <p className="text-[10px] text-slate-400 font-bold uppercase mt-0.5">Account Setup Progress</p>
+              </div>
+              <span className="text-2xl font-black text-purple-650 dark:text-purple-400">{completionPercentage}%</span>
+            </div>
+
+            {/* Progress Bar */}
+            <div className="h-2.5 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-purple-500 to-indigo-500 rounded-full transition-all duration-500"
+                style={{ width: `${completionPercentage}%` }}
+              />
+            </div>
+
+            {/* Checklist */}
+            <div className="space-y-2.5 pt-3 border-t border-slate-100 dark:border-slate-850">
+              {checklist.map((item, idx) => (
+                <div key={idx} className="flex items-center justify-between text-xs font-semibold">
+                  <span className={item.completed ? "text-slate-700 dark:text-slate-300 flex items-center gap-2" : "text-slate-400 flex items-center gap-2"}>
+                    <span>{item.completed ? "✅" : "⬜"}</span>
+                    <span>{item.label}</span>
+                  </span>
+                  <span className={item.completed ? "text-emerald-500 text-[10px] bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20" : "text-slate-400 text-[10px] bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700"}>
+                    {item.completed ? "Done" : "Pending"}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Feature 2: Academic Summary Card */}
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm space-y-4">
+            <div>
+              <h3 className="font-extrabold text-slate-855 dark:text-white text-sm flex items-center gap-2">
+                <Layers className="text-purple-500" size={18} />
+                Academic Summary
+              </h3>
+              <p className="text-[10px] text-slate-400 font-bold uppercase mt-0.5">Quick Academic Snapshot</p>
+            </div>
+
+            <div className="space-y-3 text-xs font-semibold text-slate-600 dark:text-slate-350">
+              <div className="flex justify-between items-center py-1 border-b border-slate-100 dark:border-slate-850/45">
+                <span className="text-slate-600 dark:text-slate-200 text-[10px] uppercase font-bold tracking-wider">Faculty Code</span>
+                <span className="font-mono font-bold text-slate-850 dark:text-slate-200">{profileData.faculty_code || "N/A"}</span>
+              </div>
+              <div className="flex justify-between items-center py-1 border-b border-slate-100 dark:border-slate-850/45">
+                <span className="text-slate-600 dark:text-slate-200 text-[10px] uppercase font-bold tracking-wider">Department</span>
+                <span className="text-slate-800 dark:text-slate-200">{profileData.branch || "N/A"}</span>
+              </div>
+              <div className="flex justify-between items-center py-1 border-b border-slate-100 dark:border-slate-850/45">
+                <span className="text-slate-600 dark:text-slate-200 text-[10px] uppercase font-bold tracking-wider">Designation</span>
+                <span className="text-slate-800 dark:text-slate-200">{profileData.designation || "N/A"}</span>
+              </div>
+              <div className="flex justify-between items-center py-1 border-b border-slate-100 dark:border-slate-850/45">
+                <span className="text-slate-600 dark:text-slate-200 text-[10px] uppercase font-bold tracking-wider">Institution</span>
+                <span className="text-slate-800 dark:text-slate-200">{profileData.institution_name || "N/A"}</span>
+              </div>
+              <div className="flex justify-between items-center py-1 border-b border-slate-100 dark:border-slate-850/45">
+                <span className="text-slate-600 dark:text-slate-200 text-[10px] uppercase font-bold tracking-wider">Assigned Classes</span>
+                <span className="bg-purple-500/10 text-purple-600 dark:text-purple-400 px-2.5 py-0.5 rounded font-black">
+                  {assignedClasses.length}
+                </span>
+              </div>
+              <div className="flex justify-between items-center py-1 border-b border-slate-100 dark:border-slate-850/45">
+                <span className="text-slate-600 dark:text-slate-200 text-[10px] uppercase font-bold tracking-wider">Assigned Subjects</span>
+                <span className="bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 px-2.5 py-0.5 rounded font-black">
+                  {assignedSubjects.length}
+                </span>
+              </div>
+              <div className="flex justify-between items-center py-1">
+                <span className="text-slate-600 dark:text-slate-200 text-[10px] uppercase font-bold tracking-wider">Academic Status</span>
+                <span className="font-bold text-emerald-500 flex items-center gap-1">
+                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  Active
+                </span>
+              </div>
+            </div>
+          </div>
+
           {/* Section 3: Teaching Statistics Section */}
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm space-y-6">
             <div>
-              <h3 className="font-extrabold text-slate-850 dark:text-white text-sm flex items-center gap-2">
+              <h3 className="font-extrabold text-slate-855 dark:text-white text-sm flex items-center gap-2">
                 <Activity size={18} className="text-purple-500" />
                 Teaching Statistics
               </h3>
@@ -430,9 +737,9 @@ const FacultySelfProfile = () => {
             </div>
 
             {/* Workload Status Bar */}
-            <div className="space-y-2 bg-slate-50 dark:bg-slate-950 p-4 rounded-2xl border border-slate-100 dark:border-slate-850/60">
+            <div className="space-y-2 bg-slate-50 dark:bg-slate-950 p-4 rounded-2xl border border-slate-100 dark:border-slate-855/60">
               <div className="flex justify-between items-center text-[10px]">
-                <span className="text-slate-450 font-bold uppercase tracking-wider">Workload Intensity</span>
+                <span className="text-slate-455 font-bold uppercase tracking-wider">Workload Intensity</span>
                 <span className="text-purple-600 dark:text-purple-400 font-bold">Optimal Capacity</span>
               </div>
               <div className="h-2 w-full bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
@@ -450,7 +757,7 @@ const FacultySelfProfile = () => {
           {/* Section 4: Improved Workload Presentation */}
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm space-y-6">
             <div>
-              <h3 className="font-extrabold text-slate-850 dark:text-white text-sm flex items-center gap-2">
+              <h3 className="font-extrabold text-slate-855 dark:text-white text-sm flex items-center gap-2">
                 <BookOpen size={18} className="text-purple-500" />
                 Academic Workload Detail
               </h3>
@@ -459,7 +766,7 @@ const FacultySelfProfile = () => {
 
             {/* Assigned Subjects List */}
             <div className="space-y-3">
-              <h4 className="font-black text-slate-700 dark:text-slate-350 text-[10px] uppercase tracking-wider flex items-center gap-1.5 border-b border-slate-100 dark:border-slate-850 pb-1.5">
+              <h4 className="font-black text-slate-700 dark:text-slate-350 text-[10px] uppercase tracking-wider flex items-center gap-1.5 border-b border-slate-100 dark:border-slate-800 pb-1.5">
                 <Layers size={13} className="text-purple-500" />
                 Assigned Subjects
               </h4>
@@ -471,10 +778,10 @@ const FacultySelfProfile = () => {
                   {assignedSubjects.map((sub) => (
                     <div
                       key={sub.subject_id}
-                      className="p-3 bg-slate-50 dark:bg-slate-950 border-l-4 border-l-purple-500 border border-slate-100/60 dark:border-slate-850/60 rounded-r-xl rounded-l-md flex items-center justify-between text-xs hover:bg-slate-100/50 dark:hover:bg-slate-900/50 transition-all"
+                      className="p-3 bg-slate-50 dark:bg-slate-900 border-l-4 border-l-purple-500 border border-slate-100/60 dark:border-slate-855/60 rounded-r-xl rounded-l-md flex items-center justify-between text-xs hover:bg-slate-100/50 dark:hover:bg-slate-900/50 transition-all"
                     >
                       <div className="space-y-0.5">
-                        <span className="font-bold text-slate-850 dark:text-slate-200 block">{sub.subject_name}</span>
+                        <span className="font-bold text-slate-800 dark:text-slate-200 block">{sub.subject_name}</span>
                         <span className="text-[9px] text-slate-400 font-semibold block">Academic Code</span>
                       </div>
                       <span className="font-mono text-[9px] text-purple-650 dark:text-purple-400 font-bold uppercase bg-purple-500/10 px-2.5 py-1 rounded border border-purple-500/20 shrink-0">
@@ -488,7 +795,7 @@ const FacultySelfProfile = () => {
 
             {/* Assigned Classes List */}
             <div className="space-y-3 pt-2">
-              <h4 className="font-black text-slate-700 dark:text-slate-350 text-[10px] uppercase tracking-wider flex items-center gap-1.5 border-b border-slate-100 dark:border-slate-850 pb-1.5">
+              <h4 className="font-black text-slate-700 dark:text-slate-300 text-[10px] uppercase tracking-wider flex items-center gap-1.5 border-b border-slate-100 dark:border-slate-800 pb-1.5">
                 <BookOpen size={13} className="text-purple-500" />
                 Assigned Classes
               </h4>
@@ -500,13 +807,13 @@ const FacultySelfProfile = () => {
                   {assignedClasses.map((cls) => (
                     <div
                       key={cls.class_id}
-                      className="p-3 bg-slate-50 dark:bg-slate-950 border-l-4 border-l-indigo-500 border border-slate-100/60 dark:border-slate-850/60 rounded-r-xl rounded-l-md flex items-center justify-between text-xs hover:bg-slate-100/50 dark:hover:bg-slate-900/50 transition-all font-bold text-slate-800 dark:text-slate-200"
+                      className="p-3 bg-slate-50 dark:bg-slate-900 border-l-4 border-l-indigo-500 border border-slate-100/60 dark:border-slate-855/60 rounded-r-xl rounded-l-md flex items-center justify-between text-xs hover:bg-slate-100/50 dark:hover:bg-slate-900/50 transition-all font-bold text-slate-800 dark:text-slate-200"
                     >
                       <div className="space-y-0.5">
                         <span className="block">{cls.class_name}</span>
                         <span className="text-[9px] text-slate-400 font-semibold block">Section Division</span>
                       </div>
-                      <span className="text-[9px] text-indigo-650 dark:text-indigo-400 font-bold uppercase bg-indigo-500/10 px-2.5 py-1 rounded border border-indigo-500/20 shrink-0">
+                      <span className="text-[9px] text-indigo-600 dark:text-indigo-400 font-bold uppercase bg-indigo-500/10 px-2.5 py-1 rounded border border-indigo-500/20 shrink-0">
                         Active Group
                       </span>
                     </div>
@@ -519,6 +826,77 @@ const FacultySelfProfile = () => {
 
         </div>
       </div>
+
+      {/* Feature 3: Avatar Selection Modal */}
+      <AnimatePresence>
+        {isAvatarModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsAvatarModalOpen(false)}
+              className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm"
+            />
+
+            {/* Modal Content */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-md w-full relative z-10 shadow-2xl space-y-4 text-white"
+            >
+              <div className="flex justify-between items-center pb-3 border-b border-slate-800">
+                <div>
+                  <h3 className="text-lg font-black tracking-tight flex items-center gap-2">
+                    <Sparkles className="text-purple-400 animate-pulse" size={18} />
+                    Select Professional Avatar
+                  </h3>
+                  <p className="text-slate-400 text-[10px] uppercase font-bold tracking-wider mt-0.5">
+                    Choose predefined professional avatars
+                  </p>
+                </div>
+                <button
+                  onClick={() => setIsAvatarModalOpen(false)}
+                  className="text-slate-450 hover:text-white transition-all text-xs font-bold bg-slate-800/50 hover:bg-slate-800 p-1.5 rounded-lg"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div className="grid grid-cols-5 gap-3 py-2 justify-items-center">
+                {["👨‍🏫", "👩‍🏫", "🧑‍🏫", "👨‍🔬", "👩‍🔬", "🧑‍🔬", "👨‍💻", "👩‍💻", "🧑‍💻", "🧠", "📚", "🎓", "🌟", "🛡️", "💼"].map(emoji => (
+                  <button
+                    key={emoji}
+                    type="button"
+                    onClick={async () => {
+                      try {
+                        await updateAvatar(emoji);
+                        setProfile(prev => ({ ...prev, avatar: emoji }));
+                        setProfileData(prev => ({ ...prev, avatar: emoji }));
+                        setIsAvatarModalOpen(false);
+                      } catch (err) {
+                        console.error(err);
+                      }
+                    }}
+                    className={`w-14 h-14 rounded-2xl border text-3xl flex items-center justify-center cursor-pointer transition-all duration-200 ${profileData.avatar === emoji
+                      ? 'border-purple-500 bg-purple-500/20 scale-110 shadow-md shadow-purple-500/20'
+                      : 'border-slate-800 hover:border-slate-700 hover:bg-slate-800/50 bg-slate-900/50'
+                      }`}
+                  >
+                    {emoji}
+                  </button>
+                ))}
+              </div>
+
+              <p className="text-[10px] text-slate-500 text-center leading-relaxed">
+                Your selected avatar will automatically sync across the Faculty Hub sidebar, global navigation headers, and dashboards.
+              </p>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 };

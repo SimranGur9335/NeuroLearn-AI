@@ -118,7 +118,7 @@ const AttendanceTracking = () => {
   useEffect(() => {
     const fetchClasses = async () => {
       try {
-        const res = await fetch(`http://localhost:8000/faculty/${facultyId}/classes`);
+        const res = await apiFetch(`/faculty/${facultyId}/classes`);
         if (res.ok) {
           const data = await res.json();
           setClasses(data);
@@ -160,8 +160,8 @@ const AttendanceTracking = () => {
     if (!currentClass.class_id) return;
     setLoading(true);
     try {
-      const res = await fetch(
-        `http://localhost:8000/attendance/records?class_id=${currentClass.class_id}&subject_id=${currentClass.subject_id}&date=${selectedDate}`
+      const res = await apiFetch(
+        `/attendance/records?class_id=${currentClass.class_id}&subject_id=${currentClass.subject_id}&date=${selectedDate}`
       );
       if (!res.ok) throw new Error("Failed to load attendance records");
       const data = await res.json();
@@ -193,8 +193,8 @@ const AttendanceTracking = () => {
   const loadHistory = async () => {
     if (!currentClass.class_id) return;
     try {
-      const res = await fetch(
-        `http://localhost:8000/attendance/history?class_id=${currentClass.class_id}&subject_id=${currentClass.subject_id}`
+      const res = await apiFetch(
+        `/attendance/history?class_id=${currentClass.class_id}&subject_id=${currentClass.subject_id}`
       );
       const data = await res.json();
       setHistory(data);
@@ -207,8 +207,8 @@ const AttendanceTracking = () => {
   const loadMonthlyReport = async () => {
     if (!currentClass.class_id) return;
     try {
-      const res = await fetch(
-        `http://localhost:8000/attendance/monthly-report?class_id=${currentClass.class_id}&subject_id=${currentClass.subject_id}&month=${currentMonth}&year=${currentYear}`
+      const res = await apiFetch(
+        `/attendance/monthly-report?class_id=${currentClass.class_id}&subject_id=${currentClass.subject_id}&month=${currentMonth}&year=${currentYear}`
       );
       const data = await res.json();
       setMonthlyReport(data);
@@ -265,7 +265,7 @@ const AttendanceTracking = () => {
         }))
       };
 
-      const res = await fetch("http://localhost:8000/attendance/save", {
+      const res = await apiFetch("/attendance/save", {
         method: "POST",
         body: JSON.stringify(payload)
       });
