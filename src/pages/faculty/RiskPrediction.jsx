@@ -14,10 +14,35 @@ import {
   TrendingUp,
   ChevronRight,
   UserCheck,
-  ClipboardList
+  ClipboardList,
+  CheckCircle,
+  XCircle,
+  Info
 } from 'lucide-react';
 import { useAuth } from "../../context/AuthContext";
 import { apiFetch } from "../../services/api";
+
+const Toast = ({ msg, type, onClose }) => {
+  useEffect(() => {
+    const t = setTimeout(onClose, 4000);
+    return () => clearTimeout(t);
+  }, [onClose]);
+  const cfg = { success: "bg-emerald-600", error: "bg-red-600", info: "bg-blue-600" };
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 40 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: 40 }}
+      className={`fixed bottom-6 right-6 z-[999] flex items-center gap-3 px-5 py-3 rounded-2xl text-white text-sm font-semibold shadow-2xl ${cfg[type] || cfg.info}`}
+    >
+      {type === "success" && <CheckCircle size={16} />}
+      {type === "error" && <XCircle size={16} />}
+      {type === "info" && <Info size={16} />}
+      {msg}
+      <button onClick={onClose} className="hover:opacity-80 cursor-pointer ml-2"><X size={14} /></button>
+    </motion.div>
+  );
+};
 
 const RiskPrediction = () => {
   const navigate = useNavigate();
@@ -27,10 +52,12 @@ const RiskPrediction = () => {
   const facultyId = user?.faculty_id;
   const [students, setStudents] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
-  const [riskFilter, setRiskFilter] = useState("High"); // 'High' | 'Medium' | 'All'
+  const [riskFilter, setRiskFilter] = useState("All"); // 'High' | 'Medium' | 'Low' | 'All'
   const [loading, setLoading] = useState(false);
   const [engineRunning, setEngineRunning] = useState(false);
   const [showResultModal, setShowResultModal] = useState(false);
+  const [toast, setToast] = useState(null);
+  const showToast = (msg, type = "info") => setToast({ msg, type });
 
   // Multi-select and bulk actions
   const [selectedStudentIds, setSelectedStudentIds] = useState([]);
@@ -74,6 +101,12 @@ const RiskPrediction = () => {
   // Helper: calculate dynamic reasons
   const getDynamicRiskReasons = (student, profile) => {
     if (!student) return [];
+    
+    // If backend-calculated prediction reason exists, split and display it as primary
+    if (student.prediction_reason && student.prediction_reason !== "No active risk flags.") {
+      return student.prediction_reason.split("; ");
+    }
+    
     const reasons = [];
     
     if (student.attendance < 75) {
@@ -167,17 +200,17 @@ const RiskPrediction = () => {
       const allOk = results.every(res => res.ok);
       
       if (allOk) {
-        alert(`Successfully updated intervention log for ${selectedStudentIds.length} students!`);
+        showToast(`Successfully updated intervention log for ${selectedStudentIds.length} students!`, "success");
         setSelectedStudentIds([]);
         setShowBulkInterventionModal(false);
         setBulkInterventionNotes("");
         await fetchRoster();
       } else {
-        alert("Some intervention updates failed.");
+        showToast("Some intervention updates failed.", "error");
       }
     } catch (err) {
       console.error(err);
-      alert("Error updating bulk intervention log.");
+      showToast("Error updating bulk intervention log.", "error");
     } finally {
       setBulkActionLoading(false);
     }
@@ -196,17 +229,18 @@ const RiskPrediction = () => {
       });
       if (!res.ok) throw new Error("Failed to execute risk engine");
       await fetchRoster();
+      showToast("Risk engine analysis completed successfully!", "success");
       setShowResultModal(true);
     } catch (err) {
       console.error(err);
-      alert("Error executing risk calculation engine.");
+      showToast("Error executing risk calculation engine.", "error");
     } finally {
       setEngineRunning(false);
     }
   };
 
   const handleSendWarning = (student) => {
-    alert(`Intervention alert successfully emailed to ${student.full_name} (${student.roll_no}) at ${student.full_name.toLowerCase().replace(' ', '')}@neurolearn.ai.`);
+    showToast(`Intervention alert successfully emailed to ${student.full_name} (${student.roll_no})!`, "success");
   };
 
   const handleRemedialClass = (student) => {
@@ -241,7 +275,7 @@ const RiskPrediction = () => {
         })
       });
       if (res.ok) {
-        alert("Intervention log updated successfully!");
+        showToast("Intervention log updated successfully!", "success");
         setProfileDetail(prev => ({
           ...prev,
           metrics: {
@@ -252,11 +286,11 @@ const RiskPrediction = () => {
         }));
         await fetchRoster();
       } else {
-        alert("Failed to update intervention log.");
+        showToast("Failed to update intervention log.", "error");
       }
     } catch (err) {
       console.error(err);
-      alert("Error updating intervention log.");
+      showToast("Error updating intervention log.", "error");
     }
   };
 
@@ -272,7 +306,7 @@ const RiskPrediction = () => {
     
     if (!matchesSearch) return false;
 
-    if (riskFilter === "All") return student.risk_level === "High" || student.risk_level === "Medium";
+    if (riskFilter === "All") return true;
     return student.risk_level === riskFilter;
   });
 
@@ -378,17 +412,20 @@ const RiskPrediction = () => {
 
         {/* Risk filters */}
         <div className="flex gap-2 w-full md:w-auto overflow-x-auto pb-1 md:pb-0">
-          {["High", "Medium", "All"].map(level => (
+          {["High", "Medium", "Low", "All"].map(level => (
             <button
               key={level}
               onClick={() => setRiskFilter(level)}
               className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                 riskFilter === level 
-                  ? level === "High" ? "bg-red-600 text-white shadow" : level === "Medium" ? "bg-amber-500 text-white shadow" : "bg-purple-600 text-white shadow"
+                  ? level === "High" ? "bg-red-600 text-white shadow" 
+                    : level === "Medium" ? "bg-amber-500 text-white shadow" 
+                    : level === "Low" ? "bg-emerald-600 text-white shadow" 
+                    : "bg-purple-600 text-white shadow"
                   : "bg-slate-50 dark:bg-slate-955 border border-slate-200/50 dark:border-slate-850 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-850"
               }`}
             >
-              {level} Risk
+              {level === "All" ? "All Students" : `${level} Risk`}
             </button>
           ))}
         </div>
@@ -463,11 +500,13 @@ const RiskPrediction = () => {
                         {student.quiz_score}%
                       </td>
                       <td className="py-3.5 text-center font-bold text-slate-805 dark:text-white">
-                        {getRiskScore(student, null)} / 100
+                        {student.risk_score !== undefined && student.risk_score !== null ? Math.round(student.risk_score) : getRiskScore(student, null)} / 100
                       </td>
                       <td className="py-3.5 text-center">
                         <span className={`text-[8px] font-black uppercase px-2.5 py-0.5 rounded ${
-                          student.risk_level === "High" ? "bg-red-500/10 text-red-500" : "bg-amber-500/10 text-amber-600 dark:text-amber-505"
+                          student.risk_level === "High" ? "bg-red-500/10 text-red-500" :
+                          student.risk_level === "Medium" ? "bg-amber-500/10 text-amber-600 dark:text-amber-500" :
+                          "bg-emerald-500/10 text-emerald-600 dark:text-emerald-500"
                         }`}>
                           {student.risk_level}
                         </span>
@@ -663,7 +702,7 @@ const RiskPrediction = () => {
                       <div className="text-center bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 p-3 rounded-2xl shrink-0 w-24">
                         <span className="text-[8px] uppercase text-slate-400 font-extrabold block">Risk Score</span>
                         <span className="text-lg font-black text-red-500 dark:text-red-400 block mt-0.5">
-                          {getRiskScore(selectedStudent, profileDetail)} / 100
+                          {selectedStudent.risk_score !== undefined && selectedStudent.risk_score !== null ? Math.round(selectedStudent.risk_score) : getRiskScore(selectedStudent, profileDetail)} / 100
                         </span>
                       </div>
                       
@@ -972,6 +1011,17 @@ const RiskPrediction = () => {
               </div>
             </motion.div>
           </div>
+        )}
+      </AnimatePresence>
+
+      {/* Toast Alert Notifications */}
+      <AnimatePresence>
+        {toast && (
+          <Toast
+            msg={toast.msg}
+            type={toast.type}
+            onClose={() => setToast(null)}
+          />
         )}
       </AnimatePresence>
     </motion.div>

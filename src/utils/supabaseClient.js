@@ -1,8 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://nowepoiasehxhkebkqkf.supabase.com';
-// Fallback to a dummy key if not set to prevent Supabase initialization error
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vd2Vwb2lhc2VoeGhlYmtxa2YiLCJyb2xlIjoiYW5vbiIsImlhdCI6MTcyNTk5NjgwMCwiZXhwIjoyMDQxNTcyODAwfQ.dummy';
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
@@ -29,6 +28,8 @@ export const uploadToSupabase = async (file, folderPath) => {
       cacheControl: '3600',
       upsert: true
     });
+  console.log("UPLOAD DATA:", data);
+  console.log("UPLOAD ERROR:", error);
 
   if (error) {
     console.error("Supabase Storage error:", error);

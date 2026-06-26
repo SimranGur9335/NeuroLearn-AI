@@ -20,6 +20,7 @@ import {
   Edit,
   Trash2,
   Check,
+  Play,
   ChevronRight,
   ClipboardList,
   FileText
@@ -61,6 +62,16 @@ const RemedialSessions = () => {
   const [selectedStudentIds, setSelectedStudentIds] = useState([]);
   const [studentSearchTerm, setStudentSearchTerm] = useState("");
 
+  // Upgraded Lifecycle Modals & Form State
+  const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
+  const [cancellationReason, setCancellationReason] = useState("Faculty Unavailable");
+  const [customCancellationReason, setCustomCancellationReason] = useState("");
+  
+  const [isStartModalOpen, setIsStartModalOpen] = useState(false);
+  const [startingSession, setStartingSession] = useState(false);
+  
+  const [isCompleteModalOpen, setIsCompleteModalOpen] = useState(false);
+
   // Search & Filters state
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
@@ -81,26 +92,24 @@ const RemedialSessions = () => {
     setTimeout(() => setAlertInfo(null), 4000);
   };
 
-  // Helper: Calculate automatic status
+  // Helper: Calculate session status based on lifecycle
   const getSessionStatus = (session) => {
     if (session.status === 'Cancelled') return 'Cancelled';
     if (session.status === 'Completed') return 'Completed';
+    if (session.status === 'In Progress') return 'In Progress';
 
-    // Compare session date/time with current time
+    // If active, determine if it is Today or Upcoming based on calendar day
     try {
       const [year, month, day] = session.session_date.split('-').map(Number);
-      const [hours, minutes] = session.session_time.split(':').map(Number);
-      const sessionDateTime = new Date(year, month - 1, day, hours, minutes);
+      const sessionDateOnly = new Date(year, month - 1, day);
+      
       const now = new Date();
+      const todayDateOnly = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
       // Same day check
-      const isToday = now.getFullYear() === year &&
-                      now.getMonth() === (month - 1) &&
-                      now.getDate() === day;
+      const isToday = sessionDateOnly.getTime() === todayDateOnly.getTime();
 
-      if (sessionDateTime < now) {
-        return 'Completed';
-      } else if (isToday) {
+      if (isToday) {
         return 'Today';
       } else {
         return 'Upcoming';
@@ -115,7 +124,9 @@ const RemedialSessions = () => {
       case 'Upcoming':
         return 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20';
       case 'Today':
-        return 'bg-amber-500/10 text-amber-605 dark:text-amber-400 border-amber-500/20';
+        return 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20';
+      case 'In Progress':
+        return 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20';
       case 'Completed':
         return 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20';
       case 'Cancelled':
@@ -349,7 +360,29 @@ const RemedialSessions = () => {
     }
   };
 
-  // Handle saving completion notes
+  // Handle starting a session (POST to start endpoint)
+  const handleStartSession = async () => {
+    setStartingSession(true);
+    try {
+      const res = await apiFetch(`/remedial/sessions/${selectedSession.session_id}/start`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ faculty_id: facultyId })
+      });
+
+      if (!res.ok) throw new Error("Failed to start session");
+      showAlert("Remedial session started successfully! Attendance is now active.");
+      setIsStartModalOpen(false);
+      fetchSessions(); // Refresh list to get updated status
+    } catch (err) {
+      console.error(err);
+      showAlert("Failed to start session", "error");
+    } finally {
+      setStartingSession(false);
+    }
+  };
+
+  // Handle saving completion notes and updating status to Completed
   const handleSaveNotes = async () => {
     if (!outcome.trim() || !remarks.trim() || !recommendation.trim()) {
       showAlert("Please fill in all completion fields", "error");
@@ -369,8 +402,9 @@ const RemedialSessions = () => {
       });
 
       if (!res.ok) throw new Error("Failed to save completion notes");
-      showAlert("Completion notes recorded successfully!");
+      showAlert("Remedial session completed and academic summary recorded!");
       setIsEditingNotes(false);
+      setIsCompleteModalOpen(false);
       fetchSessions(); // Refresh list to get updated status and notes
     } catch (err) {
       console.error(err);
@@ -380,21 +414,28 @@ const RemedialSessions = () => {
     }
   };
 
-  // Handle cancelling a session
+  // Handle cancelling a session with a structured reason
   const handleCancelSession = async () => {
-    if (!window.confirm("Are you absolutely sure you want to cancel this remedial session? This cannot be undone.")) {
+    const finalReason = cancellationReason === "Other" ? customCancellationReason : cancellationReason;
+    if (!finalReason.trim()) {
+      showAlert("Please select or enter a cancellation reason", "error");
       return;
     }
+
     setCancellingSession(true);
     try {
       const res = await apiFetch(`/remedial/sessions/${selectedSession.session_id}/cancel`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ faculty_id: facultyId })
+        body: JSON.stringify({
+          faculty_id: facultyId,
+          cancellation_reason: finalReason
+        })
       });
 
       if (!res.ok) throw new Error("Failed to cancel session");
       showAlert("Remedial session cancelled successfully!");
+      setIsCancelModalOpen(false);
       setIsDrawerOpen(false);
       setSelectedSession(null);
       fetchSessions();
@@ -613,6 +654,7 @@ const RemedialSessions = () => {
               <option value="All">All Statuses</option>
               <option value="Upcoming">Upcoming</option>
               <option value="Today">Today</option>
+              <option value="In Progress">In Progress</option>
               <option value="Completed">Completed</option>
               <option value="Cancelled">Cancelled</option>
             </select>
@@ -694,6 +736,7 @@ const RemedialSessions = () => {
                 <div className={`absolute left-0 top-0 bottom-0 w-1 ${
                   status === "Upcoming" ? "bg-blue-500" :
                   status === "Today" ? "bg-amber-500" :
+                  status === "In Progress" ? "bg-purple-500" :
                   status === "Completed" ? "bg-emerald-500" : "bg-rose-500"
                 }`} />
 
@@ -720,18 +763,14 @@ const RemedialSessions = () => {
                 </div>
 
                 <div className="mt-5 pt-4 border-t border-slate-100 dark:border-slate-800/80 flex flex-wrap items-center justify-between gap-3 text-[10px] text-slate-450">
-                  <div className="flex items-center gap-1.5">
-                    <Calendar size={12} className="text-slate-400" />
-                    <span>{session.session_date}</span>
+                  <div className="flex items-center gap-3">
+                    <span className="flex items-center gap-1"><Calendar size={12} className="text-slate-400" /> {session.session_date}</span>
+                    <span className="flex items-center gap-1"><Clock size={12} className="text-slate-400" /> {session.session_time}</span>
                   </div>
-                  <div className="flex items-center gap-1.5">
-                    <Clock size={12} className="text-slate-400" />
-                    <span>{session.session_time}</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <MapPin size={12} className="text-slate-400" />
-                    <span className="line-clamp-1 max-w-[80px]">{session.location}</span>
-                  </div>
+                  <span className="text-[10px] text-purple-650 dark:text-purple-400 font-black flex items-center gap-0.5 group-hover:underline">
+                    {status === 'Completed' ? 'View Summary' : status === 'Cancelled' ? 'View Reason' : 'View Details'} 
+                    <ChevronRight size={12} className="shrink-0" />
+                  </span>
                 </div>
               </motion.div>
             );
@@ -795,72 +834,127 @@ const RemedialSessions = () => {
                     </span>
                   </div>
 
-                  {/* Cancel/Edit triggers for Upcoming/Today sessions */}
-                  {(getSessionStatus(selectedSession) === "Upcoming" || getSessionStatus(selectedSession) === "Today") && (
-                    <div className="flex items-center gap-2">
+                  {/* Action triggers based on status */}
+                  <div className="flex items-center gap-2">
+                    {/* Start Session (Visible only when Today) */}
+                    {getSessionStatus(selectedSession) === "Today" && (
                       <button
+                        type="button"
+                        onClick={() => setIsStartModalOpen(true)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-600 hover:bg-purple-500 text-white text-[10px] font-black rounded-lg shadow-md transition-all cursor-pointer border-none"
+                      >
+                        <Play size={11} /> Start Session
+                      </button>
+                    )}
+
+                    {/* Complete Session (Visible only when In Progress) */}
+                    {getSessionStatus(selectedSession) === "In Progress" && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setOutcome("");
+                          setRemarks("");
+                          setRecommendation("");
+                          setIsCompleteModalOpen(true);
+                        }}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-black rounded-lg shadow-md transition-all cursor-pointer border-none"
+                      >
+                        <CheckCircle size={11} /> Complete Session
+                      </button>
+                    )}
+
+                    {/* Edit Session (Upcoming or Today) */}
+                    {(getSessionStatus(selectedSession) === "Upcoming" || getSessionStatus(selectedSession) === "Today") && (
+                      <button
+                        type="button"
                         onClick={() => {
                           setIsDrawerOpen(false);
                           handleEditSession(selectedSession);
                         }}
-                        className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-50 hover:bg-purple-100 dark:bg-purple-950/30 dark:hover:bg-purple-950/50 text-purple-650 dark:text-purple-400 text-[10px] font-black rounded-lg border border-purple-200/20 transition-all"
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-50 hover:bg-purple-100 dark:bg-purple-950/30 dark:hover:bg-purple-950/50 text-purple-650 dark:text-purple-400 text-[10px] font-black rounded-lg border border-purple-200/20 transition-all cursor-pointer"
                       >
                         <Edit size={11} /> Edit Session
                       </button>
+                    )}
+
+                    {/* Cancel Session (Upcoming or Today) */}
+                    {(getSessionStatus(selectedSession) === "Upcoming" || getSessionStatus(selectedSession) === "Today") && (
                       <button
-                        onClick={handleCancelSession}
+                        type="button"
+                        onClick={() => {
+                          setCancellationReason("Faculty Unavailable");
+                          setCustomCancellationReason("");
+                          setIsCancelModalOpen(true);
+                        }}
                         disabled={cancellingSession}
-                        className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/30 dark:hover:bg-rose-950/50 text-rose-600 dark:text-rose-400 text-[10px] font-black rounded-lg border border-rose-200/20 transition-all disabled:opacity-50"
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/30 dark:hover:bg-rose-950/50 text-rose-600 dark:text-rose-400 text-[10px] font-black rounded-lg border border-rose-200/20 transition-all disabled:opacity-50 cursor-pointer"
                       >
                         {cancellingSession ? <RefreshCw size={11} className="animate-spin" /> : <Trash2 size={11} />}
                         Cancel Session
                       </button>
-                    </div>
-                  )}
-                </div>
-
-                {/* Session Details Card */}
-                <div className="space-y-4">
-                  <h4 className="font-bold text-xs uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-                    <ClipboardList size={14} className="text-purple-500" /> Session Specifications
-                  </h4>
-
-                  <div className="bg-slate-50/50 dark:bg-slate-950/20 border border-slate-100 dark:border-slate-850/60 rounded-2xl p-4 grid grid-cols-2 gap-4 text-xs">
-                    <div className="space-y-1">
-                      <span className="text-slate-400 font-bold uppercase tracking-wider text-[9px]">Lead Faculty</span>
-                      <p className="font-bold text-slate-800 dark:text-slate-200">{selectedSession.faculty_name || user?.name}</p>
-                    </div>
-                    <div className="space-y-1">
-                      <span className="text-slate-400 font-bold uppercase tracking-wider text-[9px]">Location / Venue</span>
-                      <p className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1">
-                        <MapPin size={11} className="text-slate-400 shrink-0" />
-                        {selectedSession.location}
-                      </p>
-                    </div>
-                    <div className="space-y-1">
-                      <span className="text-slate-400 font-bold uppercase tracking-wider text-[9px]">Scheduled Date</span>
-                      <p className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1">
-                        <Calendar size={11} className="text-slate-400 shrink-0" />
-                        {selectedSession.session_date}
-                      </p>
-                    </div>
-                    <div className="space-y-1">
-                      <span className="text-slate-400 font-bold uppercase tracking-wider text-[9px]">Start Time</span>
-                      <p className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1">
-                        <Clock size={11} className="text-slate-400 shrink-0" />
-                        {selectedSession.session_time}
-                      </p>
-                    </div>
-                    {selectedSession.description && (
-                      <div className="col-span-2 space-y-1 border-t border-slate-100 dark:border-slate-800/80 pt-3 mt-1">
-                        <span className="text-slate-400 font-bold uppercase tracking-wider text-[9px]">Overview & Objectives</span>
-                        <p className="text-slate-600 dark:text-slate-400 text-xs leading-relaxed font-semibold">
-                          {selectedSession.description}
-                        </p>
-                      </div>
                     )}
                   </div>
-                </div>
+                </div>                  {/* Cancellation Reason Banner (Visible if Cancelled) */}
+                  {getSessionStatus(selectedSession) === "Cancelled" && selectedSession.cancellation_reason && (
+                    <div className="p-4 bg-rose-500/10 border border-rose-500/20 rounded-2xl space-y-1">
+                      <span className="text-[9px] font-black uppercase text-rose-600 dark:text-rose-400 block">Reason for Cancellation</span>
+                      <p className="text-xs font-semibold text-rose-700 dark:text-rose-300">
+                        {selectedSession.cancellation_reason}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Session Details Card */}
+                  <div className="space-y-4">
+                    <h4 className="font-bold text-xs uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                      <ClipboardList size={14} className="text-purple-500" /> Session Specifications
+                    </h4>
+
+                    <div className="bg-slate-50/50 dark:bg-slate-950/20 border border-slate-100 dark:border-slate-850/60 rounded-2xl p-4 grid grid-cols-2 gap-4 text-xs">
+                      <div className="space-y-1">
+                        <span className="text-slate-400 font-bold uppercase tracking-wider text-[9px]">Lead Faculty</span>
+                        <p className="font-bold text-slate-800 dark:text-slate-200">{selectedSession.faculty_name || user?.name}</p>
+                      </div>
+                      <div className="space-y-1">
+                        <span className="text-slate-400 font-bold uppercase tracking-wider text-[9px]">Location / Venue</span>
+                        <p className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1">
+                          <MapPin size={11} className="text-slate-400 shrink-0" />
+                          {selectedSession.location}
+                        </p>
+                      </div>
+                      <div className="space-y-1">
+                        <span className="text-slate-400 font-bold uppercase tracking-wider text-[9px]">Scheduled Date</span>
+                        <p className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1">
+                          <Calendar size={11} className="text-slate-400 shrink-0" />
+                          {selectedSession.session_date}
+                        </p>
+                      </div>
+                      <div className="space-y-1">
+                        <span className="text-slate-400 font-bold uppercase tracking-wider text-[9px]">Start Time</span>
+                        <p className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1">
+                          <Clock size={11} className="text-slate-400 shrink-0" />
+                          {selectedSession.session_time}
+                        </p>
+                      </div>
+                      {selectedSession.description && (
+                        <div className="col-span-2 space-y-1 border-t border-slate-100 dark:border-slate-800/80 pt-3 mt-1">
+                          <span className="text-slate-400 font-bold uppercase tracking-wider text-[9px]">Overview & Objectives</span>
+                          <p className="text-slate-600 dark:text-slate-400 text-xs leading-relaxed font-semibold">
+                            {selectedSession.description}
+                          </p>
+                        </div>
+                      )}
+                      {selectedSession.completed_at && (
+                        <div className="col-span-2 space-y-1 border-t border-slate-100 dark:border-slate-800/80 pt-3 mt-1">
+                          <span className="text-slate-400 font-bold uppercase tracking-wider text-[9px]">Completion Timestamp</span>
+                          <p className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1">
+                            <Clock size={11} className="text-slate-400 shrink-0" />
+                            {new Date(selectedSession.completed_at).toLocaleString()}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
 
                 {/* Attendance Summary and Metrics */}
                 <div className="space-y-4">
@@ -923,19 +1017,16 @@ const RemedialSessions = () => {
                               </div>
 
                               <div className="flex items-center gap-1.5 shrink-0">
-                                {isCancelled ? (
-                                  <span className="text-[9px] font-black uppercase bg-slate-100 dark:bg-slate-800 text-slate-400 px-3 py-1.5 rounded-xl border border-slate-200/20">
-                                    Cancelled
-                                  </span>
-                                ) : (
+                                {getSessionStatus(selectedSession) === "In Progress" ? (
                                   <>
                                     {/* Present Button */}
                                     <button
+                                      type="button"
                                       onClick={() => handleUpdateStatus(invite.invitation_id, "Present")}
                                       disabled={updatingInvitationId === invite.invitation_id}
                                       className={`px-3 py-1.5 rounded-xl text-[10px] font-black cursor-pointer transition-all ${
-                                        invite.status === "Present"
-                                          ? "bg-emerald-500 text-white shadow-sm"
+                                        invite.status === "Present" || invite.status === "Attended"
+                                          ? "bg-emerald-500 text-white shadow-sm border-none"
                                           : "bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 text-slate-550 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-850"
                                       }`}
                                     >
@@ -943,17 +1034,29 @@ const RemedialSessions = () => {
                                     </button>
                                     {/* Absent Button */}
                                     <button
+                                      type="button"
                                       onClick={() => handleUpdateStatus(invite.invitation_id, "Absent")}
                                       disabled={updatingInvitationId === invite.invitation_id}
                                       className={`px-3 py-1.5 rounded-xl text-[10px] font-black cursor-pointer transition-all ${
                                         invite.status === "Absent"
-                                          ? "bg-rose-500 text-white shadow-sm"
+                                          ? "bg-rose-500 text-white shadow-sm border-none"
                                           : "bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 text-slate-550 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-850"
                                       }`}
                                     >
                                       Absent
                                     </button>
                                   </>
+                                ) : (
+                                  /* Read-only status badges for other lifecycle states */
+                                  <span className={`px-3 py-1.5 rounded-xl text-[10px] font-black border ${
+                                    invite.status === "Present" || invite.status === "Attended"
+                                      ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
+                                      : invite.status === "Absent"
+                                      ? "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20"
+                                      : "bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/20"
+                                  }`}>
+                                    {invite.status === "Present" || invite.status === "Attended" ? "Present" : invite.status === "Absent" ? "Absent" : "Invited"}
+                                  </span>
                                 )}
                               </div>
                             </div>
@@ -964,102 +1067,33 @@ const RemedialSessions = () => {
                   </div>
                 </div>
 
-                {/* Completion Notes Section */}
+                {/* Completion Notes Section (Read-Only Academic Summary) */}
                 {getSessionStatus(selectedSession) === "Completed" && (
                   <div className="space-y-4 border-t border-slate-100 dark:border-slate-800/80 pt-6">
                     <h4 className="font-bold text-xs uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-                      <FileText size={14} className="text-purple-500" /> Completion Notes & Follow-up
+                      <FileText size={14} className="text-purple-500" /> Academic Summary & Follow-up
                     </h4>
 
-                    {isEditingNotes ? (
-                      <div className="space-y-4 p-4 bg-purple-50/10 dark:bg-purple-950/5 border border-purple-500/10 rounded-2xl">
-                        {/* Session Outcome */}
-                        <div className="space-y-1.5">
-                          <label className="text-[10px] font-bold text-slate-400 uppercase">Session Outcome *</label>
-                          <textarea
-                            rows={3}
-                            placeholder="What was discussed, student performance, key takeaways..."
-                            value={outcome}
-                            onChange={(e) => setOutcome(e.target.value)}
-                            className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-transparent text-xs focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none text-slate-800 dark:text-slate-200 placeholder-slate-400"
-                          />
-                        </div>
-
-                        {/* Faculty Remarks */}
-                        <div className="space-y-1.5">
-                          <label className="text-[10px] font-bold text-slate-400 uppercase">Faculty Remarks *</label>
-                          <textarea
-                            rows={2}
-                            placeholder="Observations on student understanding or difficulties..."
-                            value={remarks}
-                            onChange={(e) => setRemarks(e.target.value)}
-                            className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-transparent text-xs focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none text-slate-800 dark:text-slate-200 placeholder-slate-400"
-                          />
-                        </div>
-
-                        {/* Next Recommendation */}
-                        <div className="space-y-1.5">
-                          <label className="text-[10px] font-bold text-slate-400 uppercase">Next Recommendations *</label>
-                          <textarea
-                            rows={2}
-                            placeholder="Next steps (e.g., recommend self-study on module X, follow-up test...)"
-                            value={recommendation}
-                            onChange={(e) => setRecommendation(e.target.value)}
-                            className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-transparent text-xs focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none text-slate-800 dark:text-slate-200 placeholder-slate-400"
-                          />
-                        </div>
-
-                        {/* Note Actions */}
-                        <div className="flex justify-end gap-2 pt-2">
-                          {selectedSession.outcome && (
-                            <button
-                              onClick={() => setIsEditingNotes(false)}
-                              className="px-3.5 py-2 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 font-bold rounded-lg text-[10px] cursor-pointer hover:bg-slate-50 transition-colors"
-                            >
-                              Cancel
-                            </button>
-                          )}
-                          <button
-                            onClick={handleSaveNotes}
-                            disabled={savingNotes}
-                            className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white font-black rounded-lg text-[10px] shadow transition-colors flex items-center gap-1.5 disabled:opacity-50"
-                          >
-                            {savingNotes && <RefreshCw size={10} className="animate-spin" />}
-                            Save Notes
-                          </button>
-                        </div>
+                    <div className="bg-slate-50/50 dark:bg-slate-950/20 border border-slate-100 dark:border-slate-850/60 rounded-2xl p-4 space-y-3.5">
+                      <div>
+                        <span className="text-slate-400 font-bold uppercase tracking-wider text-[9px]">Session Outcome</span>
+                        <p className="text-slate-700 dark:text-slate-300 text-xs leading-relaxed mt-1 font-semibold whitespace-pre-line">
+                          {selectedSession.outcome || "N/A"}
+                        </p>
                       </div>
-                    ) : (
-                      <div className="space-y-3.5">
-                        <div className="bg-slate-50/50 dark:bg-slate-950/20 border border-slate-100 dark:border-slate-850/60 rounded-2xl p-4 space-y-3.5">
-                          <div>
-                            <span className="text-slate-400 font-bold uppercase tracking-wider text-[9px]">Session Outcome</span>
-                            <p className="text-slate-700 dark:text-slate-300 text-xs leading-relaxed mt-1 font-medium whitespace-pre-line">
-                              {selectedSession.outcome}
-                            </p>
-                          </div>
-                          <div className="border-t border-slate-100 dark:border-slate-800/60 pt-3">
-                            <span className="text-slate-400 font-bold uppercase tracking-wider text-[9px]">Faculty Remarks</span>
-                            <p className="text-slate-700 dark:text-slate-300 text-xs leading-relaxed mt-1 font-medium whitespace-pre-line">
-                              {selectedSession.remarks}
-                            </p>
-                          </div>
-                          <div className="border-t border-slate-100 dark:border-slate-800/60 pt-3">
-                            <span className="text-slate-400 font-bold uppercase tracking-wider text-[9px]">Next Recommendations</span>
-                            <p className="text-slate-700 dark:text-slate-300 text-xs leading-relaxed mt-1 font-medium whitespace-pre-line">
-                              {selectedSession.recommendation}
-                            </p>
-                          </div>
-                        </div>
-
-                        <button
-                          onClick={() => setIsEditingNotes(true)}
-                          className="flex items-center gap-1.5 px-3.5 py-2 bg-slate-50 hover:bg-slate-100 dark:bg-slate-950 dark:hover:bg-slate-850 border border-slate-200 dark:border-slate-800 text-purple-650 dark:text-purple-400 text-[10px] font-black rounded-xl cursor-pointer transition-all"
-                        >
-                          <Edit size={12} /> Edit Completion Notes
-                        </button>
+                      <div className="border-t border-slate-100 dark:border-slate-800/60 pt-3">
+                        <span className="text-slate-400 font-bold uppercase tracking-wider text-[9px]">Faculty Remarks</span>
+                        <p className="text-slate-700 dark:text-slate-300 text-xs leading-relaxed mt-1 font-semibold whitespace-pre-line">
+                          {selectedSession.remarks || "N/A"}
+                        </p>
                       </div>
-                    )}
+                      <div className="border-t border-slate-100 dark:border-slate-800/60 pt-3">
+                        <span className="text-slate-400 font-bold uppercase tracking-wider text-[9px]">Next Recommendations</span>
+                        <p className="text-slate-700 dark:text-slate-300 text-xs leading-relaxed mt-1 font-semibold whitespace-pre-line">
+                          {selectedSession.recommendation || "N/A"}
+                        </p>
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>
@@ -1111,7 +1145,7 @@ const RemedialSessions = () => {
                       placeholder="e.g. DBMS Normalization and Joins"
                       value={topic}
                       onChange={(e) => setTopic(e.target.value)}
-                      className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-transparent text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 text-slate-800 dark:text-slate-250"
+                      className="w-full px-4 py-2.5 dark:text-slate-200 rounded-xl border border-slate-200 dark:border-slate-800 bg-transparent text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 text-slate-800 dark:text-slate-250"
                     />
                   </div>
 
@@ -1124,7 +1158,7 @@ const RemedialSessions = () => {
                       placeholder="e.g. Lab 4B or Google Meet link"
                       value={locationStr}
                       onChange={(e) => setLocationStr(e.target.value)}
-                      className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-transparent text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 text-slate-800 dark:text-slate-250"
+                      className="w-full px-4 py-2.5 dark:text-slate-200 rounded-xl border border-slate-200 dark:border-slate-800 bg-transparent text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 text-slate-800 dark:text-slate-250"
                     />
                   </div>
                 </div>
@@ -1190,7 +1224,7 @@ const RemedialSessions = () => {
                       placeholder="Search students by name or roll number..."
                       value={studentSearchTerm}
                       onChange={(e) => setStudentSearchTerm(e.target.value)}
-                      className="w-full pl-9 pr-4 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-55/30 dark:bg-slate-950/30 text-xs focus:outline-none focus:ring-1 focus:ring-purple-500 text-slate-800 dark:text-slate-250"
+                      className="w-full pl-9 pr-4 py-2 dark:text-slate-200 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-55/30 dark:bg-slate-950/30 text-xs focus:outline-none focus:ring-1 focus:ring-purple-500 text-slate-800 dark:text-slate-250"
                     />
                   </div>
 
@@ -1256,6 +1290,212 @@ const RemedialSessions = () => {
                   </button>
                 </div>
               </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Start Session Confirmation Modal */}
+      <AnimatePresence>
+        {isStartModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm">
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-md overflow-hidden shadow-2xl p-6 space-y-6"
+            >
+              <div className="flex items-center gap-3 text-purple-600 dark:text-purple-400">
+                <div className="w-10 h-10 rounded-full bg-purple-100 dark:bg-purple-950/50 flex items-center justify-center shrink-0">
+                  <Play size={20} className="fill-current" />
+                </div>
+                <h3 className="font-black text-lg text-slate-900 dark:text-white">
+                  Start Remedial Session?
+                </h3>
+              </div>
+
+              <p className="text-slate-500 text-xs leading-relaxed font-semibold">
+                Are you ready to commence the session <strong>"{selectedSession?.topic}"</strong>? This will transition the session status to <strong>"In Progress"</strong> and unlock the student attendance roster.
+              </p>
+
+              <div className="flex justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsStartModalOpen(false)}
+                  className="px-4 py-2 border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold rounded-xl text-xs cursor-pointer transition-colors"
+                >
+                  Go Back
+                </button>
+                <button
+                  type="button"
+                  onClick={handleStartSession}
+                  disabled={startingSession}
+                  className="px-5 py-2.5 bg-purple-600 hover:bg-purple-500 text-white font-black rounded-xl text-xs shadow-md cursor-pointer transition-colors flex items-center gap-1.5 disabled:opacity-50"
+                >
+                  {startingSession && <RefreshCw size={12} className="animate-spin" />}
+                  Commence Session
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Cancel Session Modal */}
+      <AnimatePresence>
+        {isCancelModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm">
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-md overflow-hidden shadow-2xl p-6 space-y-6"
+            >
+              <div className="flex items-center gap-3 text-rose-600 dark:text-rose-400">
+                <div className="w-10 h-10 rounded-full bg-rose-100 dark:bg-rose-950/50 flex items-center justify-center shrink-0">
+                  <AlertCircle size={20} />
+                </div>
+                <h3 className="font-black text-lg text-slate-900 dark:text-white">
+                  Cancel Remedial Session?
+                </h3>
+              </div>
+
+              <p className="text-slate-500 text-xs leading-relaxed font-semibold">
+                Please specify the reason for cancelling the session <strong>"{selectedSession?.topic}"</strong>. This action is permanent.
+              </p>
+
+              <div className="space-y-4">
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold text-slate-450 uppercase tracking-wider ml-1">Cancellation Reason *</label>
+                  <select
+                    value={cancellationReason}
+                    onChange={(e) => setCancellationReason(e.target.value)}
+                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-purple-500 cursor-pointer"
+                  >
+                    <option value="Faculty Unavailable">Faculty Unavailable</option>
+                    <option value="Institutional Holiday / Postponed">Institutional Holiday / Postponed</option>
+                    <option value="Low Student Attendance expected">Low Student Attendance expected</option>
+                    <option value="Technical / Infrastructure Issue">Technical / Infrastructure Issue</option>
+                    <option value="Other">Other (Specify below)</option>
+                  </select>
+                </div>
+
+                {cancellationReason === "Other" && (
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-slate-450 uppercase tracking-wider ml-1">Custom Reason *</label>
+                    <textarea
+                      rows={2}
+                      placeholder="Enter the custom cancellation reason..."
+                      value={customCancellationReason}
+                      onChange={(e) => setCustomCancellationReason(e.target.value)}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-transparent text-xs focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none text-slate-808 dark:text-slate-200 placeholder-slate-400"
+                    />
+                  </div>
+                )}
+              </div>
+
+              <div className="flex justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsCancelModalOpen(false)}
+                  className="px-4 py-2 border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold rounded-xl text-xs cursor-pointer transition-colors"
+                >
+                  Go Back
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCancelSession}
+                  disabled={cancellingSession}
+                  className="px-5 py-2.5 bg-rose-600 hover:bg-rose-500 text-white font-black rounded-xl text-xs shadow-md cursor-pointer transition-colors flex items-center gap-1.5 disabled:opacity-50"
+                >
+                  {cancellingSession && <RefreshCw size={12} className="animate-spin" />}
+                  Cancel Session
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Complete Session Modal */}
+      <AnimatePresence>
+        {isCompleteModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm">
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-lg overflow-hidden shadow-2xl p-6 space-y-6"
+            >
+              <div className="flex items-center gap-3 text-emerald-600 dark:text-emerald-400">
+                <div className="w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-950/5 flex items-center justify-center shrink-0">
+                  <CheckCircle size={20} />
+                </div>
+                <h3 className="font-black text-lg text-slate-900 dark:text-white">
+                  Record Academic Summary & Complete
+                </h3>
+              </div>
+
+              <p className="text-slate-500 text-xs leading-relaxed font-semibold">
+                Please log the academic outcome for session <strong>"{selectedSession?.topic}"</strong>. Doing so will permanently lock the attendance registry.
+              </p>
+
+              <div className="space-y-4">
+                {/* Outcome */}
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold text-slate-450 uppercase tracking-wider ml-1">Session Outcome *</label>
+                  <textarea
+                    rows={3}
+                    placeholder="What was discussed, student performance, key takeaways..."
+                    value={outcome}
+                    onChange={(e) => setOutcome(e.target.value)}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-transparent text-xs focus:outline-none focus:ring-2 focus:ring-purple-550 resize-none text-slate-808 dark:text-slate-200 placeholder-slate-400 font-semibold"
+                  />
+                </div>
+
+                {/* Remarks */}
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold text-slate-450 uppercase tracking-wider ml-1">Faculty Remarks *</label>
+                  <textarea
+                    rows={2}
+                    placeholder="Observations on student understanding or difficulties..."
+                    value={remarks}
+                    onChange={(e) => setRemarks(e.target.value)}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-transparent text-xs focus:outline-none focus:ring-2 focus:ring-purple-550 resize-none text-slate-808 dark:text-slate-200 placeholder-slate-400 font-semibold"
+                  />
+                </div>
+
+                {/* Recommendation */}
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold text-slate-450 uppercase tracking-wider ml-1">Next Recommendation *</label>
+                  <textarea
+                    rows={2}
+                    placeholder="Next steps (e.g. recommend self-study on module X, follow-up test...)"
+                    value={recommendation}
+                    onChange={(e) => setRecommendation(e.target.value)}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-transparent text-xs focus:outline-none focus:ring-2 focus:ring-purple-550 resize-none text-slate-808 dark:text-slate-200 placeholder-slate-400 font-semibold"
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsCompleteModalOpen(false)}
+                  className="px-4 py-2 border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold rounded-xl text-xs cursor-pointer transition-colors"
+                >
+                  Go Back
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveNotes}
+                  disabled={savingNotes}
+                  className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-550 text-white font-black rounded-xl text-xs shadow-md cursor-pointer transition-colors flex items-center gap-1.5 disabled:opacity-50"
+                >
+                  {savingNotes && <RefreshCw size={12} className="animate-spin" />}
+                  Log Outcome & Lock
+                </button>
+              </div>
             </motion.div>
           </div>
         )}

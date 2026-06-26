@@ -436,6 +436,23 @@ def run_migrations():
         db.commit()
         print("OK: wellness_focus_sessions table verified/created.")
 
+        # 30. Create notifications table
+        db.execute(text("""
+            CREATE TABLE IF NOT EXISTS notifications (
+                notification_id SERIAL PRIMARY KEY,
+                faculty_id INTEGER REFERENCES faculty(faculty_id) ON DELETE CASCADE,
+                student_id INTEGER REFERENCES students(student_id) ON DELETE CASCADE,
+                title VARCHAR(255) NOT NULL,
+                message TEXT NOT NULL,
+                type VARCHAR(50) DEFAULT 'general',
+                related_id INTEGER NULL,
+                is_read INTEGER DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        """))
+        db.commit()
+        print("OK: notifications table verified/created.")
+
         # Add institution_id column to existing tables if missing
         tables_to_alter = ['users', 'students', 'faculty', 'classes', 'subjects', 'courses', 'announcements', 'departments']
         for t in tables_to_alter:
@@ -449,6 +466,14 @@ def run_migrations():
         if 'target_career' not in metrics_cols:
             db.execute(text("ALTER TABLE student_metrics ADD COLUMN target_career VARCHAR(100) DEFAULT 'ai-engineer';"))
             print("Altered table student_metrics to add target_career column.")
+
+        if 'faculty_notes' not in metrics_cols:
+            db.execute(text("ALTER TABLE student_metrics ADD COLUMN faculty_notes TEXT NULL;"))
+            print("Altered table student_metrics to add faculty_notes column.")
+
+        if 'intervention_status' not in metrics_cols:
+            db.execute(text("ALTER TABLE student_metrics ADD COLUMN intervention_status VARCHAR(100) DEFAULT 'Not Contacted';"))
+            print("Altered table student_metrics to add intervention_status column.")
             
         # Add new columns to announcements if missing
         ann_cols = [c['name'] for c in inspector.get_columns('announcements')]

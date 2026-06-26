@@ -247,11 +247,23 @@ const FacultyDashboard = () => {
 
     fetchDashboardTelemetry();
   }, [selectedClass.class_id, facultyId, user]);
-
   const attendanceChartData = attHistory.map(h => ({
     date: h.date.split("-")[2] + "/" + h.date.split("-")[1],
     "Attendance %": h.present + h.absent + h.late > 0 ? Math.round((h.present / (h.present + h.absent + h.late)) * 100) : 100
   })).reverse();
+
+  const avgAttendance = attendanceChartData.length > 0
+    ? Math.round(attendanceChartData.reduce((acc, curr) => acc + curr["Attendance %"], 0) / attendanceChartData.length)
+    : 84;
+
+  const sortedInsights = commandCenterData?.smart_insights
+    ? [...commandCenterData.smart_insights]
+        .sort((a, b) => {
+          const priority = { danger: 1, warning: 2, info: 3, success: 4 };
+          return (priority[a.severity] || 5) - (priority[b.severity] || 5);
+        })
+        .slice(0, 3)
+    : [];
 
   const handleRunRiskEngine = async () => {
     try {
@@ -318,7 +330,7 @@ const FacultyDashboard = () => {
   // Glassmorphism Loading Skeleton
   if (loading) {
     return (
-      <div className="space-y-6 font-sans text-slate-850 dark:text-slate-200 animate-pulse">
+      <div className="space-y-6 font-sans text-slate-855 dark:text-slate-200 animate-pulse">
         {/* Banner Skeleton */}
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 h-[240px] rounded-3xl p-6 flex flex-col justify-between">
           <div className="space-y-3">
@@ -447,18 +459,14 @@ const FacultyDashboard = () => {
       </div>
 
       {/* Today's Executive Overview */}
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h2 className="text-base font-black tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
-            <Sparkles size={18} className="text-purple-600 animate-pulse" />
-            Today's Executive Overview
-          </h2>
-
-        </div>
+      <div className="space-y-2">
+        <span className="text-[10px] font-extrabold tracking-widest uppercase text-slate-400 dark:text-slate-500 block">
+          Today's Executive Overview
+        </span>
 
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
-          {/* Assigned Classes */}
-          <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-850 p-4 rounded-2xl shadow-sm hover:shadow-md transition-all hover:border-purple-500/25 group">
+          {/* Assigned Classes (Static) */}
+          <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-850 p-4 rounded-2xl shadow-sm h-full flex flex-col justify-between">
             <span className="text-[9px] text-slate-400 font-extrabold uppercase block tracking-wider">Courses</span>
             <div className="flex items-baseline justify-between mt-2">
               <span className="text-2xl font-black text-slate-900 dark:text-white">{commandCenterData?.today_overview?.today_classes ?? classesList.length}</span>
@@ -466,9 +474,12 @@ const FacultyDashboard = () => {
             </div>
           </div>
 
-          {/* Pending Attendance */}
-          <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-850 p-4 rounded-2xl shadow-sm hover:shadow-md transition-all hover:border-purple-500/25 group">
-            <span className="text-[9px] text-slate-400 font-extrabold uppercase block tracking-wider">Attendance</span>
+          {/* Pending Attendance (Clickable) */}
+          <div
+            onClick={() => navigate('/faculty/attendance')}
+            className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-855 p-4 rounded-2xl shadow-sm hover:-translate-y-1 hover:shadow-lg transition-all duration-300 cursor-pointer h-full flex flex-col justify-between group"
+          >
+            <span className="text-[9px] text-slate-400 font-extrabold uppercase block tracking-wider group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">Attendance</span>
             <div className="flex items-baseline justify-between mt-2">
               <span className="text-xl font-black text-slate-900 dark:text-white">
                 {commandCenterData?.today_overview?.pending_attendance === 0 ? "Marked" : "Pending"}
@@ -479,9 +490,12 @@ const FacultyDashboard = () => {
             </div>
           </div>
 
-          {/* Pending Marks */}
-          <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-850 p-4 rounded-2xl shadow-sm hover:shadow-md transition-all hover:border-purple-500/25 group">
-            <span className="text-[9px] text-slate-400 font-extrabold uppercase block tracking-wider">Draft Marks</span>
+          {/* Pending Marks (Clickable) */}
+          <div
+            onClick={() => navigate('/faculty/gradebook')}
+            className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-855 p-4 rounded-2xl shadow-sm hover:-translate-y-1 hover:shadow-lg transition-all duration-300 cursor-pointer h-full flex flex-col justify-between group"
+          >
+            <span className="text-[9px] text-slate-400 font-extrabold uppercase block tracking-wider group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">Draft Marks</span>
             <div className="flex items-baseline justify-between mt-2">
               <span className="text-2xl font-black text-slate-900 dark:text-white">{commandCenterData?.today_overview?.pending_marks ?? 0}</span>
               <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded ${commandCenterData?.today_overview?.pending_marks > 0 ? "bg-amber-500/10 text-amber-500" : "bg-emerald-500/10 text-emerald-500"}`}>
@@ -490,9 +504,12 @@ const FacultyDashboard = () => {
             </div>
           </div>
 
-          {/* Pending Assignments */}
-          <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-850 p-4 rounded-2xl shadow-sm hover:shadow-md transition-all hover:border-purple-500/25 group">
-            <span className="text-[9px] text-slate-400 font-extrabold uppercase block tracking-wider">Ungraded</span>
+          {/* Pending Assignments (Clickable) */}
+          <div
+            onClick={() => navigate('/faculty/assignments')}
+            className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-855 p-4 rounded-2xl shadow-sm hover:-translate-y-1 hover:shadow-lg transition-all duration-300 cursor-pointer h-full flex flex-col justify-between group"
+          >
+            <span className="text-[9px] text-slate-400 font-extrabold uppercase block tracking-wider group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">Ungraded</span>
             <div className="flex items-baseline justify-between mt-2">
               <span className="text-2xl font-black text-slate-900 dark:text-white">{commandCenterData?.today_overview?.pending_assignments ?? 0}</span>
               <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded ${commandCenterData?.today_overview?.pending_assignments > 0 ? "bg-rose-500/10 text-rose-500 animate-pulse" : "bg-emerald-500/10 text-emerald-500"}`}>
@@ -501,9 +518,12 @@ const FacultyDashboard = () => {
             </div>
           </div>
 
-          {/* High Risk Students */}
-          <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-850 p-4 rounded-2xl shadow-sm hover:shadow-md transition-all hover:border-purple-500/25 group">
-            <span className="text-[9px] text-slate-400 font-extrabold uppercase block tracking-wider">High Risk</span>
+          {/* High Risk Students (Clickable) */}
+          <div
+            onClick={() => navigate('/faculty/performance')}
+            className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-855 p-4 rounded-2xl shadow-sm hover:-translate-y-1 hover:shadow-lg transition-all duration-300 cursor-pointer h-full flex flex-col justify-between group"
+          >
+            <span className="text-[9px] text-slate-400 font-extrabold uppercase block tracking-wider group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">High Risk</span>
             <div className="flex items-baseline justify-between mt-2">
               <span className={`text-2xl font-black ${commandCenterData?.today_overview?.high_risk_students > 0 ? "text-red-500" : "text-slate-900 dark:text-white"}`}>
                 {commandCenterData?.today_overview?.high_risk_students ?? 0}
@@ -514,17 +534,20 @@ const FacultyDashboard = () => {
             </div>
           </div>
 
-          {/* Upcoming Remedials */}
-          <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-850 p-4 rounded-2xl shadow-sm hover:shadow-md transition-all hover:border-purple-500/25 group">
-            <span className="text-[9px] text-slate-400 font-extrabold uppercase block tracking-wider">Remedials</span>
+          {/* Upcoming Remedials (Clickable) */}
+          <div
+            onClick={() => navigate('/faculty/remedial')}
+            className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-855 p-4 rounded-2xl shadow-sm hover:-translate-y-1 hover:shadow-lg transition-all duration-300 cursor-pointer h-full flex flex-col justify-between group"
+          >
+            <span className="text-[9px] text-slate-400 font-extrabold uppercase block tracking-wider group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">Remedials</span>
             <div className="flex items-baseline justify-between mt-2">
               <span className="text-2xl font-black text-slate-900 dark:text-white">{commandCenterData?.today_overview?.upcoming_remedials ?? 0}</span>
               <span className="text-[8px] font-bold text-indigo-600 bg-indigo-500/10 px-2 py-0.5 rounded">Active</span>
             </div>
           </div>
 
-          {/* Unread Notifications */}
-          <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-850 p-4 rounded-2xl shadow-sm hover:shadow-md transition-all hover:border-purple-500/25 group">
+          {/* Alerts (Static) */}
+          <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-850 p-4 rounded-2xl shadow-sm h-full flex flex-col justify-between">
             <span className="text-[9px] text-slate-400 font-extrabold uppercase block tracking-wider">Alerts</span>
             <div className="flex items-baseline justify-between mt-2">
               <span className="text-2xl font-black text-slate-900 dark:text-white">{commandCenterData?.today_overview?.unread_notifications ?? 0}</span>
@@ -532,9 +555,12 @@ const FacultyDashboard = () => {
             </div>
           </div>
 
-          {/* Unread Announcements */}
-          <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-850 p-4 rounded-2xl shadow-sm hover:shadow-md transition-all hover:border-purple-500/25 group">
-            <span className="text-[9px] text-slate-400 font-extrabold uppercase block tracking-wider">Broadcasts</span>
+          {/* Unread Announcements (Clickable) */}
+          <div
+            onClick={() => navigate('/faculty/announcements')}
+            className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-855 p-4 rounded-2xl shadow-sm hover:-translate-y-1 hover:shadow-lg transition-all duration-300 cursor-pointer h-full flex flex-col justify-between group"
+          >
+            <span className="text-[9px] text-slate-400 font-extrabold uppercase block tracking-wider group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">Broadcasts</span>
             <div className="flex items-baseline justify-between mt-2">
               <span className="text-2xl font-black text-slate-900 dark:text-white">{commandCenterData?.today_overview?.unread_announcements ?? 0}</span>
               <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded ${commandCenterData?.today_overview?.unread_announcements > 0 ? "bg-purple-500/10 text-purple-500" : "bg-slate-100 dark:bg-slate-800 text-slate-400"}`}>
@@ -545,458 +571,548 @@ const FacultyDashboard = () => {
         </div>
       </div>
 
-      {/* Main Grid Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left column - Tasks Checklist & Attendance Trend */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* My Tasks Checklist Widget */}
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-3xl shadow-sm space-y-4 hover:shadow-md transition-all">
-            <div className="flex justify-between items-center">
-              <div>
-                <h3 className="font-extrabold text-slate-850 dark:text-white text-base flex items-center gap-2">
-                  <ClipboardCheck size={20} className="text-purple-600 animate-pulse" />
-                  My Action Items
-                </h3>
-                <p className="text-[10px] text-slate-400 font-bold uppercase mt-0.5">Dynamic workflow checklist</p>
+      {/* Faculty Workspace */}
+      <div className="space-y-2">
+        <span className="text-[10px] font-extrabold tracking-widest uppercase text-slate-400 dark:text-slate-500 block">
+          Faculty Workspace
+        </span>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Left Column (2/3 width) */}
+          <div className="lg:col-span-2 space-y-4">
+            {/* My Action Items (Large Card, p-6) */}
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-3xl shadow-sm hover:shadow-md transition-all duration-300 space-y-4">
+              <div className="flex justify-between items-start">
+                <div>
+                  <h3 className="font-extrabold text-slate-855 dark:text-white text-base flex items-center gap-2">
+                    <ClipboardCheck size={20} className="text-purple-600" />
+                    My Action Items
+                  </h3>
+                  <p className="text-[10px] text-slate-400 font-bold uppercase mt-0.5">Dynamic workflow checklist</p>
+                </div>
+                <span className="text-xs font-extrabold text-purple-600 bg-purple-500/10 px-3 py-1 rounded-full border border-purple-500/20">
+                  {commandCenterData?.my_tasks?.length || 0} Tasks Pending
+                </span>
               </div>
-              <span className="text-xs font-extrabold text-purple-600 bg-purple-500/10 px-3 py-1 rounded-full border border-purple-500/20">
-                {commandCenterData?.my_tasks?.length || 0} Tasks Pending
-              </span>
+
+              <div className="divide-y divide-slate-100 dark:divide-slate-850/60 max-h-[360px] overflow-y-auto pr-1">
+                {commandCenterData?.my_tasks && commandCenterData.my_tasks.length > 0 ? (
+                  commandCenterData.my_tasks.map((task) => {
+                    const isHigh = task.priority === 'High';
+                    const isMedium = task.priority === 'Medium';
+
+                    let priorityBadge = "text-blue-600 bg-blue-500/10 border-blue-500/20";
+                    if (isHigh) priorityBadge = "text-red-600 bg-red-500/10 border-red-500/20";
+                    else if (isMedium) priorityBadge = "text-amber-600 bg-amber-500/10 border-amber-500/20";
+
+                    return (
+                      <div key={task.id} className="py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 first:pt-0 last:pb-0 hover:bg-slate-50/50 dark:hover:bg-slate-850/20 px-2 rounded-xl transition-colors">
+                        <div className="space-y-1 flex-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-full border ${priorityBadge}`}>
+                              {task.priority} Priority
+                            </span>
+                            <span className="text-[9px] font-semibold text-slate-400 dark:text-slate-400 uppercase tracking-wider bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded">
+                              {task.status}
+                            </span>
+                          </div>
+                          <h4 className="font-bold text-xs sm:text-sm text-slate-855 dark:text-slate-100">
+                            {task.title}
+                          </h4>
+                          <p className="text-xs text-slate-500 dark:text-slate-405 text-left">
+                            {task.description}
+                          </p>
+                        </div>
+
+                        <button
+                          onClick={() => navigate(task.route)}
+                          className="self-start sm:self-center px-4.5 py-2.5 bg-slate-950 hover:bg-purple-650 dark:bg-slate-800 dark:hover:bg-purple-650 text-white font-extrabold rounded-xl text-xs transition-all flex items-center gap-1.5 cursor-pointer shadow-sm group shrink-0 hover:scale-[1.02] duration-200"
+                        >
+                          {task.action_label}
+                          <ArrowRight size={12} className="group-hover:translate-x-1 transition-transform" />
+                        </button>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div className="text-center py-12 space-y-3">
+                    <div className="text-3xl">🎉</div>
+                    <h4 className="font-bold text-slate-800 dark:text-white text-sm">All Tasks Caught Up!</h4>
+                    <p className="text-xs text-slate-450 max-w-xs mx-auto">
+                      Excellent work! There are no pending attendance records, drafts, or ungraded submissions for this workspace.
+                    </p>
+                  </div>
+                )}
+              </div>
             </div>
 
-            <div className="divide-y divide-slate-100 dark:divide-slate-850/60 max-h-[360px] overflow-y-auto pr-1">
-              {commandCenterData?.my_tasks && commandCenterData.my_tasks.length > 0 ? (
-                commandCenterData.my_tasks.map((task) => {
-                  const isHigh = task.priority === 'High';
-                  const isMedium = task.priority === 'Medium';
+            {/* Lecture Attendance Trend (Small Card, p-5) */}
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 rounded-3xl shadow-sm hover:shadow-md transition-shadow duration-300 space-y-4">
+              <div className="flex justify-between items-baseline">
+                <h3 className="font-extrabold text-slate-855 dark:text-white text-sm flex items-center gap-1.5">
+                  <TrendingUp size={18} className="text-purple-600" />
+                  Lecture Attendance Trend
+                </h3>
+                <div className="text-right">
+                  <span className="text-xs font-bold text-purple-600 dark:text-purple-450 block">Average Attendance: {avgAttendance}%</span>
+                  <span className="text-[10px] text-slate-450 dark:text-slate-500 block font-medium">Last 6 Lectures</span>
+                </div>
+              </div>
 
-                  let priorityBadge = "text-blue-600 bg-blue-500/10 border-blue-500/20";
-                  if (isHigh) priorityBadge = "text-red-600 bg-red-500/10 border-red-500/20";
-                  else if (isMedium) priorityBadge = "text-amber-600 bg-amber-500/10 border-amber-500/20";
+              <div className="h-44">
+                {attendanceChartData.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={attendanceChartData}>
+                      <defs>
+                        <linearGradient id="colorAtt" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#a855f7" stopOpacity={0.2} />
+                          <stop offset="95%" stopColor="#a855f7" stopOpacity={0} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid
+                        vertical={false}
+                        strokeDasharray="2 2"
+                        opacity={0.08}
+                      />
+                      <XAxis dataKey="date" stroke="#64748b" fontSize={10} />
+                      <YAxis stroke="#64748b" fontSize={10} domain={[0, 100]} />
+                      <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', borderRadius: '12px' }} itemStyle={{ color: '#fff', fontSize: '11px' }} />
+                      <Area type="monotone" dataKey="Attendance %" stroke="#a855f7" fillOpacity={1} fill="url(#colorAtt)" strokeWidth={2} />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="h-full flex items-center justify-center text-slate-400 text-xs">
+                    No attendance logs found to render trend line.
+                  </div>
+                )}
+              </div>
+            </div>
 
-                  return (
-                    <div key={task.id} className="py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 first:pt-0 last:pb-0 hover:bg-slate-50/50 dark:hover:bg-slate-850/20 px-2 rounded-xl transition-colors">
-                      <div className="space-y-1 flex-1">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-full border ${priorityBadge}`}>
-                            {task.priority} Priority
-                          </span>
-                          <span className="text-[9px] font-semibold text-slate-400 dark:text-slate-400 uppercase tracking-wider bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded">
-                            {task.status}
+            {/* Students At Academic Risk (Small Card, p-5) */}
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 rounded-3xl shadow-sm hover:shadow-md transition-shadow duration-300 space-y-4">
+              <div>
+                <h3 className="font-extrabold text-slate-855 dark:text-white text-base flex items-center gap-2">
+                  <AlertTriangle size={18} className="text-red-500" />
+                  Students At Academic Risk
+                </h3>
+                <p className="text-[10px] text-slate-400 font-bold uppercase mt-0.5">Immediate intervention recommended</p>
+              </div>
+
+              <div className="space-y-3.5 max-h-[320px] overflow-y-auto pr-1">
+                {atRiskStudents.map(student => (
+                  <div
+                    key={student.student_id}
+                    onClick={() => navigate("/faculty/performance")}
+                    className="flex items-center justify-between p-3.5 rounded-2xl border border-slate-100 dark:border-slate-800 bg-slate-50/20 dark:bg-slate-950/10 hover:border-purple-500/30 transition-all cursor-pointer group"
+                  >
+                    <div className="space-y-0.5">
+                      <span className="font-bold text-xs block text-slate-800 dark:text-white group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">{student.full_name}</span>
+                      <div className="text-[10px] text-slate-400 font-medium space-x-2">
+                        <span>Roll: <span className="font-mono">{student.roll_no}</span></span>
+                        <span>•</span>
+                        <span>Attendance: <span className="font-semibold text-slate-600 dark:text-slate-300">{student.attendance}%</span></span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded border ${
+                        student.risk_level === "High" 
+                          ? "bg-rose-500/10 text-rose-500 border-rose-500/20" 
+                          : "bg-amber-500/10 text-amber-505 border-amber-500/20"
+                      }`}>
+                        {student.risk_level} RISK
+                      </span>
+                      <span className="text-[10px] font-black text-purple-600 dark:text-purple-450 flex items-center gap-0.5">
+                        Monitor →
+                      </span>
+                    </div>
+                  </div>
+                ))}
+                {atRiskStudents.length === 0 && (
+                  <div className="flex flex-col items-center justify-center text-center p-6 bg-emerald-50/10 dark:bg-emerald-950/5 border border-dashed border-emerald-500/20 rounded-2xl space-y-1.5">
+                    <span className="text-2xl">🟢</span>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 font-semibold">
+                      No students currently require intervention.
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Right Column (1/3 width) */}
+          <div className="space-y-4">
+            {/* Faculty Hub Notices (Large Card, p-6) */}
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-3xl shadow-sm hover:shadow-md transition-all duration-300 space-y-4 group">
+              <div className="flex justify-between items-start">
+                <div>
+                  <h3 className="font-extrabold text-slate-850 dark:text-white text-sm flex items-center gap-2">
+                    <Bell size={18} className="text-purple-650" />
+                    Faculty Hub Notices
+                  </h3>
+                  <p className="text-[10px] text-slate-400 font-bold uppercase mt-0.5">Important broadcasts & updates</p>
+                </div>
+                {commandCenterData?.today_overview?.unread_announcements > 0 && (
+                  <span className="text-[9px] font-black text-white bg-purple-655 px-2.5 py-0.5 rounded-full">
+                    {commandCenterData.today_overview.unread_announcements} New
+                  </span>
+                )}
+              </div>
+
+              <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1">
+                {dashboardAnnouncements.length > 0 ? (
+                  dashboardAnnouncements.map((ann) => {
+                    const pr = priorityConfig[ann.priority] || priorityConfig.Normal;
+                    return (
+                      <div
+                        key={ann.announcement_id}
+                        onClick={() => navigate("/faculty/announcements")}
+                        className={`p-3.5 rounded-xl border transition-all cursor-pointer ${!ann.is_read
+                          ? "border-purple-500/25 bg-purple-50/15 dark:bg-purple-950/10"
+                          : "border-slate-100 dark:border-slate-855 bg-slate-50/20 dark:bg-slate-900/10"
+                          }`}
+                      >
+                        <div className="flex justify-between items-start gap-2">
+                          <h4 className="font-bold text-xs text-slate-855 dark:text-slate-202 line-clamp-1">
+                            {ann.title}
+                          </h4>
+                          <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-full border ${pr.color} shrink-0`}>
+                            {ann.priority}
                           </span>
                         </div>
-                        <h4 className="font-bold text-xs sm:text-sm text-slate-850 dark:text-slate-100">
-                          {task.title}
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1.5 line-clamp-2 leading-relaxed text-left">
+                          {ann.description}
+                        </p>
+                        <div className="flex justify-between items-center mt-2.5 pt-2 border-t border-slate-100 dark:border-slate-855/50 text-[9px] text-slate-400">
+                          <span className="font-semibold">By {ann.sender_name || "Admin"}</span>
+                          <span>{fmtDate(ann.created_at)}</span>
+                        </div>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div className="flex flex-col items-center justify-center text-center p-6 bg-slate-50/40 dark:bg-slate-950/10 border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl space-y-1.5">
+                    <span className="text-2xl">📢</span>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 font-semibold">
+                      No announcements available.
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              <button
+                onClick={() => navigate("/faculty/announcements")}
+                className="w-full py-3 bg-slate-50 hover:bg-slate-100 dark:bg-slate-950 dark:hover:bg-slate-850 border border-slate-200 dark:border-slate-800 text-purple-655 dark:text-purple-450 font-black rounded-xl text-xs transition-all cursor-pointer flex items-center justify-center gap-1.5 group/btn hover:scale-[1.02] duration-200"
+              >
+                <span>View All Notices</span>
+                <ArrowRight size={13} className="group-hover/btn:translate-x-0.5 transition-transform" />
+              </button>
+            </div>
+
+            {/* Upcoming Remedial Sessions (Small Card, p-5) */}
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 rounded-3xl shadow-sm hover:shadow-md transition-all duration-300 space-y-4">
+              <div>
+                <h3 className="font-extrabold text-slate-850 dark:text-white text-sm flex items-center gap-2">
+                  <GraduationCap size={18} className="text-purple-655" />
+                  Upcoming Remedial Sessions
+                </h3>
+                <p className="text-[10px] text-slate-400 font-bold uppercase mt-0.5">Next 3 support targets</p>
+              </div>
+
+              <div className="space-y-3">
+                {upcomingRemedials.length > 0 ? (
+                  upcomingRemedials.map((session) => (
+                    <div
+                      key={session.session_id}
+                      onClick={() => navigate("/faculty/remedial")}
+                      className="p-3.5 rounded-xl border border-slate-150 dark:border-slate-855 bg-slate-50/40 dark:bg-slate-950/20 hover:border-purple-500/25 transition-all cursor-pointer"
+                    >
+                      <div className="flex justify-between items-start gap-2">
+                        <h4 className="font-bold text-xs text-slate-850 dark:text-slate-200 line-clamp-1">
+                          {session.topic}
                         </h4>
-                        <p className="text-xs text-slate-500 dark:text-slate-400">
-                          {task.description}
+                        <span className="text-[8px] font-black text-purple-600 bg-purple-500/10 px-2 py-0.5 rounded shrink-0">
+                          {session.subject_name}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-3 mt-2.5 pt-2 border-t border-slate-100 dark:border-slate-850/50 text-[9px] text-slate-400">
+                        <span className="flex items-center gap-1">
+                          <Calendar size={10} />
+                          {session.session_date}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Clock size={10} />
+                          {session.session_time}
+                        </span>
+                        {session.location && (
+                          <span className="flex items-center gap-1 line-clamp-1 max-w-[100px]">
+                            <MapPin size={10} />
+                            {session.location}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="flex flex-col items-center justify-center text-center p-6 bg-slate-50/40 dark:bg-slate-950/10 border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl space-y-1.5">
+                    <span className="text-2xl">🎓</span>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 font-semibold">
+                      No remedial sessions scheduled.
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              <button
+                onClick={() => navigate("/faculty/remedial")}
+                className="w-full py-3 bg-slate-50 hover:bg-slate-100 dark:bg-slate-950 dark:hover:bg-slate-850 border border-slate-200 dark:border-slate-800 text-purple-655 dark:text-purple-450 font-black rounded-xl text-xs transition-all cursor-pointer flex items-center justify-center gap-1.5 group/btn hover:scale-[1.02] duration-200"
+              >
+                <span>View All Sessions</span>
+                <ArrowRight size={13} className="group-hover/btn:translate-x-0.5 transition-transform" />
+              </button>
+            </div>
+
+            {/* Smart Insights (Small Card, p-5, No scrolling, max 3) */}
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 rounded-3xl shadow-sm hover:shadow-md transition-shadow duration-300 space-y-4">
+              <div>
+                <h3 className="font-extrabold text-slate-850 dark:text-white text-base flex items-center gap-2">
+                  <Shield size={20} className="text-purple-600" />
+                  Smart Insights
+                </h3>
+                <p className="text-[10px] text-slate-400 font-bold uppercase mt-0.5">Rule-based analytical alerts</p>
+              </div>
+
+              <div className="space-y-3">
+                {sortedInsights.length > 0 ? (
+                  sortedInsights.map((insight, idx) => {
+                    let badgeColor = "bg-blue-500/10 border-blue-500/20 text-blue-600 dark:text-blue-400";
+                    let iconText = "ℹ️";
+
+                    if (insight.severity === "danger") {
+                      badgeColor = "bg-rose-500/10 border-rose-500/20 text-rose-600 dark:text-rose-400";
+                      iconText = "🚨";
+                    } else if (insight.severity === "warning") {
+                      badgeColor = "bg-amber-500/10 border-amber-500/20 text-amber-600 dark:text-amber-400";
+                      iconText = "⚠️";
+                    } else if (insight.severity === "success") {
+                      badgeColor = "bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400";
+                      iconText = "✅";
+                    } else if (insight.severity === "info") {
+                      badgeColor = "bg-indigo-500/10 border-indigo-500/20 text-indigo-600 dark:text-indigo-400";
+                      iconText = "📅";
+                    }
+
+                    return (
+                      <div
+                        key={idx}
+                        className={`p-3 rounded-xl border ${badgeColor} space-y-1 hover:translate-x-0.5 transition-transform duration-200`}
+                      >
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs shrink-0">{iconText}</span>
+                          <h4 className="font-extrabold text-[10px] uppercase tracking-wider">
+                            {insight.title}
+                          </h4>
+                        </div>
+                        <p className="text-[11px] font-semibold opacity-90 leading-relaxed text-left">
+                          {insight.description}
                         </p>
                       </div>
+                    );
+                  })
+                ) : (
+                  <div className="text-center py-6 text-slate-400 text-xs font-semibold">
+                    Gathering telemetry to compute insights...
+                  </div>
+                )}
+              </div>
+            </div>
 
-                      <button
-                        onClick={() => navigate(task.route)}
-                        className="self-start sm:self-center px-4.5 py-2.5 bg-slate-950 hover:bg-purple-650 dark:bg-slate-800 dark:hover:bg-purple-650 text-white font-extrabold rounded-xl text-xs transition-all flex items-center gap-1.5 cursor-pointer shadow-sm group shrink-0"
-                      >
-                        {task.action_label}
-                        <ArrowRight size={12} className="group-hover:translate-x-1 transition-transform" />
-                      </button>
+            {/* Quick Operations (Small Card, p-5) */}
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 rounded-3xl shadow-sm hover:shadow-md transition-shadow duration-300 space-y-4">
+              <div>
+                <h3 className="font-extrabold text-slate-850 dark:text-white text-base">Quick Operations</h3>
+                <p className="text-[10px] text-slate-400 font-bold uppercase mt-0.5">Frequent administrative actions</p>
+              </div>
+
+              <div className="flex flex-col space-y-2.5">
+                {/* Primary Filled Purple Button */}
+                <button
+                  onClick={() => navigate("/faculty/attendance")}
+                  className="w-full py-3 bg-purple-600 hover:bg-purple-500 text-white font-extrabold rounded-xl text-xs transition-all shadow cursor-pointer text-left pl-4 flex items-center gap-2 hover:-translate-y-0.5 duration-300"
+                >
+                  <Calendar size={14} />
+                  Record Attendance
+                </button>
+                {/* Secondary Outlined Buttons */}
+                <button
+                  onClick={() => navigate("/faculty/assignments")}
+                  className="w-full py-3 bg-transparent hover:bg-purple-50/10 dark:hover:bg-purple-950/10 border border-slate-200 dark:border-slate-800 hover:border-purple-500/30 text-slate-700 dark:text-slate-300 font-extrabold rounded-xl text-xs transition-all cursor-pointer text-left pl-4 flex items-center gap-2 hover:-translate-y-0.5 duration-300"
+                >
+                  <Plus size={14} />
+                  Create Assignment
+                </button>
+                <button
+                  onClick={() => navigate("/faculty/gradebook")}
+                  className="w-full py-3 bg-transparent hover:bg-purple-50/10 dark:hover:bg-purple-950/10 border border-slate-200 dark:border-slate-800 hover:border-purple-500/30 text-slate-700 dark:text-slate-300 font-extrabold rounded-xl text-xs transition-all cursor-pointer text-left pl-4 flex items-center gap-2 hover:-translate-y-0.5 duration-300"
+                >
+                  <ClipboardCheck size={14} />
+                  Gradebook
+                </button>
+                <button
+                  onClick={() => navigate("/faculty/remedial")}
+                  className="w-full py-3 bg-transparent hover:bg-purple-50/10 dark:hover:bg-purple-950/10 border border-slate-200 dark:border-slate-800 hover:border-purple-500/30 text-slate-700 dark:text-slate-300 font-extrabold rounded-xl text-xs transition-all cursor-pointer text-left pl-4 flex items-center gap-2 hover:-translate-y-0.5 duration-300"
+                >
+                  <GraduationCap size={14} />
+                  Schedule Remedial
+                </button>
+                <button
+                  onClick={handleRunRiskEngine}
+                  className="w-full py-3 bg-transparent hover:bg-red-50/10 dark:hover:bg-red-950/10 border border-slate-200 dark:border-slate-800 hover:border-red-500/30 text-red-600 dark:text-red-400 font-extrabold rounded-xl text-xs transition-all cursor-pointer text-left pl-4 flex items-center gap-2 hover:-translate-y-0.5 duration-300"
+                >
+                  <AlertTriangle size={14} />
+                  Student Risk Analysis
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Monitoring & Analytics Section Label & 2-Column Bottom Grid */}
+      <div className="space-y-2">
+        <span className="text-[10px] font-extrabold tracking-widest uppercase text-slate-400 dark:text-slate-500 block">
+          Monitoring & Analytics
+        </span>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Recent Assignments Widget (Large Card, p-6) */}
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-3xl shadow-sm hover:shadow-md transition-shadow duration-300 space-y-4">
+            <div>
+              <h3 className="font-extrabold text-slate-855 dark:text-white text-sm flex items-center gap-2">
+                <ClipboardCheck size={18} className="text-purple-655" />
+                Recent Assignments
+              </h3>
+              <p className="text-[10px] text-slate-400 font-bold uppercase mt-0.5">Submission tracking & status</p>
+            </div>
+
+            <div className="space-y-3.5 max-h-[320px] overflow-y-auto pr-1">
+              {assignments.length > 0 ? (
+                assignments.map(a => {
+                  const total = a.total_count || 0;
+                  const submitted = a.submitted_count || 0;
+                  const pending = total - submitted;
+                  const pct = total > 0 ? Math.round((submitted / total) * 100) : 0;
+
+                  let statusBadge = "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20";
+                  if (a.status === "Draft") statusBadge = "bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/20";
+                  else if (a.status === "Closed") statusBadge = "bg-rose-500/10 text-rose-605 dark:text-rose-400 border-rose-500/20";
+
+                  return (
+                    <div
+                      key={a.assignment_id}
+                      onClick={() => navigate("/faculty/assignments")}
+                      className="p-3.5 rounded-2xl border border-slate-100 dark:border-slate-850 hover:border-purple-500/35 transition-all cursor-pointer space-y-2.5 bg-slate-50/20 dark:bg-slate-950/10 group"
+                    >
+                      <div className="flex justify-between items-start gap-2">
+                        <span className="font-bold text-xs text-slate-855 dark:text-slate-200 line-clamp-1 group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">{a.title}</span>
+                        <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded border ${statusBadge} shrink-0`}>
+                          {a.status || "Published"}
+                        </span>
+                      </div>
+
+                      {a.status !== "Draft" && (
+                        <div className="space-y-1.5">
+                          <div className="flex justify-between text-[9px] text-slate-400 font-extrabold">
+                            <span>{submitted} / {total} Submitted</span>
+                            <span className="text-amber-600 dark:text-amber-450">{pending} Pending</span>
+                            <span className="text-purple-650 dark:text-purple-400">{pct}%</span>
+                          </div>
+                          <div className="w-full h-1.5 bg-slate-100 dark:bg-slate-855 rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-gradient-to-r from-purple-500 to-indigo-600 rounded-full transition-all duration-500"
+                              style={{ width: `${pct}%` }}
+                            />
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="flex justify-between items-center text-[9px] text-slate-400 pt-1 border-t border-slate-100/50 dark:border-slate-850/50">
+                        <span>Due: {a.due_date}</span>
+                        <span className="font-black text-purple-605 hover:text-purple-500 flex items-center gap-0.5 group-hover:translate-x-0.5 transition-all">
+                          Manage →
+                        </span>
+                      </div>
                     </div>
                   );
                 })
               ) : (
-                <div className="text-center py-12 space-y-3">
-                  <div className="text-3xl">🎉</div>
-                  <h4 className="font-bold text-slate-800 dark:text-white text-sm">All Tasks Caught Up!</h4>
-                  <p className="text-xs text-slate-450 max-w-xs mx-auto">
-                    Excellent work! There are no pending attendance records, drafts, or ungraded submissions for this workspace.
+                <div className="flex flex-col items-center justify-center text-center p-6 bg-slate-50/40 dark:bg-slate-950/10 border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl space-y-1.5">
+                  <span className="text-2xl">📚</span>
+                  <p className="text-xs text-slate-550 dark:text-slate-450 font-semibold">
+                    No assignments created yet.
                   </p>
                 </div>
               )}
             </div>
           </div>
 
-          {/* Lecture Attendance Trend Area Chart */}
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-3xl shadow-sm space-y-4 hover:shadow-md transition-shadow">
-            <h3 className="font-extrabold text-slate-850 dark:text-white text-sm flex items-center gap-1.5">
-              <TrendingUp size={18} className="text-purple-600" />
-              Lecture Attendance Trend
-            </h3>
-            <div className="h-64">
-              {attendanceChartData.length > 0 ? (
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={attendanceChartData}>
-                    <defs>
-                      <linearGradient id="colorAtt" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#a855f7" stopOpacity={0.2} />
-                        <stop offset="95%" stopColor="#a855f7" stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.15} />
-                    <XAxis dataKey="date" stroke="#64748b" fontSize={10} />
-                    <YAxis stroke="#64748b" fontSize={10} domain={[0, 100]} />
-                    <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', borderRadius: '12px' }} itemStyle={{ color: '#fff', fontSize: '11px' }} />
-                    <Area type="monotone" dataKey="Attendance %" stroke="#a855f7" fillOpacity={1} fill="url(#colorAtt)" strokeWidth={2.5} />
-                  </AreaChart>
-                </ResponsiveContainer>
-              ) : (
-                <div className="h-full flex items-center justify-center text-slate-400 text-xs">
-                  No attendance logs found to render trend line.
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Right column - Smart Insights & Quick Actions */}
-        <div className="space-y-6">
-          {/* Faculty Hub Announcements Widget */}
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-3xl shadow-sm space-y-4 hover:shadow-md transition-all group hover:border-purple-500/25">
-            <div className="flex justify-between items-center">
-              <div>
-                <h3 className="font-extrabold text-slate-850 dark:text-white text-sm flex items-center gap-2">
-                  <Bell size={18} className="text-purple-650 animate-pulse" />
-                  Faculty Hub Notices
-                </h3>
-                <p className="text-[10px] text-slate-400 font-bold uppercase mt-0.5">Important broadcasts & updates</p>
-              </div>
-              {commandCenterData?.today_overview?.unread_announcements > 0 && (
-                <span className="text-[9px] font-black text-white bg-purple-650 px-2.5 py-0.5 rounded-full animate-bounce">
-                  {commandCenterData.today_overview.unread_announcements} New
-                </span>
-              )}
-            </div>
-
-            <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1">
-              {dashboardAnnouncements.length > 0 ? (
-                dashboardAnnouncements.map((ann) => {
-                  const pr = priorityConfig[ann.priority] || priorityConfig.Normal;
-                  return (
-                    <div
-                      key={ann.announcement_id}
-                      onClick={() => navigate("/faculty/announcements")}
-                      className={`p-3.5 rounded-xl border transition-all cursor-pointer hover:scale-[1.01] ${
-                        !ann.is_read
-                          ? "border-purple-500/25 bg-purple-50/15 dark:bg-purple-950/10"
-                          : "border-slate-100 dark:border-slate-855 bg-slate-50/20 dark:bg-slate-900/10"
-                      }`}
-                    >
-                      <div className="flex justify-between items-start gap-2">
-                        <h4 className="font-bold text-xs text-slate-850 dark:text-slate-200 line-clamp-1">
-                          {ann.title}
-                        </h4>
-                        <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-full border ${pr.color} shrink-0`}>
-                          {ann.priority}
-                        </span>
-                      </div>
-                      <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1.5 line-clamp-2 leading-relaxed">
-                        {ann.description}
-                      </p>
-                      <div className="flex justify-between items-center mt-2.5 pt-2 border-t border-slate-100 dark:border-slate-855/50 text-[9px] text-slate-400">
-                        <span className="font-semibold">By {ann.sender_name || "Admin"}</span>
-                        <span>{fmtDate(ann.created_at)}</span>
-                      </div>
-                    </div>
-                  );
-                })
-              ) : (
-                <div className="text-center py-10 text-slate-450 dark:text-slate-500 text-xs font-semibold">
-                  No announcements found.
-                </div>
-              )}
-            </div>
-
-            <button
-              onClick={() => navigate("/faculty/announcements")}
-              className="w-full py-3 bg-slate-50 hover:bg-slate-100 dark:bg-slate-950 dark:hover:bg-slate-850 border border-slate-200 dark:border-slate-800 text-purple-650 dark:text-purple-400 font-black rounded-xl text-xs transition-all cursor-pointer flex items-center justify-center gap-1.5 group"
-            >
-              <span>View All Notices</span>
-              <ArrowRight size={13} className="group-hover:translate-x-0.5 transition-transform" />
-            </button>
-          </div>
-
-          {/* Upcoming Remedial Sessions Widget */}
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-3xl shadow-sm space-y-4 hover:shadow-md transition-all group hover:border-purple-500/25">
-            <div className="flex justify-between items-center">
-              <div>
-                <h3 className="font-extrabold text-slate-850 dark:text-white text-sm flex items-center gap-2">
-                  <GraduationCap size={18} className="text-purple-650 animate-pulse" />
-                  Upcoming Remedial Sessions
-                </h3>
-                <p className="text-[10px] text-slate-400 font-bold uppercase mt-0.5">Next 3 support targets</p>
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              {upcomingRemedials.length > 0 ? (
-                upcomingRemedials.map((session) => (
-                  <div
-                    key={session.session_id}
-                    onClick={() => navigate("/faculty/remedial")}
-                    className="p-3.5 rounded-xl border border-slate-150 dark:border-slate-850 bg-slate-50/40 dark:bg-slate-950/20 hover:border-purple-500/25 transition-all cursor-pointer hover:scale-[1.01]"
-                  >
-                    <div className="flex justify-between items-start gap-2">
-                      <h4 className="font-bold text-xs text-slate-850 dark:text-slate-200 line-clamp-1">
-                        {session.topic}
-                      </h4>
-                      <span className="text-[8px] font-black text-purple-600 bg-purple-500/10 px-2 py-0.5 rounded shrink-0">
-                        {session.subject_name}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-3 mt-2.5 pt-2 border-t border-slate-100 dark:border-slate-850/50 text-[9px] text-slate-400">
-                      <span className="flex items-center gap-1">
-                        <Calendar size={10} />
-                        {session.session_date}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <Clock size={10} />
-                        {session.session_time}
-                      </span>
-                      {session.location && (
-                        <span className="flex items-center gap-1 line-clamp-1 max-w-[100px]">
-                          <MapPin size={10} />
-                          {session.location}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div className="text-center py-8 text-slate-450 dark:text-slate-500 text-xs font-semibold">
-                  No upcoming remedial sessions scheduled.
-                </div>
-              )}
-            </div>
-
-            <button
-              onClick={() => navigate("/faculty/remedial")}
-              className="w-full py-3 bg-slate-50 hover:bg-slate-100 dark:bg-slate-950 dark:hover:bg-slate-850 border border-slate-200 dark:border-slate-800 text-purple-650 dark:text-purple-400 font-black rounded-xl text-xs transition-all cursor-pointer flex items-center justify-center gap-1.5 group"
-            >
-              <span>View All Sessions</span>
-              <ArrowRight size={13} className="group-hover:translate-x-0.5 transition-transform" />
-            </button>
-          </div>
-
-          {/* Smart Insights Widget */}
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-3xl shadow-sm space-y-4 hover:shadow-md transition-shadow">
-            <div>
-              <h3 className="font-extrabold text-slate-850 dark:text-white text-base flex items-center gap-2">
-                <Shield size={20} className="text-purple-600" />
-                Smart Insights
-              </h3>
-              <p className="text-[10px] text-slate-400 font-bold uppercase mt-0.5">Rule-based analytical alerts</p>
-            </div>
-
-            <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1">
-              {commandCenterData?.smart_insights && commandCenterData.smart_insights.length > 0 ? (
-                commandCenterData.smart_insights.map((insight, idx) => {
-                  let badgeColor = "bg-blue-500/10 border-blue-500/20 text-blue-600 dark:text-blue-400";
-                  let iconText = "ℹ️";
-
-                  if (insight.severity === "danger") {
-                    badgeColor = "bg-rose-500/10 border-rose-500/20 text-rose-600 dark:text-rose-400";
-                    iconText = "🚨";
-                  } else if (insight.severity === "warning") {
-                    badgeColor = "bg-amber-500/10 border-amber-500/20 text-amber-600 dark:text-amber-400";
-                    iconText = "⚠️";
-                  } else if (insight.severity === "success") {
-                    badgeColor = "bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400";
-                    iconText = "✅";
-                  } else if (insight.severity === "info") {
-                    badgeColor = "bg-indigo-500/10 border-indigo-500/20 text-indigo-600 dark:text-indigo-400";
-                    iconText = "📅";
-                  }
-
-                  return (
-                    <div
-                      key={idx}
-                      className={`p-3 rounded-xl border ${badgeColor} space-y-1 hover:scale-[1.01] transition-transform`}
-                    >
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-xs shrink-0">{iconText}</span>
-                        <h4 className="font-extrabold text-[10px] uppercase tracking-wider">
-                          {insight.title}
-                        </h4>
-                      </div>
-                      <p className="text-[11px] font-semibold opacity-90 leading-relaxed">
-                        {insight.description}
-                      </p>
-                    </div>
-                  );
-                })
-              ) : (
-                <div className="text-center py-10 text-slate-400 text-xs font-semibold">
-                  Gathering telemetry to compute insights...
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Quick Actions Operations */}
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-3xl shadow-sm space-y-4 hover:shadow-md transition-shadow">
-            <div>
-              <h3 className="font-extrabold text-slate-850 dark:text-white text-base">Quick Operations</h3>
-              <p className="text-[10px] text-slate-400 font-bold uppercase mt-0.5">Frequent administrative actions</p>
-            </div>
-
-            <div className="flex flex-col space-y-2.5">
-              <button
-                onClick={() => navigate("/faculty/attendance")}
-                className="w-full py-3 bg-purple-600 hover:bg-purple-500 text-white font-extrabold rounded-xl text-xs transition-all shadow cursor-pointer text-left pl-4 flex items-center gap-2"
-              >
-                <Calendar size={14} />
-                Record Student Attendance
-              </button>
-              <button
-                onClick={() => navigate("/faculty/assignments")}
-                className="w-full py-3 bg-slate-50 hover:bg-slate-100 dark:bg-slate-950 dark:hover:bg-slate-850 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 font-bold rounded-xl text-xs transition-all cursor-pointer text-left pl-4 flex items-center gap-2"
-              >
-                <Plus size={14} />
-                Create Class Assignment
-              </button>
-              <button
-                onClick={() => navigate("/faculty/gradebook")}
-                className="w-full py-3 bg-slate-50 hover:bg-slate-100 dark:bg-slate-950 dark:hover:bg-slate-850 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 font-bold rounded-xl text-xs transition-all cursor-pointer text-left pl-4 flex items-center gap-2"
-              >
-                <ClipboardCheck size={14} />
-                Input Gradebook Marks
-              </button>
-              <button
-                onClick={() => navigate("/faculty/remedial")}
-                className="w-full py-3 bg-slate-50 hover:bg-slate-100 dark:bg-slate-950 dark:hover:bg-slate-850 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 font-bold rounded-xl text-xs transition-all cursor-pointer text-left pl-4 flex items-center gap-2"
-              >
-                <GraduationCap size={14} />
-                Schedule Remedial Session
-              </button>
-              <button
-                onClick={handleRunRiskEngine}
-                className="w-full py-3 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-650 dark:text-red-400 font-bold rounded-xl text-xs transition-all cursor-pointer text-left pl-4 flex items-center gap-2"
-              >
-                <AlertTriangle size={14} />
-                Recalculate Early Risk
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Analytics Lists Bottom Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* At-Risk Students list */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-3xl shadow-sm space-y-4 hover:shadow-md transition-shadow">
-          <div>
-            <h3 className="font-extrabold text-slate-850 dark:text-white text-sm">Students At Academic Risk</h3>
-            <p className="text-[10px] text-slate-400 font-bold uppercase mt-0.5">Immediate intervention recommended</p>
-          </div>
-
-          <div className="space-y-2.5 max-h-[240px] overflow-y-auto pr-1">
-            {atRiskStudents.map(student => (
-              <div
-                key={student.student_id}
-                onClick={() => navigate("/faculty/performance")}
-                className="flex items-center justify-between p-3 rounded-xl border border-slate-100 dark:border-slate-850 hover:border-purple-500/35 transition-all cursor-pointer"
-              >
+          {/* Compact Recent Activity Feed Widget (Large Card, p-6) */}
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-3xl shadow-sm hover:shadow-md transition-shadow duration-300 flex flex-col justify-between space-y-4">
+            <div className="space-y-4">
+              <div className="flex justify-between items-start">
                 <div>
-                  <span className="font-bold text-xs block text-slate-800 dark:text-white">{student.full_name}</span>
-                  <span className="text-[9px] text-slate-400 block font-mono mt-0.5">{student.roll_no} • Att: {student.attendance}%</span>
+                  <h3 className="font-extrabold text-slate-855 dark:text-white text-sm flex items-center gap-1.5">
+                    <Activity size={18} className="text-purple-600" />
+                    Recent Activity
+                  </h3>
+                  <p className="text-[10px] text-slate-400 font-bold uppercase mt-0.5">Your recent portal actions</p>
                 </div>
-                <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded ${student.risk_level === "High" ? "bg-red-500/10 text-red-500 animate-pulse" : "bg-amber-500/10 text-amber-500"}`}>
-                  {student.risk_level}
-                </span>
               </div>
-            ))}
-            {atRiskStudents.length === 0 && (
-              <div className="text-center p-6 text-slate-400 text-xs font-semibold">
-                No students flagged in warning tiers!
+
+              <div className="space-y-4">
+                {activities.length > 0 ? (
+                  activities.slice(0, 5).map(act => {
+                    const Icon = getActivityIcon(act.module);
+                    const colorClass = getActivityColor(act.module);
+                    return (
+                      <div key={act.activity_id} className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-850/50 transition-colors">
+                        <div className={`p-2 rounded-lg shrink-0 ${colorClass}`}>
+                          <Icon size={14} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-bold text-slate-750 dark:text-slate-200 truncate">
+                            {act.action}
+                          </p>
+                          <p className="text-[10px] text-slate-405 truncate mt-0.5">
+                            {act.details}
+                          </p>
+                        </div>
+                        <span className="text-[9px] text-slate-400 font-medium shrink-0">
+                          {formatTime(act.created_at)}
+                        </span>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div className="flex flex-col items-center justify-center text-center p-6 bg-slate-50/40 dark:bg-slate-950/10 border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl space-y-1.5">
+                    <span className="text-2xl">⚡</span>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 font-semibold">
+                      No recent activity found.
+                    </p>
+                  </div>
+                )}
               </div>
-            )}
-          </div>
-        </div>
+            </div>
 
-        {/* Active Assignments */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-3xl shadow-sm space-y-4 hover:shadow-md transition-shadow">
-          <div>
-            <h3 className="font-extrabold text-slate-850 dark:text-white text-sm">Active Assignments</h3>
-            <p className="text-[10px] text-slate-400 font-bold uppercase mt-0.5">Deadlines and outlines</p>
-          </div>
-
-          <div className="space-y-2.5 max-h-[240px] overflow-y-auto pr-1">
-            {assignments.map(a => (
-              <div
-                key={a.assignment_id}
-                onClick={() => navigate("/faculty/assignments")}
-                className="p-3 rounded-xl border border-slate-100 dark:border-slate-850 hover:border-purple-500/35 transition-all cursor-pointer space-y-1"
+            {activities.length > 0 && (
+              <button
+                onClick={() => navigate("/faculty/activity")}
+                className="mt-2 w-full py-2.5 bg-slate-50 hover:bg-slate-100 dark:bg-slate-950 dark:hover:bg-slate-850 border border-slate-200 dark:border-slate-800 text-purple-600 dark:text-purple-400 font-black rounded-xl text-xs transition-all cursor-pointer flex items-center justify-center gap-1.5 group hover:scale-[1.02] duration-200"
               >
-                <div className="flex justify-between items-start">
-                  <span className="font-bold text-xs text-slate-850 dark:text-slate-200 line-clamp-1">{a.title}</span>
-                </div>
-                <div className="flex justify-between items-center text-[9px] text-slate-400">
-                  <span>Due: {a.due_date}</span>
-                  <span className="font-extrabold text-purple-650">{a.total_marks} Marks</span>
-                </div>
-              </div>
-            ))}
-            {assignments.length === 0 && (
-              <div className="text-center p-6 text-slate-400 text-xs font-semibold">
-                No assignments registered in this class.
-              </div>
+                <span>View Activity Log</span>
+                <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
+              </button>
             )}
           </div>
-        </div>
-
-        {/* Compact Recent Activity Feed Widget */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-3xl shadow-sm space-y-4 hover:shadow-md transition-shadow flex flex-col justify-between">
-          <div className="space-y-4">
-            <div className="flex justify-between items-center">
-              <div>
-                <h3 className="font-extrabold text-slate-850 dark:text-white text-sm flex items-center gap-1.5">
-                  <Activity size={18} className="text-purple-600 animate-pulse" />
-                  Recent Activity Stream
-                </h3>
-                <p className="text-[10px] text-slate-400 font-bold uppercase mt-0.5">Your recent portal actions</p>
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              {activities.length > 0 ? (
-                activities.slice(0, 5).map(act => {
-                  const Icon = getActivityIcon(act.module);
-                  const colorClass = getActivityColor(act.module);
-                  return (
-                    <div key={act.activity_id} className="flex items-center gap-3 p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-850/50 transition-colors">
-                      <div className={`p-2 rounded-lg shrink-0 ${colorClass}`}>
-                        <Icon size={14} />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-bold text-slate-750 dark:text-slate-200 truncate">
-                          {act.action}
-                        </p>
-                        <p className="text-[10px] text-slate-400 truncate">
-                          {act.details}
-                        </p>
-                      </div>
-                      <span className="text-[9px] text-slate-400 font-medium shrink-0">
-                        {formatTime(act.created_at)}
-                      </span>
-                    </div>
-                  );
-                })
-              ) : (
-                <div className="text-center py-8 text-slate-400 text-xs font-semibold">
-                  No recent activities logged.
-                </div>
-              )}
-            </div>
-          </div>
-
-          {activities.length > 0 && (
-            <button
-              onClick={() => navigate("/faculty/activity")}
-              className="mt-2 w-full py-2.5 bg-slate-50 hover:bg-slate-150 dark:bg-slate-950 dark:hover:bg-slate-850 border border-slate-200 dark:border-slate-800 text-purple-600 dark:text-purple-400 font-black rounded-xl text-xs transition-all cursor-pointer flex items-center justify-center gap-1.5 group"
-            >
-              <span>View Full Activity Stream</span>
-              <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
-            </button>
-          )}
         </div>
       </div>
     </motion.div>
