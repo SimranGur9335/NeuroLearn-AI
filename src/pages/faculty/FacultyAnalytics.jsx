@@ -65,6 +65,32 @@ const FacultyAnalytics = () => {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
 
+  // Attendance Heatmap State
+  const [attendanceReport, setAttendanceReport] = useState(null);
+  const [currentMonth, setCurrentMonth] = useState(new Date().getMonth() + 1); // 1-indexed
+  const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
+  const [loadingHeatmap, setLoadingHeatmap] = useState(false);
+
+  // Load Attendance Heatmap report
+  useEffect(() => {
+    const fetchMonthlyReport = async () => {
+      if (!classFilter || !subjectFilter) return;
+      try {
+        setLoadingHeatmap(true);
+        const res = await apiFetch(`/attendance/monthly-report?class_id=${classFilter}&subject_id=${subjectFilter}&month=${currentMonth}&year=${currentYear}`);
+        if (res.ok) {
+          const data = await res.json();
+          setAttendanceReport(data);
+        }
+        setLoadingHeatmap(false);
+      } catch (err) {
+        console.error("Failed to load monthly attendance report", err);
+        setLoadingHeatmap(false);
+      }
+    };
+    fetchMonthlyReport();
+  }, [classFilter, subjectFilter, currentMonth, currentYear]);
+
   // Load faculty classes for filter dropdowns
   useEffect(() => {
     const loadClasses = async () => {
@@ -1014,6 +1040,128 @@ const FacultyAnalytics = () => {
             </div>
 
           </div>
+
+          {/* Attendance Daily Heatmap Matrix */}
+          {classFilter && subjectFilter && (
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-3xl shadow-sm space-y-6">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div>
+                  <h3 className="font-extrabold text-slate-850 dark:text-white text-base flex items-center gap-2">
+                    <Calendar size={18} className="text-purple-500" />
+                    Individual Student Daily Attendance Density Heatmap
+                  </h3>
+                  <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">
+                    Grid visualization of daily presence status across all enrolled students in the class.
+                  </p>
+                </div>
+
+                {/* Month browser */}
+                <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-950 p-1 rounded-xl border border-slate-200 dark:border-slate-850">
+                  <button
+                    onClick={() => {
+                      if (currentMonth === 1) {
+                        setCurrentMonth(12);
+                        setCurrentYear(prev => prev - 1);
+                      } else {
+                        setCurrentMonth(prev => prev - 1);
+                      }
+                    }}
+                    className="p-1 hover:bg-slate-200 dark:hover:bg-slate-850 rounded-lg text-slate-500 hover:text-slate-800 dark:hover:text-white transition-colors cursor-pointer"
+                  >
+                    &larr;
+                  </button>
+                  <span className="text-xs font-bold px-3 text-slate-700 dark:text-slate-250">
+                    {new Date(currentYear, currentMonth - 1).toLocaleString('default', { month: 'long', year: 'numeric' })}
+                  </span>
+                  <button
+                    onClick={() => {
+                      if (currentMonth === 12) {
+                        setCurrentMonth(1);
+                        setCurrentYear(prev => prev + 1);
+                      } else {
+                        setCurrentMonth(prev => prev + 1);
+                      }
+                    }}
+                    className="p-1 hover:bg-slate-200 dark:hover:bg-slate-855 rounded-lg text-slate-500 hover:text-slate-800 dark:hover:text-white transition-colors cursor-pointer"
+                  >
+                    &rarr;
+                  </button>
+                </div>
+              </div>
+
+              {loadingHeatmap ? (
+                <div className="py-12 text-center flex flex-col items-center gap-2 justify-center">
+                  <Loader2 className="animate-spin text-purple-500" size={24} />
+                  <span className="text-xs font-semibold text-slate-400 animate-pulse">Retrieving monthly registry matrix...</span>
+                </div>
+              ) : !attendanceReport || attendanceReport.dates.length === 0 ? (
+                <div className="py-12 border border-dashed border-slate-250 dark:border-slate-800 rounded-2xl text-center text-slate-550 dark:text-slate-400 text-xs">
+                  No daily presence sessions recorded for this class in {new Date(currentYear, currentMonth - 1).toLocaleString('default', { month: 'long', year: 'numeric' })}.
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {/* Heatmap Legends */}
+                  <div className="flex flex-wrap items-center gap-4 text-[10px] text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-950/40 p-3 rounded-xl border border-slate-100 dark:border-slate-850">
+                    <span className="font-extrabold mr-1">Legend:</span>
+                    <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded bg-emerald-500" /> Present</span>
+                    <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded bg-amber-500" /> Late</span>
+                    <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded bg-red-500" /> Absent</span>
+                    <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded bg-slate-200 dark:bg-slate-800" /> No Session / Unmarked</span>
+                  </div>
+
+                  {/* Scrollable grid container */}
+                  <div className="overflow-x-auto border border-slate-100 dark:border-slate-850 rounded-2xl">
+                    <div className="min-w-max p-4">
+                      {/* Header row containing Dates */}
+                      <div className="flex items-center border-b border-slate-200 dark:border-slate-800 pb-2 mb-2 font-mono text-[9px] text-slate-500 tracking-wider">
+                        <div className="w-48 shrink-0 font-sans font-bold text-xs text-slate-700 dark:text-slate-355">Student Full Name</div>
+                        <div className="flex gap-1">
+                          {attendanceReport.dates.map(dateStr => {
+                            const day = dateStr.split('-')[2];
+                            return (
+                              <div key={dateStr} className="w-6 text-center font-bold" title={dateStr}>
+                                {day}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Students rows */}
+                      <div className="space-y-1.5 max-h-96 overflow-y-auto pr-1">
+                        {attendanceReport.matrix.map(row => (
+                          <div key={row.student_id} className="flex items-center hover:bg-slate-50 dark:hover:bg-slate-950 p-1 rounded-lg transition-colors">
+                            <div className="w-48 shrink-0 text-xs font-bold text-slate-800 dark:text-slate-300 truncate" title={`${row.full_name} (${row.roll_no})`}>
+                              {row.full_name}
+                            </div>
+                            <div className="flex gap-1">
+                              {attendanceReport.dates.map(dateStr => {
+                                const status = row.attendance[dateStr] || "-";
+                                let color = "bg-slate-200 dark:bg-slate-800";
+                                if (status === "Present") color = "bg-emerald-500 hover:bg-emerald-400";
+                                else if (status === "Absent") color = "bg-red-500 hover:bg-red-400";
+                                else if (status === "Late") color = "bg-amber-500 hover:bg-amber-400";
+
+                                return (
+                                  <div
+                                    key={dateStr}
+                                    className={`w-6 h-6 rounded flex items-center justify-center text-[8px] font-black text-white cursor-help transition-all hover:scale-110 ${color}`}
+                                    title={`${row.full_name}: ${status} on ${dateStr}`}
+                                  >
+                                    {status[0] || "-"}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
         </div>
       )}

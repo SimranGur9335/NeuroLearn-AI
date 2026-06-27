@@ -12,9 +12,9 @@ const StudentHubCard = ({ icon: Icon, title, description, badge, onClick }) => {
   return (
     <motion.div
       onClick={onClick}
-      whileHover={{ y: -6, scale: 1.02 }}
+      whileHover={{ y: -4, scale: 1.01 }}
       transition={{ duration: 0.2 }}
-      className={`relative cursor-pointer rounded-2xl border ${theme.border} ${theme.hoverBorder} bg-gradient-to-br ${theme.gradient} p-6 shadow-xl transition-all duration-300 overflow-hidden group`}
+      className={`relative cursor-pointer rounded-2xl border ${theme.border} bg-white dark:bg-brand-card hover:bg-slate-50/50 dark:hover:bg-brand-cardlight/30 transition-all duration-300 shadow-premium hover:shadow-premium-lg overflow-hidden group`}
     >
       {/* Decorative inner glow */}
       <div className="absolute right-0 top-0 -mr-6 -mt-6 w-24 h-24 bg-white/5 blur-2xl rounded-full group-hover:bg-white/10 transition-colors duration-300" />

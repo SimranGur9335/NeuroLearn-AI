@@ -170,7 +170,12 @@ export const AuthProvider = ({ children }) => {
   /**
    * Logout handler.
    */
-  const logout = () => {
+  const logout = async () => {
+    try {
+      await fetch("/api/v1/auth/logout", { method: "POST" });
+    } catch (err) {
+      console.warn("Backend logout invalidation failed:", err);
+    }
     setUser(null);
     setRoleState(null);
     setAccessToken(null);

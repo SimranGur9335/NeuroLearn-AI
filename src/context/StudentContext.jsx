@@ -2,6 +2,8 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { BADGES as INITIAL_BADGES, DOMAINS } from '../data/data';
 import { generateStudents, faculty, COURSES } from '../data/academicData';
 import { useAuth } from './AuthContext';
+import { apiFetch } from '../services/api';
+
 
 const StudentContext = createContext();
 
@@ -78,6 +80,32 @@ export const StudentProvider = ({ children }) => {
     }
   }, [user]);
 
+  const fetchGamificationData = async () => {
+    try {
+      const [statsRes, badgesRes] = await Promise.all([
+        apiFetch('/gamification/stats'),
+        apiFetch('/gamification/badges')
+      ]);
+      if (statsRes.ok) {
+        const statsData = await statsRes.json();
+        setXp(statsData.xp);
+        setStreak(statsData.streak);
+      }
+      if (badgesRes.ok) {
+        const badgesData = await badgesRes.json();
+        setBadges(badgesData);
+      }
+    } catch (err) {
+      console.error("Error loading gamification data:", err);
+    }
+  };
+
+  useEffect(() => {
+    if (user && user.role === 'student') {
+      fetchGamificationData();
+    }
+  }, [user]);
+
   const [xp, setXp] = useState(() => {
     const saved = localStorage.getItem('neurolearn_xp');
     return saved !== null ? parseInt(saved, 10) : 1450;
@@ -146,17 +174,42 @@ export const StudentProvider = ({ children }) => {
     };
   });
 
+  const [domainsList, setDomainsList] = useState(DOMAINS);
+
   const [activeDomain, setActiveDomain] = useState(() => {
     const saved = localStorage.getItem('neurolearn_activedomain');
     return saved !== null ? JSON.parse(saved) : DOMAINS[0];
   });
 
+  useEffect(() => {
+    const loadDomains = async () => {
+      try {
+        const res = await apiFetch('/api/v1/domains');
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data) && data.length > 0) {
+            setDomainsList(data);
+            setActiveDomain(prev => {
+              const matched = data.find(d => d.id === prev?.id || d.domain_key === prev?.id);
+              return matched || data[0];
+            });
+          }
+        }
+      } catch (err) {
+        console.error("Failed to load domains from backend:", err);
+      }
+    };
+    loadDomains();
+  }, []);
+
+
   const [searchTerm, setSearchTerm] = useState("");
 
-  const [darkMode, setDarkMode] = useState(() => {
-    const saved = localStorage.getItem('neurolearn_darkmode');
-    return saved !== null ? JSON.parse(saved) : true;
-  });
+  // Force exclusive Light Theme on app boot
+  useEffect(() => {
+    localStorage.removeItem('neurolearn_darkmode');
+    window.document.documentElement.classList.remove('dark');
+  }, []);
 
   // --- LocalStorage Synchronizers ---
   useEffect(() => {
@@ -207,32 +260,40 @@ export const StudentProvider = ({ children }) => {
     localStorage.setItem('neurolearn_activedomain', JSON.stringify(activeDomain));
   }, [activeDomain]);
 
-  useEffect(() => {
-    localStorage.setItem('neurolearn_darkmode', JSON.stringify(darkMode));
-    const root = window.document.documentElement;
-    if (darkMode) {
-      root.classList.add('dark');
-    } else {
-      root.classList.remove('dark');
-    }
-  }, [darkMode]);
-
-  const toggleDarkMode = () => setDarkMode(!darkMode);
-
   // --- Student Quiz Arena trigger functions ---
-  const completeQuiz = (nodeId, domainId, score, maxQuestions) => {
+  const completeQuiz = async (nodeId, domainId, score, maxQuestions) => {
     const percentage = (score / maxQuestions) * 100;
     const passed = percentage >= 60;
     const xpReward = passed ? Math.round(percentage) : 10;
+
+    try {
+      const res = await apiFetch('/quiz/submit', {
+        method: 'POST',
+        body: JSON.stringify({
+          node_id: nodeId,
+          domain_id: domainId,
+          score: score,
+          total_questions: maxQuestions,
+          xp_earned: xpReward
+        })
+      });
+
+      if (res.ok) {
+        // Reload all updated stats and badge awards from backend
+        await fetchGamificationData();
+      }
+    } catch (err) {
+      console.error("Error submitting quiz results to backend:", err);
+    }
 
     if (passed) {
       setNodeStates(prev => {
         const next = { ...prev };
         next[nodeId] = "completed";
 
-        const domain = DOMAINS.find(d => d.id === domainId);
-        const nodeIndex = domain.nodes.findIndex(n => n.id === nodeId);
-        if (nodeIndex !== -1 && nodeIndex + 1 < domain.nodes.length) {
+        const domain = domainsList.find(d => d.id === domainId || d.domain_key === domainId);
+        const nodeIndex = domain ? domain.nodes.findIndex(n => n.id === nodeId) : -1;
+        if (domain && nodeIndex !== -1 && nodeIndex + 1 < domain.nodes.length) {
           const nextNodeId = domain.nodes[nodeIndex + 1].id;
           if (next[nextNodeId] === "locked") {
             next[nextNodeId] = "in_progress";
@@ -240,13 +301,8 @@ export const StudentProvider = ({ children }) => {
         }
         return next;
       });
-
-      setStreak(prev => prev + 1);
-      setXp(prev => prev + xpReward);
-      unlockBadgesCheck(nodeId, domainId, percentage);
     } else {
       setHearts(prev => Math.max(0, prev - 1));
-      setXp(prev => prev + xpReward);
     }
 
     setQuizHistory(prev => [
@@ -329,12 +385,12 @@ export const StudentProvider = ({ children }) => {
       quizHistory,
       completeQuiz,
       refillHearts,
+      domainsList,
+      setDomainsList,
       activeDomain,
       setActiveDomain,
       searchTerm,
       setSearchTerm,
-      darkMode,
-      toggleDarkMode,
       addStudent,
       updateStudent,
       deleteStudent,

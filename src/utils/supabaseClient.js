@@ -28,8 +28,6 @@ export const uploadToSupabase = async (file, folderPath) => {
       cacheControl: '3600',
       upsert: true
     });
-  console.log("UPLOAD DATA:", data);
-  console.log("UPLOAD ERROR:", error);
 
   if (error) {
     console.error("Supabase Storage error:", error);

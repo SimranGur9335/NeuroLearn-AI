@@ -160,8 +160,8 @@ const AttendancePage = () => {
                   <AreaChart data={chartData} margin={{ top: 5, right: 5, left: -25, bottom: 0 }}>
                     <defs>
                       <linearGradient id="colorTheme" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor={themeColor === 'indigo' ? '#6366f1' : themeColor === 'rose' ? '#f43f5e' : themeColor === 'violet' ? '#8b5cf6' : themeColor === 'emerald' ? '#10b981' : themeColor === 'amber' ? '#f59e0b' : '#3b82f6'} stopOpacity={0.2}/>
-                        <stop offset="95%" stopColor={themeColor === 'indigo' ? '#6366f1' : themeColor === 'rose' ? '#f43f5e' : themeColor === 'violet' ? '#8b5cf6' : themeColor === 'emerald' ? '#10b981' : themeColor === 'amber' ? '#f59e0b' : '#3b82f6'} stopOpacity={0}/>
+                        <stop offset="5%" stopColor={themeColor === 'indigo' ? '#4F46E5' : themeColor === 'rose' ? '#f43f5e' : themeColor === 'violet' ? '#7C3AED' : themeColor === 'emerald' ? '#10b981' : themeColor === 'amber' ? '#f59e0b' : '#2563EB'} stopOpacity={0.2}/>
+                        <stop offset="95%" stopColor={themeColor === 'indigo' ? '#4F46E5' : themeColor === 'rose' ? '#f43f5e' : themeColor === 'violet' ? '#7C3AED' : themeColor === 'emerald' ? '#10b981' : themeColor === 'amber' ? '#f59e0b' : '#2563EB'} stopOpacity={0}/>
                       </linearGradient>
                     </defs>
                     <XAxis dataKey="name" stroke="#64748b" fontSize={9} tickLine={false} />
@@ -175,7 +175,7 @@ const AttendancePage = () => {
                     <Area 
                       type="monotone" 
                       dataKey="StatusValue" 
-                      stroke={themeColor === 'indigo' ? '#6366f1' : themeColor === 'rose' ? '#f43f5e' : themeColor === 'violet' ? '#8b5cf6' : themeColor === 'emerald' ? '#10b981' : themeColor === 'amber' ? '#f59e0b' : '#3b82f6'} 
+                      stroke={themeColor === 'indigo' ? '#4F46E5' : themeColor === 'rose' ? '#f43f5e' : themeColor === 'violet' ? '#7C3AED' : themeColor === 'emerald' ? '#10b981' : themeColor === 'amber' ? '#f59e0b' : '#2563EB'} 
                       strokeWidth={2}
                       fillOpacity={1} 
                       fill="url(#colorTheme)" 

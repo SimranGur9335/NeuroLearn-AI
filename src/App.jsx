@@ -25,6 +25,7 @@ import ApplyInstitution from './pages/ApplyInstitution';
 // Student Portal Pages
 import Dashboard from './pages/Dashboard';
 import LearningDomains from './pages/LearningDomains';
+import DomainDetail from './pages/domains/DomainDetail';
 import Roadmap from './pages/Roadmap';
 import Quiz from './pages/Quiz';
 import Analytics from './pages/Analytics';
@@ -33,7 +34,6 @@ import Leaderboard from './pages/Leaderboard';
 
 // Student Portal AI Module Pages
 import AiMentorChat from './pages/ai/AiMentorChat';
-import PerformancePrediction from './pages/ai/PerformancePrediction';
 import EmotionAnalysis from './pages/ai/EmotionAnalysis';
 
 // Student Hub Pages
@@ -45,6 +45,8 @@ import GradesPage from './pages/student-hub/GradesPage';
 import AnnouncementsPage from './pages/student-hub/AnnouncementsPage';
 import CalendarPage from './pages/student-hub/CalendarPage';
 import PredictionsPage from './pages/student-hub/PredictionsPage';
+import CollegeNotes from './pages/student-hub/CollegeNotes';
+import ProgrammingHub from './pages/student-hub/ProgrammingHub';
 
 // Faculty Portal Pages
 import FacultyDashboard from './pages/faculty/FacultyDashboard';
@@ -113,6 +115,7 @@ function App() {
             }>
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/domains" element={<LearningDomains />} />
+              <Route path="/domains/:domainKey" element={<DomainDetail />} />
               <Route path="/roadmap" element={<Roadmap />} />
               <Route path="/quiz" element={<Quiz />} />
               <Route path="/analytics" element={<Analytics />} />
@@ -122,17 +125,19 @@ function App() {
 
               {/* AI Module nested routes */}
               <Route path="/ai/chat" element={<AiMentorChat />} />
-              <Route path="/ai/predictions" element={<PerformancePrediction />} />
               <Route path="/ai/emotions" element={<EmotionAnalysis />} />
 
               {/* Student Hub Routes */}
               <Route path="/student-hub" element={<StudentHubHome />} />
               <Route path="/student-hub/courses" element={<CoursesPage />} />
+              <Route path="/student-hub/notes" element={<CollegeNotes />} />
+              <Route path="/student-hub/programming" element={<ProgrammingHub />} />
               <Route path="/student-hub/assignments" element={<AssignmentsPage />} />
               <Route path="/student-hub/attendance" element={<AttendancePage />} />
               <Route path="/student-hub/grades" element={<GradesPage />} />
               <Route path="/student-hub/announcements" element={<AnnouncementsPage />} />
               <Route path="/student-hub/calendar" element={<CalendarPage />} />
+              <Route path="/student-hub/predictions" element={<PredictionsPage />} />
             </Route>
 
             {/* Class Selection Page */}

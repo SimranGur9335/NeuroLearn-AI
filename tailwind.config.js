@@ -4,36 +4,87 @@ export default {
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
   ],
-  darkMode: 'class',
   theme: {
     extend: {
       colors: {
         brand: {
-          dark: '#030712',      // Deep slate/almost black for premium dark mode
-          card: '#0f172a',      // Slate 900 for dashboard cards
-          cardlight: '#1e293b', // Slate 800 for highlighted elements
-          border: '#334155',    // Slate 700 for fine borders
-          primary: '#6366f1',   // Electric Indigo
-          secondary: '#06b6d4', // Neon Cyan
-          accent: '#ec4899',    // Pink
-          success: '#10b981',   // Forest Emerald
-          warning: '#f59e0b',   // Warning Amber
+          dark: 'var(--background)',       // Graphite canvas
+          card: 'var(--surface)',          // Card bg
+          cardlight: 'var(--surface)',     // Inner hover
+          border: 'var(--border)',         // Sleek border
+          borderlight: 'var(--border)',    // Light border
+          text: 'var(--text-primary)',     // Body text
+          muted: 'var(--text-secondary)',   // Muted labels
+          primary: 'var(--gradient-start)', // Royal Purple
+          secondary: 'var(--gradient-middle)', // Electric Indigo
+          accent: 'var(--accent)',     // Blue Accent
+          success: 'var(--success)',    // Success Green
+          danger: 'var(--error)',     // Red
+          slate: '#64748b',      // Cool Slate
+          neutral: '#e5e7eb',    // Neutral Gray
+        },
+        primary: {
+          50: 'var(--primary-50)',
+          100: 'var(--primary-100)',
+          200: 'var(--primary-200)',
+          300: 'var(--primary-300)',
+          400: 'var(--primary-400)',
+          500: 'var(--primary-500)',
+          600: 'var(--primary-600)',
+          700: 'var(--primary-700)',
+          800: 'var(--primary-800)',
+          900: 'var(--primary-900)',
         }
       },
       fontFamily: {
-        sans: ['Inter', 'sans-serif'],
+        sans: ['Manrope', 'Inter', 'sans-serif'],
+        heading: ['Geist', 'Manrope', 'sans-serif'],
+        mono: ['Geist Mono', 'monospace'],
+      },
+      boxShadow: {
+        'premium': 'var(--shadow-premium)',
+        'premium-lg': 'var(--shadow-premium-lg)',
+        'premium-glow': '0 0 15px rgba(124, 58, 237, 0.15)',
+      },
+      textColor: {
+        slate: {
+          900: '#0E0C5A',
+          850: '#0E0C5A',
+          800: '#312E81',
+          700: '#475569',
+          650: '#475569',
+          600: '#475569',
+          505: '#475569',
+          500: '#64748B',
+          455: '#64748B',
+          450: '#64748B',
+          400: '#94A3B8',
+          350: '#94A3B8',
+          300: '#475569',
+          250: '#312E81',
+          200: '#312E81',
+          150: '#0E0C5A',
+          100: '#0E0C5A',
+        }
+      },
+      placeholderColor: {
+        slate: {
+          400: '#94A3B8',
+          300: '#94A3B8',
+        }
       },
       animation: {
-        'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+        'pulse-slow': 'pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite',
         'glow': 'glow 2s ease-in-out infinite alternate',
       },
       keyframes: {
         glow: {
-          '0%': { boxShadow: '0 0 5px rgba(99, 102, 241, 0.4), 0 0 10px rgba(99, 102, 241, 0.2)' },
-          '100%': { boxShadow: '0 0 20px rgba(99, 102, 241, 0.8), 0 0 30px rgba(99, 102, 241, 0.6)' }
+          '0%': { boxShadow: '0 0 4px rgba(59, 130, 246, 0.1), 0 0 8px rgba(59, 130, 246, 0.05)' },
+          '100%': { boxShadow: '0 0 12px rgba(59, 130, 246, 0.25), 0 0 18px rgba(59, 130, 246, 0.15)' }
         }
       }
     },
   },
   plugins: [],
 }
+

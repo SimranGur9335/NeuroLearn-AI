@@ -1,49 +1,41 @@
-import React, { useMemo, useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Trophy, 
   Award, 
-  BookOpen, 
-  CalendarCheck, 
   Flame, 
-  MapPin, 
-  FileText, 
-  Clock, 
-  Shield, 
-  CheckCircle, 
-  Compass, 
-  Cpu, 
-  Users, 
-  Megaphone, 
-  Crown,
-  User, 
-  Zap, 
-  Percent, 
   Star, 
   Sparkles, 
-  ChevronRight, 
   Search, 
   GraduationCap,
+  Zap,
+  Percent,
   TrendingUp,
-  AlertCircle
+  Activity,
+  BarChart2,
+  CheckCircle,
+  XCircle,
+  Users,
+  ChevronRight,
+  Shield,
+  FileText,
+  Clock,
+  Compass,
+  Cpu,
+  Megaphone,
+  Crown
 } from 'lucide-react';
+import { apiFetch } from '../services/api';
 import { useStudent } from '../context/StudentContext';
-import { 
-  BADGES, 
-  LEVEL_SYSTEM, 
-  BADGE_CATEGORIES, 
-  XP_BREAKDOWN_TEMPLATE, 
-  LEADERBOARD_FILTERS 
-} from '../data/data';
+import { THEME_COLOR_MAP } from '../components/StudentHubTheme';
 
-// Map icon strings to Lucide icon components
+// Map icon strings to Lucide components
 const iconMap = {
   Trophy,
   Award,
-  BookOpen,
-  CalendarCheck,
+  CalendarCheck: CheckCircle,
   Flame,
-  MapPin,
+  MapPin: Activity,
   FileText,
   Clock,
   Shield,
@@ -55,779 +47,772 @@ const iconMap = {
   Crown
 };
 
-// Helper to calculate level information dynamically from XP and LEVEL_SYSTEM constants
-const calculateLevelInfo = (currentXp) => {
-  const currentLevel = LEVEL_SYSTEM.find(lvl => currentXp >= lvl.minXp && currentXp <= lvl.maxXp) 
-    || LEVEL_SYSTEM[LEVEL_SYSTEM.length - 1];
-  
-  const levelRange = currentLevel.maxXp - currentLevel.minXp;
-  const progressXp = currentXp - currentLevel.minXp;
-  const reqXpForNext = currentLevel.maxXp === Infinity ? 0 : (currentLevel.maxXp - currentLevel.minXp + 1);
-  
-  const progressPercent = currentLevel.maxXp === Infinity 
-    ? 100 
-    : Math.min(100, Math.max(0, (progressXp / reqXpForNext) * 100));
-    
-  return {
-    level: currentLevel.level,
-    name: currentLevel.name,
-    minXp: currentLevel.minXp,
-    maxXp: currentLevel.maxXp === Infinity ? "Max" : currentLevel.maxXp,
-    progressPercent: Math.round(progressPercent),
-    progressXp,
-    reqXpForNext
-  };
-};
-
-// Helper to normalize branch names to map departments consistently
-const normalizeBranch = (branch) => {
-  if (!branch) return "";
-  const b = branch.toUpperCase();
-  if (b.includes("COMPUTER") || b.includes("CS")) return "CS";
-  if (b.includes("INFORMATION") || b.includes("IT")) return "IT";
-  return branch;
-};
-
 const Leaderboard = () => {
-  const { badges, xp, streak, studentsList, profile } = useStudent();
-  const [activeTab, setActiveTab] = useState("institution");
+  const { profile } = useStudent();
+  const themeColor = profile?.theme_color || 'indigo';
+  const theme = THEME_COLOR_MAP[themeColor] || THEME_COLOR_MAP.indigo;
+
+  // Tabs: "leaderboard" | "badges" | "analytics"
+  const [activeTab, setActiveTab] = useState("leaderboard");
+
+  // Leaderboard parameters
+  const [leaderboardType, setLeaderboardType] = useState("student"); // "student" | "faculty"
+  const [leaderboardFilter, setLeaderboardFilter] = useState("institution"); // "institution" | "department" | "semester" | "weekly"
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Normalize branch name for grouping
-  const userBranchNormalized = useMemo(() => {
-    return normalizeBranch(profile.branch);
-  }, [profile.branch]);
+  // Loaded states
+  const [leaderboardData, setLeaderboardData] = useState([]);
+  const [badgesData, setBadgesData] = useState([]);
+  const [statsData, setStatsData] = useState(null);
+  const [analyticsData, setAnalyticsData] = useState(null);
 
-  // Dynamic Level metrics
-  const levelInfo = useMemo(() => {
-    return calculateLevelInfo(xp);
-  }, [xp]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  // Inject current context student stats dynamically into the registry payload
-  const activeStudentsList = useMemo(() => {
-    const list = studentsList || [];
-    const updatedList = list.map(student => {
-      const isUser = student.name.includes("You") || student.name === profile.name || student.rollNumber === profile.rollNumber;
-      if (isUser) {
-        return {
-          ...student,
-          name: `${profile.name} (You)`,
-          xp: xp,
-          streak: streak,
-          avatar: profile.avatar || "🚀",
-          branch: userBranchNormalized,
-          year: profile.year || "3rd Year"
-        };
+  // Fetch gamification metrics
+  const loadStats = async () => {
+    try {
+      const res = await apiFetch('/gamification/stats');
+      if (res.ok) {
+        const data = await res.json();
+        setStatsData(data);
       }
-      return student;
-    });
-
-    const hasUser = updatedList.some(student => student.name.includes("You"));
-    if (!hasUser) {
-      updatedList.push({
-        id: "ST-USER-CURRENT",
-        name: `${profile.name} (You)`,
-        rollNumber: profile.rollNumber,
-        branch: userBranchNormalized,
-        year: profile.year || "3rd Year",
-        attendance: 88,
-        quizScore: 85,
-        xp: xp,
-        streak: streak,
-        avatar: profile.avatar || "🚀",
-        status: "Safe",
-        riskLevel: "Low"
-      });
+    } catch (err) {
+      console.error(err);
     }
+  };
 
-    return updatedList;
-  }, [studentsList, profile, xp, streak, userBranchNormalized]);
-
-  // Dynamic ranking calculations based on tab rules
-  const sortedAndFilteredStudents = useMemo(() => {
-    let list = [...activeStudentsList];
-
-    if (activeTab === "department") {
-      list = list.filter(s => normalizeBranch(s.branch) === userBranchNormalized);
-    } else if (activeTab === "semester") {
-      list = list.filter(s => s.year === profile.year);
-    } else if (activeTab === "weekly") {
-      // Sort deterministically simulating a weekly XP sub-period
-      list = list.map(s => ({
-        ...s,
-        weeklyXp: Math.round((s.xp * 0.18) + (s.streak * 8) + (s.id ? s.id.charCodeAt(s.id.length - 1) * 2.5 : 10))
-      }));
-      list.sort((a, b) => b.weeklyXp - a.weeklyXp);
+  // Fetch badges lists
+  const loadBadges = async () => {
+    try {
+      const res = await apiFetch('/gamification/badges');
+      if (res.ok) {
+        const data = await res.json();
+        setBadgesData(data);
+      }
+    } catch (err) {
+      console.error(err);
     }
+  };
 
-    if (activeTab !== "weekly") {
-      list.sort((a, b) => b.xp - a.xp);
+  // Fetch leaderboard standings
+  const loadLeaderboard = async () => {
+    try {
+      setLoading(true);
+      const res = await apiFetch(`/gamification/leaderboard?type=${leaderboardType}&filter=${leaderboardFilter}`);
+      if (!res.ok) {
+        throw new Error("Failed to load leaderboard database records.");
+      }
+      const data = await res.json();
+      setLeaderboardData(data);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
     }
+  };
 
-    // Dynamic rank mapping on sorted slice
-    return list.map((student, idx) => ({
-      ...student,
-      rank: idx + 1
-    }));
-  }, [activeStudentsList, activeTab, userBranchNormalized, profile.year]);
+  // Fetch quiz analytics history
+  const loadAnalytics = async () => {
+    try {
+      const res = await apiFetch('/gamification/analytics');
+      if (res.ok) {
+        const data = await res.json();
+        setAnalyticsData(data);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
-  // Current User's active rank and total cohort count
-  const currentUserRankInfo = useMemo(() => {
-    const user = sortedAndFilteredStudents.find(s => s.name.includes("You"));
-    return user ? { rank: user.rank, total: sortedAndFilteredStudents.length } : { rank: 1, total: 100 };
-  }, [sortedAndFilteredStudents]);
+  // On tab change or parameter change
+  useEffect(() => {
+    loadStats();
+    loadBadges();
+    loadAnalytics();
+  }, []);
 
-  // Overall global percentile calculated dynamically
-  const rankPercentile = useMemo(() => {
-    const sortedAll = [...activeStudentsList].sort((a, b) => b.xp - a.xp);
-    const userIdx = sortedAll.findIndex(s => s.name.includes("You"));
-    const rank = userIdx === -1 ? 100 : userIdx + 1;
-    const total = sortedAll.length;
-    const pct = (rank / total) * 100;
-    return pct < 1 ? "Top 1%" : `Top ${Math.round(pct)}%`;
-  }, [activeStudentsList]);
+  useEffect(() => {
+    loadLeaderboard();
+  }, [leaderboardType, leaderboardFilter]);
 
-  // Filter list by user search input
-  const searchedStudents = useMemo(() => {
-    if (!searchQuery) return sortedAndFilteredStudents;
+  // Search filtered leaderboard
+  const searchedLeaderboard = useMemo(() => {
+    if (!searchQuery) return leaderboardData;
     const query = searchQuery.toLowerCase();
-    return sortedAndFilteredStudents.filter(s => 
+    return leaderboardData.filter(s => 
       s.name.toLowerCase().includes(query) || 
       (s.branch && s.branch.toLowerCase().includes(query)) ||
-      (s.year && s.year.toLowerCase().includes(query))
+      (s.designation && s.designation.toLowerCase().includes(query))
     );
-  }, [sortedAndFilteredStudents, searchQuery]);
+  }, [leaderboardData, searchQuery]);
 
-  // Top 3 Podium Aggregators
-  const topThree = useMemo(() => {
-    const top = sortedAndFilteredStudents.slice(0, 3);
+  // Podium (Top 3)
+  const podiumList = useMemo(() => {
+    const sorted = [...leaderboardData];
+    const top = sorted.slice(0, 3);
     const podium = [];
-    // Render order: 2nd place, 1st place, 3rd place
     if (top[1]) podium.push({ ...top[1], place: 2, icon: "🥈" });
     if (top[0]) podium.push({ ...top[0], place: 1, icon: "🥇" });
     if (top[2]) podium.push({ ...top[2], place: 3, icon: "🥉" });
     return podium;
-  }, [sortedAndFilteredStudents]);
+  }, [leaderboardData]);
 
-  // Identify next 3 badges closest to unlocking
-  const nextBadgesToUnlock = useMemo(() => {
-    return badges
-      .filter(b => !b.unlocked && b.progress)
-      .map(b => {
-        const pct = b.progress.target > 0 ? (b.progress.current / b.progress.target) * 100 : 0;
-        return { ...b, progressPercent: Math.round(pct) };
-      })
-      .sort((a, b) => b.progressPercent - a.progressPercent)
-      .slice(0, 3);
-  }, [badges]);
-
-  // Analytics dashboard details
-  const analyticsMetrics = useMemo(() => {
-    const unlockedCount = badges.filter(b => b.unlocked).length;
-    const totalCount = badges.length;
-    const nextBadgeStr = nextBadgesToUnlock[0] 
-      ? `${nextBadgesToUnlock[0].name} (${nextBadgesToUnlock[0].progressPercent}%)`
-      : "Complete!";
-
-    return [
-      { id: "level", title: "Current Level", value: `Lvl ${levelInfo.level}`, subtitle: levelInfo.name, icon: GraduationCap, color: "text-indigo-500 bg-indigo-500/10", border: "border-indigo-500/20" },
-      { id: "xp", title: "Total Experience", value: `${xp.toLocaleString()} XP`, subtitle: "All-time points", icon: Zap, color: "text-amber-500 bg-amber-500/10", border: "border-amber-500/20" },
-      { id: "rank", title: "Global Standing", value: rankPercentile, subtitle: `Rank #${currentUserRankInfo.rank}`, icon: Percent, color: "text-rose-500 bg-rose-500/10", border: "border-rose-500/20" },
-      { id: "badges", title: "Credentials Unlocked", value: `${unlockedCount} / ${totalCount}`, subtitle: "Badges earned", icon: Award, color: "text-teal-500 bg-teal-500/10", border: "border-teal-500/20" },
-      { id: "streak", title: "Daily Streak", value: `${streak} Days`, subtitle: "Flame active", icon: Flame, color: "text-orange-500 bg-orange-500/10", border: "border-orange-500/20" },
-      { id: "next_badge", title: "Target Track", value: nextBadgesToUnlock[0] ? nextBadgesToUnlock[0].name : "Finished", subtitle: nextBadgeStr, icon: Star, color: "text-purple-500 bg-purple-500/10", border: "border-purple-500/20" }
-    ];
-  }, [badges, xp, streak, levelInfo, rankPercentile, currentUserRankInfo, nextBadgesToUnlock]);
-
-  // Dynamically group badges list by categories
-  const categorizedBadges = useMemo(() => {
-    return BADGE_CATEGORIES.map(cat => {
-      const matched = badges.filter(b => b.category === cat.name);
-      return {
-        ...cat,
-        badges: matched
-      };
-    });
-  }, [badges]);
-
-  // Dynamic user row in active search
-  const isCurrentUserInSearchResults = useMemo(() => {
-    return searchedStudents.some(s => s.name.includes("You"));
-  }, [searchedStudents]);
-
+  // Current user row in leaderboard list
   const currentUserRow = useMemo(() => {
-    return sortedAndFilteredStudents.find(s => s.name.includes("You"));
-  }, [sortedAndFilteredStudents]);
+    return leaderboardData.find(s => 
+      s.name.includes("You") || 
+      s.name === profile.name || 
+      s.rollNumber === profile.rollNumber ||
+      (leaderboardType === "faculty" && s.name === profile.name)
+    );
+  }, [leaderboardData, profile, leaderboardType]);
+
+  const isCurrentUserInSearchResults = useMemo(() => {
+    return searchedLeaderboard.some(s => 
+      s.name.includes("You") || 
+      s.name === profile.name || 
+      s.rollNumber === profile.rollNumber
+    );
+  }, [searchedLeaderboard, profile]);
+
+  // Badge categories group mapping
+  const badgeCategories = [
+    { id: "academic", name: "Academic Excellence", color: "from-blue-500 to-indigo-600", desc: "Top classroom and quiz performers" },
+    { id: "attendance", name: "Attendance", color: "from-orange-500 to-red-600", desc: "Consistency and presence in portal & lectures" },
+    { id: "assignments", name: "Assignments", color: "from-teal-500 to-emerald-600", desc: "Completing tasks, project submissions & timelines" },
+    { id: "skills", name: "Learning & Skills", color: "from-purple-500 to-pink-600", desc: "Expanding tech capabilities and knowledge bases" },
+    { id: "community", name: "Community & Events", color: "from-cyan-500 to-blue-600", desc: "Technical club participations & campus engagement" },
+    { id: "elite", name: "Elite Achievements", color: "from-yellow-500 to-amber-600", desc: "High-tier university prestige markers" }
+  ];
+
+  const categorizedBadges = useMemo(() => {
+    return badgeCategories.map(cat => {
+      const matched = badgesData.filter(b => b.category === cat.name);
+      return { ...cat, badges: matched };
+    });
+  }, [badgesData]);
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 15 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4 }}
-      className="space-y-8 pb-12 text-slate-800 dark:text-slate-100"
-    >
-      {/* 1. HERO PROFILE SECTION */}
-      <div className="relative overflow-hidden rounded-3xl border border-slate-200/50 dark:border-slate-800/50 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-950 p-6 md:p-8 shadow-2xl text-white">
-        {/* Subtle decorative mesh background */}
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-indigo-500/20 via-transparent to-transparent pointer-events-none" />
-        
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="flex items-center gap-4 md:gap-6">
-            <span className="text-4xl md:text-5xl p-4 rounded-3xl bg-white/10 backdrop-blur-md border border-white/10 shadow-inner">
-              {profile.avatar || "🚀"}
-            </span>
-            <div>
-              <div className="flex items-center gap-3">
-                <h2 className="text-xl md:text-2xl font-black tracking-tight">{profile.name}</h2>
-                <span className="bg-indigo-500 text-white text-[9px] font-black uppercase px-2 py-0.5 rounded-full border border-indigo-400/30 tracking-wider">
-                  Active Scholar
-                </span>
-              </div>
-              <p className="text-slate-400 text-xs mt-0.5 font-medium">{profile.branch} • {profile.year}</p>
-              
-              {/* Level & XP progression indicator */}
-              <div className="mt-3 flex items-center gap-3">
-                <span className="bg-white/10 text-indigo-300 text-xs px-2.5 py-0.5 rounded-md font-bold backdrop-blur-sm">
-                  Lvl {levelInfo.level} — {levelInfo.name}
-                </span>
-                <span className="text-xs text-slate-400 font-medium">
-                  {xp.toLocaleString()} / {levelInfo.maxXp === "Max" ? "Max" : levelInfo.maxXp.toLocaleString()} XP
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Quick status summary cards */}
-          <div className="grid grid-cols-3 gap-3 md:gap-4 w-full md:w-auto">
-            <div className="bg-white/5 backdrop-blur-md border border-white/5 rounded-2xl p-3 text-center min-w-[90px] md:min-w-[110px]">
-              <span className="block text-[10px] text-slate-400 uppercase font-bold tracking-wider">Cohort Rank</span>
-              <span className="text-base md:text-lg font-black text-indigo-400">#{currentUserRankInfo.rank}</span>
-            </div>
-            <div className="bg-white/5 backdrop-blur-md border border-white/5 rounded-2xl p-3 text-center min-w-[90px] md:min-w-[110px]">
-              <span className="block text-[10px] text-slate-400 uppercase font-bold tracking-wider">Streak</span>
-              <span className="text-base md:text-lg font-black text-orange-400 flex items-center justify-center gap-1">
-                {streak}d <Flame size={16} className="fill-current text-orange-500" />
-              </span>
-            </div>
-            <div className="bg-white/5 backdrop-blur-md border border-white/5 rounded-2xl p-3 text-center min-w-[90px] md:min-w-[110px]">
-              <span className="block text-[10px] text-slate-400 uppercase font-bold tracking-wider">Badges</span>
-              <span className="text-base md:text-lg font-black text-teal-400">
-                {badges.filter(b => b.unlocked).length}/{badges.length}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Level XP Progress Bar */}
-        <div className="mt-6 pt-4 border-t border-white/5 relative z-10">
-          <div className="flex justify-between items-center text-xs text-slate-400 mb-2">
-            <span>Level Progress</span>
-            <span>{levelInfo.progressPercent}% to Next Level</span>
-          </div>
-          <div className="w-full h-2.5 bg-slate-950/80 rounded-full overflow-hidden border border-white/5">
-            <motion.div 
-              initial={{ width: 0 }}
-              animate={{ width: `${levelInfo.progressPercent}%` }}
-              transition={{ duration: 0.8, ease: "easeOut" }}
-              className="h-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 rounded-full"
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* 2. ACHIEVEMENT ANALYTICS CARD */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-        {analyticsMetrics.map((metric) => {
-          const Icon = metric.icon;
-          return (
-            <motion.div
-              key={metric.id}
-              whileHover={{ y: -4, scale: 1.02 }}
-              transition={{ duration: 0.2 }}
-              className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 shadow-sm flex flex-col justify-between"
-            >
-              <div className="flex justify-between items-start">
-                <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-                  {metric.title}
-                </span>
-                <span className={`p-1.5 rounded-lg ${metric.color}`}>
-                  <Icon size={14} />
-                </span>
-              </div>
-              <div className="mt-3">
-                <span className="block text-base md:text-lg font-black text-slate-800 dark:text-white line-clamp-1">
-                  {metric.value}
-                </span>
-                <span className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5 block font-semibold line-clamp-1">
-                  {metric.subtitle}
-                </span>
-              </div>
-            </motion.div>
-          );
-        })}
-      </div>
-
-      {/* Primary Content Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        
-        {/* Left column (2 cols wide on desktop) for Leaderboard & Podium */}
-        <div className="lg:col-span-2 space-y-8">
+    <div className="space-y-8 pb-12">
+      {/* 1. Profile Level Hero Section */}
+      {statsData && (
+        <div className="relative overflow-hidden rounded-3xl border border-slate-200/50 dark:border-slate-800/50 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-950 p-6 md:p-8 shadow-2xl text-white">
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-indigo-500/10 via-transparent to-transparent pointer-events-none" />
           
-          {/* 3. TOP 3 PODIUM */}
-          <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 shadow-sm">
-            <h3 className="font-extrabold text-slate-800 dark:text-white text-base mb-6 flex items-center gap-2">
-              <Trophy className="text-yellow-500" size={20} />
-              Academic Leaderboard Podium
-            </h3>
-            
-            <div className="grid grid-cols-3 gap-3 md:gap-6 items-end pt-8 pb-4 max-w-xl mx-auto">
-              
-              {/* Podium Positions mapping */}
-              {topThree.map((student) => {
-                const isRank1 = student.place === 1;
-                const isUser = student.name.includes("You");
+          <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div className="flex items-center gap-4 md:gap-6">
+              <span className="text-4xl md:text-5xl p-4 rounded-3xl bg-white/10 backdrop-blur-md border border-white/10 shadow-inner">
+                {profile.avatar || "🚀"}
+              </span>
+              <div>
+                <div className="flex items-center gap-3">
+                  <h2 className="text-xl md:text-2xl font-black tracking-tight">{profile.name}</h2>
+                  <span className="bg-indigo-50 text-white text-[9px] font-black uppercase px-2 py-0.5 rounded-full border border-indigo-400/30 tracking-wider">
+                    {profile.role === 'student' ? 'Active Scholar' : 'Elite Mentor'}
+                  </span>
+                </div>
+                <p className="text-slate-400 text-xs mt-0.5 font-medium">{profile.branch} • {profile.year}</p>
                 
-                return (
-                  <motion.div
-                    key={student.id}
-                    initial={{ opacity: 0, y: 30 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.5, delay: student.place * 0.15 }}
-                    className="flex flex-col items-center"
-                  >
-                    {/* Floating Avatar bubble */}
-                    <div className="relative group mb-3">
-                      <div className={`w-14 h-14 md:w-20 md:h-20 rounded-full bg-slate-100 dark:bg-slate-950 flex items-center justify-center text-2xl md:text-4xl shadow-lg border-4 transition-transform duration-300 group-hover:scale-105 ${
-                        isRank1 
-                          ? 'border-yellow-400 dark:border-yellow-500 w-16 h-16 md:w-24 md:h-24 shadow-yellow-500/10' 
-                          : student.place === 2 
-                            ? 'border-slate-300 dark:border-slate-400' 
-                            : 'border-amber-600'
-                      } ${isUser ? 'ring-4 ring-indigo-500/40 ring-offset-2 dark:ring-offset-slate-900' : ''}`}>
-                        {student.avatar || "👨‍💻"}
-                      </div>
-                      
-                      {/* Rank badge marker */}
-                      <span className={`absolute -bottom-1 -right-1 w-6 h-6 rounded-full flex items-center justify-center text-xs font-black shadow border border-white dark:border-slate-900 ${
-                        isRank1 
-                          ? 'bg-yellow-400 text-slate-950 text-sm' 
-                          : student.place === 2 
-                            ? 'bg-slate-200 text-slate-700' 
-                            : 'bg-amber-100 text-amber-800'
-                      }`}>
-                        {student.icon}
-                      </span>
-                    </div>
-
-                    {/* Student details */}
-                    <div className="text-center w-full max-w-[120px]">
-                      <h4 className={`text-xs md:text-sm font-black truncate ${isUser ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-800 dark:text-white'}`}>
-                        {student.name}
-                      </h4>
-                      <p className="text-[10px] text-slate-400 font-bold uppercase truncate tracking-wider mt-0.5">
-                        {student.branch}
-                      </p>
-                    </div>
-
-                    {/* Podium Column block */}
-                    <div className={`w-full mt-4 rounded-t-2xl flex flex-col justify-end items-center p-3 text-center border-t shadow-inner ${
-                      isRank1 
-                        ? 'h-28 md:h-36 bg-gradient-to-b from-yellow-500/10 via-yellow-500/5 to-transparent border-yellow-500/35' 
-                        : student.place === 2 
-                          ? 'h-20 md:h-26 bg-gradient-to-b from-slate-400/10 via-slate-400/5 to-transparent border-slate-400/30' 
-                          : 'h-16 md:h-20 bg-gradient-to-b from-amber-600/10 via-amber-600/5 to-transparent border-amber-600/30'
-                    }`}>
-                      <span className="block text-xs font-black text-slate-700 dark:text-slate-200">
-                        {activeTab === "weekly" ? student.weeklyXp?.toLocaleString() : student.xp?.toLocaleString()}
-                      </span>
-                      <span className="text-[9px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider">
-                        XP
-                      </span>
-                    </div>
-                  </motion.div>
-                );
-              })}
-
+                {profile.role === 'student' && (
+                  <div className="mt-3 flex items-center gap-3">
+                    <span className="bg-white/10 text-indigo-300 text-xs px-2.5 py-0.5 rounded-md font-bold backdrop-blur-sm">
+                      Lvl {statsData.level} — {statsData.level_name}
+                    </span>
+                    <span className="text-xs text-slate-400 font-medium">
+                      {statsData.xp.toLocaleString()} XP Points
+                    </span>
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
 
-          {/* 4. ADVANCED LEADERBOARD TABLE */}
-          <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 shadow-sm space-y-6">
-            
-            {/* Filters Navigation and Search */}
-            <div className="flex flex-col gap-4">
-              <div className="flex justify-between items-center">
-                <div>
-                  <h3 className="font-extrabold text-slate-800 dark:text-white text-base">Campus Leaderboard</h3>
-                  <p className="text-xs text-slate-400">Explore cohort standings across academic filters</p>
+            {/* Quick stats grid */}
+            {profile.role === 'student' && (
+              <div className="grid grid-cols-3 gap-3 md:gap-4 w-full md:w-auto">
+                <div className="bg-white/5 backdrop-blur-md border border-white/5 rounded-2xl p-3 text-center min-w-[90px] md:min-w-[110px]">
+                  <span className="block text-[10px] text-slate-400 uppercase font-bold tracking-wider">Cohort Rank</span>
+                  <span className="text-base md:text-lg font-black text-indigo-400">#{statsData.rank}</span>
+                </div>
+                <div className="bg-white/5 backdrop-blur-md border border-white/5 rounded-2xl p-3 text-center min-w-[90px] md:min-w-[110px]">
+                  <span className="block text-[10px] text-slate-400 uppercase font-bold tracking-wider">Daily Streak</span>
+                  <span className="text-base md:text-lg font-black text-orange-400 flex items-center justify-center gap-1">
+                    {statsData.streak}d <Flame size={16} className="fill-current text-orange-500" />
+                  </span>
+                </div>
+                <div className="bg-white/5 backdrop-blur-md border border-white/5 rounded-2xl p-3 text-center min-w-[90px] md:min-w-[110px]">
+                  <span className="block text-[10px] text-slate-400 uppercase font-bold tracking-wider">Achievements</span>
+                  <span className="text-base md:text-lg font-black text-teal-400">
+                    {statsData.badges_unlocked} Unlocked
+                  </span>
                 </div>
               </div>
+            )}
+          </div>
 
-              <div className="flex flex-col sm:flex-row gap-3 justify-between items-stretch sm:items-center">
-                {/* Scrollable Tab Panel */}
-                <div className="flex overflow-x-auto gap-1 bg-slate-50 dark:bg-slate-950 p-1 rounded-xl border border-slate-200/40 dark:border-slate-800/50 max-w-full">
-                  {LEADERBOARD_FILTERS.map((tab) => {
-                    const isActive = activeTab === tab.id;
+          {/* XP Progress Bar */}
+          {profile.role === 'student' && (
+            <div className="mt-6 pt-4 border-t border-white/5 relative z-10">
+              <div className="flex justify-between items-center text-xs text-slate-400 mb-2">
+                <span>XP Level Progression</span>
+                <span>{statsData.progress_percent}% to Next Level</span>
+              </div>
+              <div className="w-full h-2.5 bg-slate-950/80 rounded-full overflow-hidden border border-white/5">
+                <motion.div 
+                  initial={{ width: 0 }}
+                  animate={{ width: `${statsData.progress_percent}%` }}
+                  transition={{ duration: 0.8, ease: "easeOut" }}
+                  className="h-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 rounded-full"
+                />
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 2. Secondary Tab Switcher */}
+      {profile?.role === 'student' && (
+        <div className="flex items-center justify-center bg-slate-900/60 border border-slate-800 p-1.5 rounded-2xl max-w-lg mx-auto">
+          <button
+            onClick={() => setActiveTab("leaderboard")}
+            className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+              activeTab === "leaderboard" 
+                ? `${theme.bg} ${theme.text} border border-indigo-500/20 shadow-md` 
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <Trophy size={14} /> Campus Leaderboard
+          </button>
+          <button
+            onClick={() => setActiveTab("badges")}
+            className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+              activeTab === "badges" 
+                ? `${theme.bg} ${theme.text} border border-indigo-500/20 shadow-md` 
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <Award size={14} /> Badge Vault
+          </button>
+          <button
+            onClick={() => setActiveTab("analytics")}
+            className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+              activeTab === "analytics" 
+                ? `${theme.bg} ${theme.text} border border-indigo-500/20 shadow-md` 
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <BarChart2 size={14} /> Quiz Analytics
+          </button>
+        </div>
+      )}
+
+      {/* 3. Render Active Tab */}
+      <AnimatePresence mode="wait">
+        {activeTab === "leaderboard" && (
+          <motion.div
+            key="leaderboard-tab"
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -15 }}
+            className="space-y-8"
+          >
+            {/* Podium (Top 3) */}
+            {podiumList.length > 0 && (
+              <div className="bg-slate-900/40 border border-slate-800 rounded-3xl p-6 shadow-sm">
+                <h3 className="font-extrabold text-white text-md mb-6 flex items-center gap-2">
+                  <Trophy className="text-yellow-500" size={18} />
+                  Top Standings Podium
+                </h3>
+                
+                <div className="grid grid-cols-3 gap-3 md:gap-6 items-end pt-8 pb-4 max-w-xl mx-auto">
+                  {podiumList.map((member) => {
+                    const isRank1 = member.place === 1;
+                    const isUser = member.name.includes("You") || member.name === profile.name;
+                    
                     return (
+                      <div key={member.id} className="flex flex-col items-center">
+                        <div className="relative group mb-3">
+                          <div className={`w-14 h-14 md:w-20 md:h-20 rounded-full bg-slate-955 flex items-center justify-center text-2xl md:text-4xl shadow-lg border-4 transition-transform duration-300 group-hover:scale-105 ${
+                            isRank1 
+                              ? 'border-yellow-400 dark:border-yellow-500 w-16 h-16 md:w-24 md:h-24 shadow-yellow-500/10' 
+                              : member.place === 2 
+                                ? 'border-slate-400' 
+                                : 'border-amber-600'
+                          } ${isUser ? 'ring-4 ring-indigo-500/40 ring-offset-2 ring-offset-slate-950' : ''}`}>
+                            {member.avatar || "🚀"}
+                          </div>
+                          
+                          <span className={`absolute -bottom-1 -right-1 w-6 h-6 rounded-full flex items-center justify-center text-xs font-black shadow border border-slate-900 ${
+                            isRank1 
+                              ? 'bg-yellow-400 text-slate-950 text-sm' 
+                              : member.place === 2 
+                                ? 'bg-slate-200 text-slate-700' 
+                                : 'bg-amber-100 text-amber-800'
+                          }`}>
+                            {member.icon}
+                          </span>
+                        </div>
+
+                        <div className="text-center w-full max-w-[120px]">
+                          <h4 className={`text-xs md:text-sm font-black truncate ${isUser ? 'text-indigo-400' : 'text-white'}`}>
+                            {member.name}
+                          </h4>
+                          <p className="text-[10px] text-slate-500 font-bold uppercase truncate tracking-wider mt-0.5">
+                            {member.branch || "Scholar"}
+                          </p>
+                        </div>
+
+                        <div className={`w-full mt-4 rounded-t-2xl flex flex-col justify-end items-center p-3 text-center border-t shadow-inner ${
+                          isRank1 
+                            ? 'h-28 md:h-36 bg-gradient-to-b from-yellow-500/10 via-yellow-500/5 to-transparent border-yellow-500/35' 
+                            : member.place === 2 
+                              ? 'h-20 md:h-26 bg-gradient-to-b from-slate-400/10 via-slate-400/5 to-transparent border-slate-400/30' 
+                              : 'h-16 md:h-20 bg-gradient-to-b from-amber-600/10 via-amber-600/5 to-transparent border-amber-600/30'
+                        }`}>
+                          <span className="block text-xs font-black text-slate-200">
+                            {member.xp?.toLocaleString()}
+                          </span>
+                          <span className="text-[9px] text-slate-500 font-bold uppercase tracking-wider">
+                            XP
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Standings Filter Controls */}
+            <div className="bg-slate-900/60 border border-slate-800 rounded-3xl p-6 space-y-6">
+              <div className="flex flex-col sm:flex-row gap-4 justify-between items-stretch sm:items-center border-b border-slate-800 pb-4">
+                {/* Board selector */}
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => {
+                      setLeaderboardType("student");
+                      setLeaderboardFilter("institution");
+                    }}
+                    className={`px-4 py-2 rounded-xl text-xs font-bold border transition-all ${
+                      leaderboardType === "student"
+                        ? `${theme.bg} ${theme.text} border-indigo-500/50`
+                        : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    🏆 Student Leaderboard
+                  </button>
+                  <button
+                    onClick={() => {
+                      setLeaderboardType("faculty");
+                      setLeaderboardFilter("institution");
+                    }}
+                    className={`px-4 py-2 rounded-xl text-xs font-bold border transition-all ${
+                      leaderboardType === "faculty"
+                        ? `${theme.bg} ${theme.text} border-indigo-500/50`
+                        : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    👨‍🏫 Faculty Leaderboard
+                  </button>
+                </div>
+
+                {/* Sub filters */}
+                {leaderboardType === "student" && (
+                  <div className="flex overflow-x-auto gap-1 bg-slate-950 p-1 rounded-xl border border-slate-805 max-w-full">
+                    {[
+                      { id: "institution", name: "Campus" },
+                      { id: "department", name: "Department" },
+                      { id: "semester", name: "Semester" },
+                      { id: "weekly", name: "Weekly Sprint" }
+                    ].map((tab) => (
                       <button
                         key={tab.id}
-                        onClick={() => setActiveTab(tab.id)}
+                        onClick={() => setLeaderboardFilter(tab.id)}
                         className={`text-[10px] md:text-xs font-black uppercase px-3 py-1.5 rounded-lg transition-all whitespace-nowrap ${
-                          isActive 
-                            ? 'bg-indigo-600 text-white shadow' 
-                            : 'text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
+                          leaderboardFilter === tab.id 
+                            ? 'bg-indigo-650 text-white shadow' 
+                            : 'text-slate-400 hover:text-white'
                         }`}
                       >
                         {tab.name}
                       </button>
-                    );
-                  })}
-                </div>
+                    ))}
+                  </div>
+                )}
+              </div>
 
-                {/* Real-time search bar */}
-                <div className="relative min-w-[200px]">
-                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              {/* Standings Table */}
+              <div className="space-y-4">
+                <div className="relative">
+                  <Search size={14} className="absolute left-3 top-3 text-slate-500" />
                   <input
                     type="text"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Search by student or major..."
-                    className="w-full pl-9 pr-3 py-1.5 text-xs bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 rounded-xl focus:outline-none focus:ring-1 focus:ring-indigo-500 text-slate-800 dark:text-white"
+                    placeholder="Search by name, major, or code..."
+                    className="w-full pl-9 pr-3 py-2 text-xs bg-slate-955 border border-slate-800 rounded-xl focus:outline-none focus:border-slate-700 text-white placeholder-slate-500"
                   />
                 </div>
-              </div>
-            </div>
 
-            {/* Leaderboard Table Grid Container */}
-            <div className="overflow-x-auto border border-slate-150 dark:border-slate-850/80 rounded-2xl">
-              <table className="w-full text-left border-collapse text-xs">
-                <thead>
-                  <tr className="border-b border-slate-150 dark:border-slate-850 text-slate-400 font-bold uppercase text-[9px] tracking-wider bg-slate-50/50 dark:bg-slate-950/20">
-                    <th className="py-3 pl-4 text-center w-12">Rank</th>
-                    <th className="py-3 pl-2">Student</th>
-                    <th className="py-3">Department</th>
-                    <th className="py-3">Semester Group</th>
-                    <th className="py-3 text-center">Streak</th>
-                    <th className="py-3 text-right pr-4">XP Score</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-850/60">
-                  {searchedStudents.length > 0 ? (
-                    searchedStudents.slice(0, 20).map((student) => {
-                      const isCurrentUser = student.name.includes("You");
-                      const medal = student.rank === 1 ? "🥇" : student.rank === 2 ? "🥈" : student.rank === 3 ? "🥉" : null;
-
-                      return (
-                        <tr 
-                          key={student.id}
-                          className={`transition-colors duration-150 ${
-                            isCurrentUser 
-                              ? 'bg-indigo-500/10 dark:bg-indigo-500/5 hover:bg-indigo-500/15 dark:hover:bg-indigo-500/10 font-bold border-l-4 border-l-indigo-600' 
-                              : 'hover:bg-slate-50/50 dark:hover:bg-slate-850/10'
-                          }`}
-                        >
-                          {/* Rank cell */}
-                          <td className="py-3.5 pl-4 text-center font-extrabold text-slate-500 dark:text-slate-400">
-                            {medal ? <span className="text-sm">{medal}</span> : student.rank}
-                          </td>
-
-                          {/* Student profile */}
-                          <td className="py-3.5 pl-2">
-                            <div className="flex items-center gap-3">
-                              <span className="text-base w-7 h-7 rounded-full bg-slate-100 dark:bg-slate-950 border border-slate-200/60 dark:border-slate-800 flex items-center justify-center">
-                                {student.avatar || "👨‍💻"}
-                              </span>
-                              <div>
-                                <span className={`text-slate-800 dark:text-white ${isCurrentUser ? 'text-indigo-600 dark:text-indigo-400' : 'font-semibold'}`}>
-                                  {student.name}
-                                </span>
-                              </div>
-                            </div>
-                          </td>
-
-                          {/* Branch / Department */}
-                          <td className="py-3.5 text-slate-500 dark:text-slate-400 font-medium">
-                            {student.branch || "CS"}
-                          </td>
-
-                          {/* Year / Semester */}
-                          <td className="py-3.5 text-slate-500 dark:text-slate-400 font-medium">
-                            {student.year || "3rd Year"}
-                          </td>
-
-                          {/* Streak */}
-                          <td className="py-3.5 text-center">
-                            {student.streak > 0 ? (
-                              <div className="inline-flex items-center gap-0.5 text-orange-600 dark:text-orange-500 font-extrabold bg-orange-500/5 px-2 py-0.5 rounded border border-orange-500/10 text-[10px]">
-                                <Flame size={10} className="fill-current" />
-                                <span>{student.streak}d</span>
-                              </div>
-                            ) : (
-                              <span className="text-slate-400 dark:text-slate-600">-</span>
-                            )}
-                          </td>
-
-                          {/* XP Score */}
-                          <td className="py-3.5 text-right pr-4 font-black text-slate-700 dark:text-white">
-                            {activeTab === "weekly" ? student.weeklyXp?.toLocaleString() : student.xp?.toLocaleString()} XP
+                <div className="overflow-x-auto border border-slate-800/80 rounded-2xl bg-slate-950/20">
+                  <table className="w-full text-left border-collapse text-xs">
+                    <thead>
+                      <tr className="border-b border-slate-800 text-slate-500 font-bold uppercase text-[9px] tracking-wider bg-slate-950/40">
+                        <th className="py-3 pl-4 text-center w-12">Rank</th>
+                        <th className="py-3 pl-2">Name</th>
+                        <th className="py-3">{leaderboardType === 'student' ? 'Department' : 'Designation'}</th>
+                        {leaderboardType === 'student' && <th className="py-3">Semester</th>}
+                        <th className="py-3 text-center">{leaderboardType === 'student' ? 'Streak' : 'Activity'}</th>
+                        <th className="py-3 text-right pr-4">XP Score</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800/40">
+                      {loading ? (
+                        <tr>
+                          <td colSpan={6} className="py-12 text-center">
+                            <div className="w-6 h-6 border-2 border-slate-700 border-t-indigo-500 rounded-full animate-spin mx-auto mb-2" />
+                            <span className="text-slate-500 text-xs font-semibold">Loading standings...</span>
                           </td>
                         </tr>
-                      );
-                    })
-                  ) : (
-                    <tr>
-                      <td colSpan={6} className="py-8 text-center text-slate-400">
-                        <AlertCircle className="mx-auto text-slate-300 dark:text-slate-700 mb-2" size={24} />
-                        No learners found matching search.
-                      </td>
-                    </tr>
-                  )}
+                      ) : searchedLeaderboard.length === 0 ? (
+                        <tr>
+                          <td colSpan={6} className="py-8 text-center text-slate-500">
+                            No matching profiles found in cohort.
+                          </td>
+                        </tr>
+                      ) : (
+                        searchedLeaderboard.map((item) => {
+                          const isCurrentUser = item.name.includes("You") || item.name === profile.name;
+                          const medal = item.rank === 1 ? "🥇" : item.rank === 2 ? "🥈" : item.rank === 3 ? "🥉" : null;
 
-                  {/* Dynamic user sticky indicator if out of top search list */}
-                  {!isCurrentUserInSearchResults && currentUserRow && searchQuery === "" && (
-                    <>
-                      <tr className="bg-slate-50 dark:bg-slate-950/40">
-                        <td colSpan={6} className="py-1 text-center text-[9px] uppercase font-bold text-slate-400 bg-slate-100/30 dark:bg-slate-950/10">
-                          ... Out of view standings ...
-                        </td>
-                      </tr>
-                      <tr className="bg-indigo-500/15 dark:bg-indigo-500/5 font-bold border-l-4 border-l-indigo-600 shadow-md">
-                        <td className="py-3.5 pl-4 text-center font-extrabold text-slate-600 dark:text-slate-300">
-                          {currentUserRow.rank}
-                        </td>
-                        <td className="py-3.5 pl-2">
-                          <div className="flex items-center gap-3">
-                            <span className="text-base w-7 h-7 rounded-full bg-slate-100 dark:bg-slate-950 border border-slate-200/60 dark:border-slate-800 flex items-center justify-center">
-                              {currentUserRow.avatar || "🚀"}
-                            </span>
-                            <span className="text-indigo-600 dark:text-indigo-400">
-                              {currentUserRow.name}
-                            </span>
-                          </div>
-                        </td>
-                        <td className="py-3.5 text-slate-500 dark:text-slate-400 font-medium">
-                          {currentUserRow.branch}
-                        </td>
-                        <td className="py-3.5 text-slate-500 dark:text-slate-400 font-medium">
-                          {currentUserRow.year}
-                        </td>
-                        <td className="py-3.5 text-center">
-                          <div className="inline-flex items-center gap-0.5 text-orange-600 dark:text-orange-500 font-extrabold bg-orange-500/5 px-2 py-0.5 rounded border border-orange-500/10 text-[10px]">
-                            <Flame size={10} className="fill-current" />
-                            <span>{currentUserRow.streak}d</span>
-                          </div>
-                        </td>
-                        <td className="py-3.5 text-right pr-4 font-black text-slate-700 dark:text-white">
-                          {activeTab === "weekly" ? currentUserRow.weeklyXp?.toLocaleString() : currentUserRow.xp?.toLocaleString()} XP
-                        </td>
-                      </tr>
-                    </>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
+                          return (
+                            <tr 
+                              key={item.id}
+                              className={`transition-colors duration-150 ${
+                                isCurrentUser 
+                                  ? 'bg-indigo-500/10 hover:bg-indigo-500/15 font-bold border-l-4 border-l-indigo-600' 
+                                  : 'hover:bg-slate-900/40'
+                              }`}
+                            >
+                              <td className="py-3.5 pl-4 text-center font-extrabold text-slate-400">
+                                {medal ? <span className="text-sm">{medal}</span> : item.rank}
+                              </td>
+                              <td className="py-3.5 pl-2">
+                                <div className="flex items-center gap-3">
+                                  <span className="text-base w-7 h-7 rounded-full bg-slate-950 border border-slate-850 flex items-center justify-center">
+                                    {item.avatar || "🚀"}
+                                  </span>
+                                  <span className={isCurrentUser ? 'text-indigo-400 font-extrabold' : 'text-slate-200 font-semibold'}>
+                                    {item.name}
+                                  </span>
+                                </div>
+                              </td>
+                              <td className="py-3.5 text-slate-400 font-medium">
+                                {leaderboardType === 'student' ? item.branch : item.designation}
+                              </td>
+                              {leaderboardType === 'student' && (
+                                <td className="py-3.5 text-slate-400 font-medium">
+                                  {item.year || "3rd Year"}
+                                </td>
+                              )}
+                              <td className="py-3.5 text-center">
+                                {leaderboardType === 'student' ? (
+                                  item.streak > 0 ? (
+                                    <div className="inline-flex items-center gap-0.5 text-orange-500 font-extrabold bg-orange-500/5 px-2 py-0.5 rounded border border-orange-500/10 text-[10px]">
+                                      <Flame size={10} className="fill-current" />
+                                      <span>{item.streak}d</span>
+                                    </div>
+                                  ) : (
+                                    <span className="text-slate-650">-</span>
+                                  )
+                                ) : (
+                                  <span className="text-indigo-400 font-bold bg-indigo-500/5 px-2 py-0.5 rounded-full border border-indigo-500/10 text-[10px]">
+                                    Active Tasking
+                                  </span>
+                                )}
+                              </td>
+                              <td className="py-3.5 text-right pr-4 font-black text-white">
+                                {item.xp?.toLocaleString()} XP
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )}
 
-        {/* Right column (1 col wide on desktop) for Badge Progress and XP Breakdown */}
-        <div className="space-y-8">
-          
-          {/* 5. BADGE PROGRESS SYSTEM (Next to Unlock) */}
-          <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 shadow-sm space-y-5">
-            <div>
-              <h3 className="font-extrabold text-slate-800 dark:text-white text-base">Next Badges to Unlock</h3>
-              <p className="text-xs text-slate-400">Locked achievements closest to completion</p>
-            </div>
-
-            <div className="space-y-4">
-              {nextBadgesToUnlock.map((badge) => {
-                const Icon = iconMap[badge.icon] || Trophy;
-                return (
-                  <div key={badge.id} className="p-3.5 border border-slate-100 dark:border-slate-850 bg-slate-50/30 dark:bg-slate-950/20 rounded-2xl flex flex-col gap-2">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2.5">
-                        <span className="p-2 rounded-xl bg-slate-100 dark:bg-slate-850 text-slate-500 dark:text-slate-400">
-                          <Icon size={16} />
-                        </span>
-                        <div>
-                          <h4 className="text-xs font-black text-slate-800 dark:text-white leading-none">
-                            {badge.name}
-                          </h4>
-                          <span className="text-[9px] text-slate-400 font-bold tracking-wider mt-0.5 block">
-                            {badge.category}
-                          </span>
-                        </div>
-                      </div>
-                      <span className="text-xs font-black text-indigo-600 dark:text-indigo-400">
-                        {badge.progressPercent}%
-                      </span>
-                    </div>
-
-                    <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-normal">
-                      Condition: {badge.unlockCondition}
-                    </p>
-
-                    {/* Progress slider bar */}
-                    <div>
-                      <div className="flex justify-between items-center text-[9px] font-bold text-slate-400 mb-1">
-                        <span>Current Progress</span>
-                        <span>{badge.progress.current} / {badge.progress.target}</span>
-                      </div>
-                      <div className="w-full h-1.5 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
-                        <div 
-                          className="h-full bg-indigo-600 rounded-full" 
-                          style={{ width: `${badge.progressPercent}%` }}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* 6. XP BREAKDOWN CARD */}
-          <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 shadow-sm space-y-6">
-            <div>
-              <h3 className="font-extrabold text-slate-800 dark:text-white text-base">XP Breakdown</h3>
-              <p className="text-xs text-slate-400">Analysis of weekly activity distributions</p>
-            </div>
-
-            <div className="space-y-4">
-              {XP_BREAKDOWN_TEMPLATE.map((item) => (
-                <div key={item.id} className="space-y-1.5">
-                  <div className="flex justify-between items-center text-xs font-bold text-slate-600 dark:text-slate-300">
-                    <span className="flex items-center gap-1.5">
-                      <span className={`w-2 h-2 rounded-full ${item.color}`} />
-                      {item.name}
-                    </span>
-                    <span>+{item.xp} XP ({item.percentage}%)</span>
-                  </div>
-                  <div className="w-full h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-                    <div 
-                      className={`h-full rounded-full ${item.color}`}
-                      style={{ width: `${item.percentage}%` }}
-                    />
-                  </div>
+                      {/* Sticky current user indicator if not visible */}
+                      {!isCurrentUserInSearchResults && currentUserRow && searchQuery === "" && (
+                        <>
+                          <tr className="bg-slate-900/60">
+                            <td colSpan={6} className="py-1 text-center text-[9px] uppercase font-bold text-slate-500">
+                              ... Out of view standings ...
+                            </td>
+                          </tr>
+                          <tr className="bg-indigo-500/15 font-bold border-l-4 border-l-indigo-600 shadow-md">
+                            <td className="py-3.5 pl-4 text-center font-extrabold text-indigo-400">
+                              {currentUserRow.rank}
+                            </td>
+                            <td className="py-3.5 pl-2">
+                              <div className="flex items-center gap-3">
+                                <span className="text-base w-7 h-7 rounded-full bg-slate-950 border border-slate-800 flex items-center justify-center">
+                                  {currentUserRow.avatar || "🚀"}
+                                </span>
+                                <span className="text-indigo-400">
+                                  {currentUserRow.name}
+                                </span>
+                              </div>
+                            </td>
+                            <td className="py-3.5 text-slate-400 font-medium">
+                              {leaderboardType === 'student' ? currentUserRow.branch : currentUserRow.designation}
+                            </td>
+                            {leaderboardType === 'student' && (
+                              <td className="py-3.5 text-slate-400 font-medium">
+                                {currentUserRow.year}
+                              </td>
+                            )}
+                            <td className="py-3.5 text-center">
+                              <div className="inline-flex items-center gap-0.5 text-orange-500 font-extrabold bg-orange-500/5 px-2 py-0.5 rounded border border-orange-500/10 text-[10px]">
+                                <Flame size={10} className="fill-current" />
+                                <span>{currentUserRow.streak}d</span>
+                              </div>
+                            </td>
+                            <td className="py-3.5 text-right pr-4 font-black text-white">
+                              {currentUserRow.xp?.toLocaleString()} XP
+                            </td>
+                          </tr>
+                        </>
+                      )}
+                    </tbody>
+                  </table>
                 </div>
-              ))}
-              
-              <div className="pt-4 border-t border-slate-100 dark:border-slate-850 flex justify-between items-center">
-                <span className="text-xs font-black text-slate-800 dark:text-white">This Week Total</span>
-                <span className="text-sm font-black text-indigo-600 dark:text-indigo-400">
-                  +{XP_BREAKDOWN_TEMPLATE.reduce((acc, curr) => acc + curr.xp, 0)} XP
-                </span>
               </div>
             </div>
-          </div>
+          </motion.div>
+        )}
 
-        </div>
-      </div>
-
-      {/* 7. BADGE CATEGORIES */}
-      <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 p-6 rounded-3xl shadow-sm space-y-8">
-        <div>
-          <h3 className="font-extrabold text-slate-800 dark:text-white text-base">Your Engineering Badges</h3>
-          <p className="text-xs text-slate-400">Complete curriculum and campus achievements to earn prestige badges</p>
-        </div>
-
-        {/* Categorized Badges Grid container */}
-        <div className="space-y-8">
-          {categorizedBadges.map((category) => {
-            return (
-              <div key={category.id} className="space-y-4">
-                <div className="pb-2 border-b border-slate-100 dark:border-slate-850">
-                  <h4 className="text-sm font-black text-slate-800 dark:text-white flex items-center gap-2">
-                    <span className={`w-2 h-2 rounded-full bg-gradient-to-r ${category.color}`} />
-                    {category.name}
-                  </h4>
-                  <p className="text-[10px] text-slate-400 mt-0.5">{category.desc}</p>
+        {activeTab === "badges" && (
+          <motion.div
+            key="badges-tab"
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -15 }}
+            className="space-y-8"
+          >
+            {badgesData.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-20">
+                <div className="w-10 h-10 border-4 border-slate-700 border-t-indigo-500 rounded-full animate-spin" />
+                <span className="text-slate-500 text-sm font-semibold animate-pulse mt-2">Loading prestige achievements...</span>
+              </div>
+            ) : (
+              <div className="bg-slate-900/40 border border-slate-800 p-6 rounded-3xl space-y-8">
+                <div>
+                  <h3 className="font-extrabold text-white text-md">Your Engineering Badge Vault</h3>
+                  <p className="text-xs text-slate-450">Complete syllabus tasks, attendances, and quiz clearance to unlock prestigious markers.</p>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4">
-                  {category.badges.map((badge) => {
-                    const Icon = iconMap[badge.icon] || Trophy;
-                    const isUnlocked = badge.unlocked;
-
+                <div className="space-y-8">
+                  {categorizedBadges.map((category) => {
+                    if (category.badges.length === 0) return null;
                     return (
-                      <div
-                        key={badge.id}
-                        className={`p-4 rounded-2xl border flex flex-col justify-between relative group transition-all duration-300 ${
-                          isUnlocked 
-                            ? 'border-indigo-500/25 bg-slate-50/30 dark:bg-slate-950/15' 
-                            : 'border-slate-200/40 dark:border-slate-800/60 opacity-60 hover:opacity-95'
-                        }`}
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          {/* Colored/greyscale icon bubble */}
-                          <div className={`p-3 rounded-2xl bg-gradient-to-br shadow-md ${
-                            isUnlocked 
-                              ? category.color + ' text-white' 
-                              : 'from-slate-200 to-slate-300 dark:from-slate-800 dark:to-slate-850 text-slate-400 dark:text-slate-500'
-                          }`}>
-                            <Icon size={18} />
-                          </div>
-
-                          {/* Unlock status mark */}
-                          {isUnlocked ? (
-                            <span className="p-0.5 bg-emerald-500/10 border border-emerald-500/30 text-emerald-500 rounded-md text-[8px] font-black uppercase tracking-wider">
-                              Unlocked
-                            </span>
-                          ) : (
-                            <span className="p-0.5 bg-slate-200/30 dark:bg-slate-800/30 border border-slate-300/20 text-slate-400 rounded-md text-[8px] font-black uppercase tracking-wider">
-                              Locked
-                            </span>
-                          )}
+                      <div key={category.id} className="space-y-4">
+                        <div className="pb-2 border-b border-slate-800">
+                          <h4 className="text-sm font-black text-white flex items-center gap-2">
+                            <span className={`w-2.5 h-2.5 rounded-full bg-gradient-to-r ${category.color}`} />
+                            {category.name}
+                          </h4>
+                          <p className="text-[10px] text-slate-500 mt-0.5">{category.desc}</p>
                         </div>
 
-                        <div className="mt-4">
-                          <h5 className="font-extrabold text-xs text-slate-800 dark:text-white truncate">
-                            {badge.name}
-                          </h5>
-                          <p className="text-[10px] text-slate-400 dark:text-slate-500 leading-normal line-clamp-2 mt-1">
-                            {badge.description}
-                          </p>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
+                          {category.badges.map((badge) => {
+                            const Icon = iconMap[badge.icon] || Trophy;
+                            const isUnlocked = badge.unlocked;
+
+                            return (
+                              <div
+                                key={badge.id}
+                                className={`p-4 rounded-2xl border flex flex-col justify-between relative transition-all duration-300 ${
+                                  isUnlocked 
+                                    ? 'border-indigo-500/25 bg-slate-955 shadow-inner' 
+                                    : 'border-slate-800/80 bg-slate-950/10 opacity-55 hover:opacity-90'
+                                }`}
+                              >
+                                <div className="flex items-start justify-between gap-3">
+                                  <div className={`p-2.5 rounded-2xl bg-gradient-to-br shadow-md ${
+                                    isUnlocked 
+                                      ? category.color + ' text-white' 
+                                      : 'from-slate-800 to-slate-900 text-slate-500'
+                                  }`}>
+                                    <Icon size={16} />
+                                  </div>
+
+                                  <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider ${
+                                    isUnlocked 
+                                      ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' 
+                                      : 'bg-slate-900 border border-slate-800 text-slate-550'
+                                  }`}>
+                                    {isUnlocked ? "Unlocked" : "Locked"}
+                                  </span>
+                                </div>
+
+                                <div className="mt-4 space-y-1">
+                                  <h5 className="font-extrabold text-xs text-white truncate">
+                                    {badge.name}
+                                  </h5>
+                                  <p className="text-[10px] text-slate-450 leading-normal line-clamp-2">
+                                    {badge.description}
+                                  </p>
+                                </div>
+
+                                {/* Progress slider (if locked) */}
+                                {!isUnlocked && badge.progress && (
+                                  <div className="mt-3 pt-2 border-t border-slate-850">
+                                    <div className="flex justify-between items-center text-[9px] font-bold text-slate-500">
+                                      <span>Progress</span>
+                                      <span>{badge.progress.current} / {badge.progress.target}</span>
+                                    </div>
+                                    <div className="w-full h-1 bg-slate-900 rounded-full mt-1 overflow-hidden">
+                                      <div 
+                                        className="h-full bg-indigo-650 rounded-full" 
+                                        style={{ width: `${Math.round((badge.progress.current / badge.progress.target) * 100)}%` }}
+                                      />
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
                         </div>
-
-                        {/* Progress display (if applicable) */}
-                        {!isUnlocked && badge.progress && (
-                          <div className="mt-3 pt-2 border-t border-slate-100 dark:border-slate-850/60">
-                            <div className="flex justify-between items-center text-[9px] font-bold text-slate-400">
-                              <span>Progress</span>
-                              <span>{badge.progress.current}/{badge.progress.target}</span>
-                            </div>
-                            <div className="w-full h-1 bg-slate-100 dark:bg-slate-800 rounded-full mt-1 overflow-hidden">
-                              <div 
-                                className="h-full bg-slate-400 dark:bg-slate-600 rounded-full"
-                                style={{ width: `${(badge.progress.current / badge.progress.target) * 100}%` }}
-                              />
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Hover Detail Tooltip */}
-                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block bg-slate-950 text-white text-[10px] p-2.5 rounded-xl border border-slate-800 shadow-xl w-48 z-40 text-center pointer-events-none">
-                          <p className="font-black text-indigo-400">{badge.name}</p>
-                          <p className="text-slate-300 mt-1 leading-normal font-semibold">{badge.description}</p>
-                          <p className="text-slate-500 mt-1.5 font-bold uppercase">Condition: {badge.unlockCondition}</p>
-                          <div className="mt-2 pt-1 border-t border-slate-800 flex justify-between items-center font-black">
-                            <span className="text-amber-500">+{badge.xpReward} XP</span>
-                            <span className={isUnlocked ? 'text-emerald-400' : 'text-rose-500'}>
-                              {isUnlocked ? 'UNLOCKED' : 'LOCKED'}
-                            </span>
-                          </div>
-                        </div>
-
                       </div>
                     );
                   })}
                 </div>
               </div>
-            );
-          })}
-        </div>
-      </div>
-    </motion.div>
+            )}
+          </motion.div>
+        )}
+
+        {activeTab === "analytics" && (
+          <motion.div
+            key="analytics-tab"
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -15 }}
+            className="space-y-8"
+          >
+            {!analyticsData ? (
+              <div className="flex flex-col items-center justify-center py-20">
+                <div className="w-10 h-10 border-4 border-slate-700 border-t-indigo-500 rounded-full animate-spin" />
+                <span className="text-slate-500 text-sm font-semibold animate-pulse mt-2">Aggregating quiz telemetry...</span>
+              </div>
+            ) : analyticsData.total_quizzes === 0 ? (
+              <div className="bg-slate-900/40 border border-slate-850 rounded-3xl p-12 text-center text-slate-500 max-w-lg mx-auto space-y-2">
+                <BarChart2 size={48} className="mx-auto text-slate-850" />
+                <h3 className="text-white font-extrabold text-md">No Quiz Data</h3>
+                <p className="text-xs text-slate-400">Complete curriculum quizzes on your roadmap paths to initialize performance analytics here.</p>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {/* Stats Summary Ring Widgets */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  {/* Passing Rate Circle */}
+                  <div className="bg-slate-900/40 border border-slate-800 p-6 rounded-3xl text-center space-y-4 flex flex-col items-center justify-center shadow-lg">
+                    <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">Quiz Passing Rate</span>
+                    <div className="relative w-24 h-24 flex items-center justify-center">
+                      <svg className="w-full h-full transform -rotate-90">
+                        <circle cx="48" cy="48" r="40" stroke="#1e293b" strokeWidth="8" fill="transparent" />
+                        <circle cx="48" cy="48" r="40" stroke="#6366f1" strokeWidth="8" fill="transparent"
+                                strokeDasharray={2 * Math.PI * 40}
+                                strokeDashoffset={2 * Math.PI * 40 * (1 - analyticsData.passing_rate / 100)} 
+                                strokeLinecap="round" />
+                      </svg>
+                      <span className="absolute text-lg font-black text-white">{analyticsData.passing_rate}%</span>
+                    </div>
+                    <span className="text-[11px] text-slate-500 font-semibold">{analyticsData.passed_quizzes} out of {analyticsData.total_quizzes} cleared</span>
+                  </div>
+
+                  {/* Avg Score Indicator */}
+                  <div className="bg-slate-900/40 border border-slate-800 p-6 rounded-3xl text-center space-y-4 flex flex-col items-center justify-center shadow-lg">
+                    <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">Average Accuracy</span>
+                    <div className="relative w-24 h-24 flex items-center justify-center">
+                      <svg className="w-full h-full transform -rotate-90">
+                        <circle cx="48" cy="48" r="40" stroke="#1e293b" strokeWidth="8" fill="transparent" />
+                        <circle cx="48" cy="48" r="40" stroke="#ec4899" strokeWidth="8" fill="transparent"
+                                strokeDasharray={2 * Math.PI * 40}
+                                strokeDashoffset={2 * Math.PI * 40 * (1 - analyticsData.avg_score / 100)} 
+                                strokeLinecap="round" />
+                      </svg>
+                      <span className="absolute text-lg font-black text-white">{analyticsData.avg_score}%</span>
+                    </div>
+                    <span className="text-[11px] text-slate-500 font-semibold">Weighted accuracy score</span>
+                  </div>
+
+                  {/* Quizzes Count Stats */}
+                  <div className="bg-slate-900/40 border border-slate-800 p-6 rounded-3xl text-center flex flex-col justify-between shadow-lg">
+                    <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-4">Quiz Attempts Summary</span>
+                    <div className="space-y-4">
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="text-slate-450">Total Attempted</span>
+                        <strong className="text-white text-lg">{analyticsData.total_quizzes}</strong>
+                      </div>
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="text-slate-450">Quizzes Passed</span>
+                        <strong className="text-emerald-400 text-lg">{analyticsData.passed_quizzes}</strong>
+                      </div>
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="text-slate-450">Attempts Failed</span>
+                        <strong className="text-rose-400 text-lg">{analyticsData.total_quizzes - analyticsData.passed_quizzes}</strong>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Attempt History List */}
+                <div className="bg-slate-900/40 border border-slate-800 rounded-3xl p-6 space-y-4">
+                  <h3 className="font-extrabold text-white text-md flex items-center gap-2">
+                    <Activity className="text-indigo-400" size={16} /> Quiz Performance Log History
+                  </h3>
+                  
+                  <div className="overflow-hidden border border-slate-805 rounded-2xl">
+                    <table className="w-full text-left border-collapse text-xs">
+                      <thead>
+                        <tr className="border-b border-slate-800 text-slate-500 font-bold uppercase text-[9px] tracking-wider bg-slate-950/40">
+                          <th className="py-3 pl-4">Attempt Index</th>
+                          <th className="py-3">Date Completed</th>
+                          <th className="py-3 text-center">Questions Scored</th>
+                          <th className="py-3 text-center">Score Accuracy</th>
+                          <th className="py-3 text-right pr-4">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-850">
+                        {analyticsData.history.map((h, idx) => (
+                          <tr key={idx} className="hover:bg-slate-900/40 text-slate-350">
+                            <td className="py-3.5 pl-4 font-bold">Attempt #{idx + 1}</td>
+                            <td className="py-3.5">{h.date}</td>
+                            <td className="py-3.5 text-center font-semibold">{h.score} / {h.total_questions}</td>
+                            <td className="py-3.5 text-center font-bold">{Math.round((h.score / h.total_questions) * 100)}%</td>
+                            <td className="py-3.5 text-right pr-4 font-bold">
+                              {h.passed ? (
+                                <span className="inline-flex items-center gap-1 text-emerald-400 bg-emerald-500/5 px-2 py-0.5 rounded border border-emerald-500/10 text-[10px]">
+                                  <CheckCircle size={10} /> Passed
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 text-rose-400 bg-rose-500/5 px-2 py-0.5 rounded border border-rose-500/10 text-[10px]">
+                                  <XCircle size={10} /> Failed
+                                </span>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
   );
 };
 

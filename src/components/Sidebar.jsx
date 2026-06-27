@@ -4,18 +4,17 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   LayoutDashboard,
   Library,
+  BookOpen,
   Map,
   GraduationCap,
   TrendingUp,
   Compass,
   Trophy,
-  BookOpen,
+  MessageSquareCode,
+  Smile,
   ChevronLeft,
   ChevronRight,
   Sparkles,
-  MessageSquareCode,
-  Brain,
-  Smile,
   LogOut
 } from 'lucide-react';
 import { useStudent } from '../context/StudentContext';
@@ -23,10 +22,30 @@ import { useAuth } from '../context/AuthContext';
 import image from "../assets/image.png";
 
 const THEME_ACCENT_MAP = {
-  violet: { accent: 'bg-violet-600 hover:bg-violet-500', hoverText: 'group-hover:text-violet-400', activeTab: 'bg-violet-600 text-white font-semibold shadow-lg shadow-violet-600/30', glow: 'from-violet-400 to-fuchsia-400' },
-  rose: { accent: 'bg-rose-600 hover:bg-rose-500', hoverText: 'group-hover:text-rose-400', activeTab: 'bg-rose-600 text-white font-semibold shadow-lg shadow-rose-600/30', glow: 'from-rose-400 to-pink-400' },
-  amber: { accent: 'bg-amber-600 hover:bg-amber-500', hoverText: 'group-hover:text-amber-400', activeTab: 'bg-amber-600 text-white font-semibold shadow-lg shadow-amber-600/30', glow: 'from-amber-400 to-yellow-400' },
-  indigo: { accent: 'bg-indigo-600 hover:bg-indigo-500', hoverText: 'group-hover:text-indigo-400', activeTab: 'bg-indigo-600 text-white font-semibold shadow-lg shadow-indigo-600/30', glow: 'from-indigo-400 to-cyan-400' }
+  violet: { 
+    accent: 'bg-indigo-700 hover:bg-indigo-600', 
+    hoverText: 'group-hover:text-indigo-500 dark:group-hover:text-indigo-400', 
+    activeTab: 'bg-gradient-to-r from-indigo-500/10 to-violet-500/5 dark:from-indigo-500/15 dark:to-violet-500/5 text-indigo-700 dark:text-indigo-300 font-semibold border-l-4 border-indigo-600 dark:border-indigo-400 shadow-sm', 
+    glow: 'from-indigo-400 to-violet-400' 
+  },
+  rose: { 
+    accent: 'bg-brand-danger hover:bg-rose-500', 
+    hoverText: 'group-hover:text-brand-danger dark:group-hover:text-brand-danger/90', 
+    activeTab: 'bg-gradient-to-r from-red-500/10 to-rose-500/5 dark:from-red-500/15 dark:to-rose-500/5 text-brand-danger dark:text-brand-danger font-semibold border-l-4 border-brand-danger shadow-sm', 
+    glow: 'from-brand-danger to-pink-400' 
+  },
+  amber: { 
+    accent: 'bg-brand-accent hover:bg-amber-500', 
+    hoverText: 'group-hover:text-brand-accent dark:group-hover:text-brand-accent/90', 
+    activeTab: 'bg-gradient-to-r from-amber-500/10 to-yellow-500/5 dark:from-amber-500/15 dark:to-yellow-500/5 text-brand-accent dark:text-brand-accent font-semibold border-l-4 border-brand-accent shadow-sm', 
+    glow: 'from-brand-accent to-yellow-400' 
+  },
+  indigo: { 
+    accent: 'bg-brand-primary hover:bg-indigo-500', 
+    hoverText: 'group-hover:text-brand-primary dark:group-hover:text-brand-primary/90', 
+    activeTab: 'bg-gradient-to-r from-brand-primary/10 to-brand-secondary/5 dark:from-brand-primary/15 dark:to-brand-secondary/5 text-brand-primary dark:text-violet-400 font-semibold border-l-4 border-brand-primary dark:border-brand-primary shadow-sm', 
+    glow: 'from-brand-primary to-brand-secondary' 
+  }
 };
 
 const Sidebar = () => {
@@ -45,7 +64,6 @@ const Sidebar = () => {
     { name: 'Career Guidance', path: '/career', icon: Compass },
     { name: 'Leaderboard & Badges', path: '/leaderboard', icon: Trophy },
     { name: 'AI Mentor Chat', path: '/ai/chat', icon: MessageSquareCode },
-    { name: 'Academic Predictions', path: '/ai/predictions', icon: Brain },
     { name: 'Learning Wellness', path: '/ai/emotions', icon: Smile }
   ];
 
@@ -54,12 +72,12 @@ const Sidebar = () => {
 
   return (
     <motion.aside
-      className="hidden md:flex flex-col bg-slate-900 border-r border-slate-800 text-slate-300 relative h-screen sticky top-0"
-      animate={{ width: isCollapsed ? '70px' : '260px' }}
-      transition={{ duration: 0.3, ease: 'easeInOut' }}
+      className="hidden md:flex flex-col bg-white dark:bg-brand-card border-r border-slate-200 dark:border-brand-border text-slate-600 dark:text-brand-muted relative h-screen sticky top-0"
+      animate={{ width: isCollapsed ? '72px' : '250px' }}
+      transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
     >
       {/* Sidebar Header/Logo */}
-      <div className="flex items-center justify-between p-4 h-16 border-b border-slate-800 bg-slate-950">
+      <div className="flex items-center justify-between p-4 h-16 border-b border-slate-200 dark:border-brand-border bg-slate-50 dark:bg-brand-dark/40">
         <AnimatePresence>
           {!isCollapsed && (
             <motion.div
@@ -69,14 +87,14 @@ const Sidebar = () => {
               className="flex items-center gap-2"
             >
               {profile.logo_url ? (
-                <img src={image} alt="Logo" className="w-8 h-8 object-contain rounded-lg bg-slate-950 p-0.5 shrink-0" />
+                <img src={image} alt="Logo" className="w-7 h-7 object-contain rounded-lg bg-slate-100 dark:bg-brand-dark p-0.5 shrink-0" />
               ) : (
                 <div className={`${theme.accent} p-1.5 rounded-lg text-white shrink-0`}>
-                  <Sparkles size={20} className="animate-pulse" />
+                  <Sparkles size={16} />
                 </div>
               )}
-              <span className={`font-extrabold text-lg bg-gradient-to-r ${theme.glow} bg-clip-text text-transparent`}>
-                {logoText} AI
+              <span className="font-extrabold text-sm tracking-tight text-slate-800 dark:text-white">
+                {logoText} <span className="text-slate-400 font-medium">AI</span>
               </span>
             </motion.div>
           )}
@@ -84,17 +102,17 @@ const Sidebar = () => {
 
         {isCollapsed && (
           profile.logo_url ? (
-            <img src={image} alt="Logo" className="w-8 h-8 object-contain rounded-lg mx-auto bg-slate-950 p-0.5" />
+            <img src={image} alt="Logo" className="w-7 h-7 object-contain rounded-lg mx-auto bg-slate-100 dark:bg-brand-dark p-0.5" />
           ) : (
             <div className={`${theme.accent} p-1.5 rounded-lg text-white mx-auto`}>
-              <Sparkles size={20} />
+              <Sparkles size={16} />
             </div>
           )
         )}
       </div>
 
       {/* Nav Menu */}
-      <nav className="flex-1 px-3 py-4 space-y-1.5 overflow-y-auto">
+      <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
         {menuItems.map((item) => {
           const IconComponent = item.icon;
           return (
@@ -102,25 +120,25 @@ const Sidebar = () => {
               key={item.path}
               to={item.path}
               className={({ isActive }) =>
-                `flex items-center gap-4 px-3 py-3 rounded-xl transition-all duration-200 group relative ${isActive
+                `flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200 group relative text-xs ${isActive
                   ? theme.activeTab
-                  : 'hover:bg-slate-800 hover:text-white'
+                  : 'text-slate-500 hover:text-slate-900 dark:text-brand-muted dark:hover:text-white hover:bg-slate-100 dark:hover:bg-brand-cardlight/50'
                 }`
               }
             >
-              <IconComponent size={20} className="shrink-0" />
+              <IconComponent size={16} className="shrink-0 transition-transform group-hover:scale-105" />
               {!isCollapsed && (
                 <motion.span
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
-                  className="text-sm tracking-wide"
+                  className="tracking-normal font-medium"
                 >
                   {item.name}
                 </motion.span>
               )}
               {isCollapsed && (
-                <div className="absolute left-16 bg-slate-950 text-white text-xs px-2 py-1.5 rounded-md opacity-0 group-hover:opacity-100 transition-opacity duration-150 pointer-events-none z-50 whitespace-nowrap shadow-md border border-slate-800">
+                <div className="absolute left-16 bg-slate-950 text-white text-[10px] px-2 py-1 rounded-md opacity-0 group-hover:opacity-100 transition-opacity duration-150 pointer-events-none z-50 whitespace-nowrap shadow-md border border-brand-border">
                   {item.name}
                 </div>
               )}
@@ -132,24 +150,24 @@ const Sidebar = () => {
       {/* Collapse Toggle Button */}
       <button
         onClick={() => setIsCollapsed(!isCollapsed)}
-        className={`absolute bottom-20 -right-3 ${theme.accent} text-white p-1 rounded-full border border-slate-900 shadow-md cursor-pointer z-50`}
+        className="absolute bottom-20 -right-3 w-6 h-6 flex items-center justify-center bg-white dark:bg-brand-card text-slate-400 dark:text-brand-muted border border-slate-200 dark:border-brand-border hover:text-slate-800 dark:hover:text-white rounded-full shadow-sm hover:shadow cursor-pointer z-50 transition-all"
       >
-        {isCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
+        {isCollapsed ? <ChevronRight size={12} /> : <ChevronLeft size={12} />}
       </button>
 
       {/* User Footer Profile & Change Role Trigger */}
       <div
-        onClick={() => navigate('/faculty/profile')}
-        className="p-4 border-t border-slate-800 bg-slate-950/40 flex items-center gap-3 cursor-pointer hover:bg-slate-850 transition-colors group"
+        onClick={() => navigate('/profile')}
+        className="p-4 border-t border-slate-200 dark:border-brand-border bg-slate-50 dark:bg-brand-dark/20 flex items-center gap-3 cursor-pointer hover:bg-slate-100 dark:hover:bg-brand-cardlight/30 transition-colors group"
       >
-        <div className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center text-lg shrink-0 border border-slate-700 relative">
+        <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-brand-cardlight flex items-center justify-center text-sm shrink-0 border border-slate-200 dark:border-brand-border relative">
           {profile.avatar}
           <button
             onClick={(e) => {
               e.stopPropagation();
               logout();
             }}
-            className="absolute -bottom-1 -right-1 bg-red-500 hover:bg-red-650 rounded-full p-1 text-white opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer border border-slate-900"
+            className="absolute -bottom-1 -right-1 bg-brand-danger hover:bg-red-650 rounded-full p-0.5 text-white opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer border border-white dark:border-brand-card"
             title="Log Out"
           >
             <LogOut size={8} />
@@ -161,8 +179,8 @@ const Sidebar = () => {
             animate={{ opacity: 1 }}
             className="flex-1 min-w-0"
           >
-            <p className={`text-sm font-semibold text-white truncate ${theme.hoverText} transition-colors`}>{profile.name}</p>
-            <p className="text-xs text-slate-400 truncate group-hover:text-slate-200 transition-colors">View Profile & Settings</p>
+            <p className="text-xs font-semibold text-slate-800 dark:text-white truncate transition-colors">{profile.name}</p>
+            <p className="text-[10px] text-slate-400 dark:text-brand-muted truncate transition-colors">Profile & Settings</p>
           </motion.div>
         )}
       </div>
@@ -171,3 +189,4 @@ const Sidebar = () => {
 };
 
 export default Sidebar;
+

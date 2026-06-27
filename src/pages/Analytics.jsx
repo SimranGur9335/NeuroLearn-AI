@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { 
   ResponsiveContainer, 
@@ -16,7 +16,9 @@ import {
   PolarRadiusAxis, 
   BarChart, 
   Bar,
-  Cell
+  Cell,
+  AreaChart,
+  Area
 } from 'recharts';
 import { 
   TrendingUp, 
@@ -28,37 +30,146 @@ import {
   Brain,
   Zap,
   Target,
-  Loader2
+  Loader2,
+  Calendar,
+  Percent,
+  Flame,
+  FileText
 } from 'lucide-react';
 import { useStudent } from '../context/StudentContext';
 import { apiFetch } from '../services/api';
+import ContributionGrid from '../components/ContributionGrid';
 
 const Analytics = () => {
-  const { xp } = useStudent();
+  const { xp, streak } = useStudent();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [attendance, setAttendance] = useState(null);
   const [grades, setGrades] = useState(null);
+  const [quizAnalytics, setQuizAnalytics] = useState(null);
 
   useEffect(() => {
     const fetchAnalyticsData = async () => {
       try {
         setLoading(true);
-        const [attendanceRes, gradesRes] = await Promise.all([
+        const [attendanceRes, gradesRes, quizRes] = await Promise.all([
           apiFetch('/student-hub/attendance'),
-          apiFetch('/student-hub/grades')
+          apiFetch('/student-hub/grades'),
+          apiFetch('/gamification/analytics')
         ]);
-        setAttendance(attendanceRes);
-        setGrades(gradesRes);
+        
+        if (attendanceRes.ok) {
+          const att = await attendanceRes.json();
+          setAttendance(att);
+        }
+        if (gradesRes.ok) {
+          const grd = await gradesRes.json();
+          setGrades(grd);
+        }
+        if (quizRes.ok) {
+          const qz = await quizRes.json();
+          setQuizAnalytics(qz);
+        }
         setLoading(false);
       } catch (err) {
-        console.error("Error fetching analytics data:", err);
-        setError("Failed to load analytics records. Please try again later.");
+        console.error("Error fetching student analytics data:", err);
+        setError("Failed to load database telemetry analytics. Please try again later.");
         setLoading(false);
       }
     };
     fetchAnalyticsData();
   }, []);
+
+  const subjectGrades = useMemo(() => grades?.subject_grades || [], [grades]);
+  const subjectBreakdown = useMemo(() => attendance?.subject_breakdown || [], [attendance]);
+  const historyLog = useMemo(() => quizAnalytics?.history || [], [quizAnalytics]);
+
+  // 1. Skill Data for Radar Chart (mapped from actual course total marks)
+  const skillData = useMemo(() => {
+    const data = subjectGrades.map(item => ({
+      subject: item.subject_code || item.subject_name.substring(0, 8),
+      value: item.total_marks || 0,
+      fullMark: 100
+    }));
+    return data.length > 0 ? data : [
+      { subject: 'AI/ML', value: 80, fullMark: 100 },
+      { subject: 'DevOps', value: 70, fullMark: 100 },
+      { subject: 'Full Stack', value: 90, fullMark: 100 },
+      { subject: 'Security', value: 75, fullMark: 100 }
+    ];
+  }, [subjectGrades]);
+
+  // 2. Attendance breakdown data
+  const attendanceChartData = useMemo(() => {
+    const data = subjectBreakdown.map(item => ({
+      subject: item.subject_code || item.subject_name.substring(0, 8),
+      percentage: item.percentage || 0,
+    }));
+    return data.length > 0 ? data : [
+      { subject: 'AI/ML', percentage: 92 },
+      { subject: 'DevOps', percentage: 88 },
+      { subject: 'Full Stack', percentage: 95 },
+      { subject: 'Security', percentage: 84 }
+    ];
+  }, [subjectBreakdown]);
+
+  // 3. Quiz Score performance trends over time
+  const performanceTrendData = useMemo(() => {
+    const data = historyLog.map((item, index) => ({
+      attempt: `Quiz #${index + 1}`,
+      score: Math.round((item.score / item.total_questions) * 100),
+      date: item.date
+    }));
+    return data.length > 0 ? data : [
+      { attempt: 'Quiz #1', score: 60 },
+      { attempt: 'Quiz #2', score: 75 },
+      { attempt: 'Quiz #3', score: 70 },
+      { attempt: 'Quiz #4', score: 90 },
+      { attempt: 'Quiz #5', score: 85 }
+    ];
+  }, [historyLog]);
+
+  // 4. Accuracy Data for Bar Chart (mapped from actual quiz marks normalized to %)
+  const accuracyData = useMemo(() => {
+    const data = subjectGrades.map(item => {
+      const rawQuiz = item.quiz_marks || 0;
+      const accuracy = rawQuiz <= 20 ? Math.round(rawQuiz * 5) : Math.round(rawQuiz);
+      return {
+        domain: item.subject_code || item.subject_name.substring(0, 8),
+        accuracy: Math.min(100, accuracy)
+      };
+    });
+    return data.length > 0 ? data : [
+      { domain: 'AI/ML', accuracy: 80 },
+      { domain: 'DevOps', accuracy: 70 },
+      { domain: 'Full Stack', accuracy: 90 },
+      { domain: 'Security', accuracy: 78 }
+    ];
+  }, [subjectGrades]);
+
+  const cgpaVal = grades?.cgpa || 7.5;
+  const overallAttendanceVal = attendance?.overall_percentage || 0.0;
+  const passingRateVal = quizAnalytics?.passing_rate || 0.0;
+  const totalQuizzesVal = quizAnalytics?.total_quizzes || 0;
+
+  // 5. Dynamic AI Diagnostics
+  const strengthSubject = useMemo(() => {
+    if (subjectGrades.length === 0) return null;
+    return [...subjectGrades].sort((a, b) => (b.total_marks || 0) - (a.total_marks || 0))[0];
+  }, [subjectGrades]);
+
+  const weaknessSubject = useMemo(() => {
+    if (subjectGrades.length === 0) return null;
+    const sorted = [...subjectGrades].sort((a, b) => (a.total_marks || 0) - (b.total_marks || 0));
+    const lowest = sorted[0];
+    const highest = sorted[sorted.length - 1];
+    return lowest === highest && sorted.length > 1 ? sorted[1] : lowest;
+  }, [subjectGrades]);
+
+  const strengthName = strengthSubject ? strengthSubject.subject_name : "Core Foundations";
+  const strengthScore = strengthSubject ? strengthSubject.total_marks : 85;
+  const weaknessName = weaknessSubject ? weaknessSubject.subject_name : "Cloud Systems";
+  const weaknessScore = weaknessSubject ? weaknessSubject.total_marks : 55;
 
   if (loading) {
     return (
@@ -79,147 +190,113 @@ const Analytics = () => {
     );
   }
 
-  // Derive datasets from real backend data
-  const subjectGrades = grades?.subject_grades || [];
-  const subjectBreakdown = attendance?.subject_breakdown || [];
-
-  // 1. Skill Data for Radar Chart (mapped from actual course total marks or grades)
-  const skillData = subjectGrades.map(item => ({
-    subject: item.subject_code || item.subject_name.substring(0, 8),
-    value: item.total_marks || 0,
-    fullMark: 100
-  }));
-
-  // Fallback if no courses enrolled
-  if (skillData.length === 0) {
-    skillData.push(
-      { subject: 'AI/ML', value: 80, fullMark: 100 },
-      { subject: 'DevOps', value: 70, fullMark: 100 },
-      { subject: 'Full Stack', value: 90, fullMark: 100 }
-    );
-  }
-
-  // 2. Accuracy Data for Bar Chart (mapped from actual quiz marks normalized to %)
-  const accuracyData = subjectGrades.map(item => {
-    // Assuming quiz marks are typically out of 20, map to percentage. If already > 20, keep as is.
-    const rawQuiz = item.quiz_marks || 0;
-    const accuracy = rawQuiz <= 20 ? Math.round(rawQuiz * 5) : Math.round(rawQuiz);
-    return {
-      domain: item.subject_code || item.subject_name.substring(0, 8),
-      accuracy: Math.min(100, accuracy)
-    };
-  });
-
-  if (accuracyData.length === 0) {
-    accuracyData.push(
-      { domain: 'AI/ML', accuracy: 80 },
-      { domain: 'DevOps', accuracy: 70 },
-      { domain: 'Full Stack', accuracy: 90 }
-    );
-  }
-
-  // 3. Weekly study data (simulated based on actual performance coefficients to look realistic & persistent)
-  const baseFactor = (grades?.cgpa || 7.5) / 10;
-  const studyData = [
-    { day: 'Mon', hours: parseFloat((1.2 * baseFactor + 0.5).toFixed(1)), xp: Math.round(70 * baseFactor) },
-    { day: 'Tue', hours: parseFloat((2.0 * baseFactor + 0.4).toFixed(1)), xp: Math.round(110 * baseFactor) },
-    { day: 'Wed', hours: parseFloat((0.8 * baseFactor + 0.3).toFixed(1)), xp: Math.round(50 * baseFactor) },
-    { day: 'Thu', hours: parseFloat((3.0 * baseFactor + 0.6).toFixed(1)), xp: Math.round(200 * baseFactor) },
-    { day: 'Fri', hours: parseFloat((1.8 * baseFactor + 0.2).toFixed(1)), xp: Math.round(100 * baseFactor) },
-    { day: 'Sat', hours: parseFloat((1.5 * baseFactor + 0.5).toFixed(1)), xp: Math.round(90 * baseFactor) },
-    { day: 'Sun', hours: parseFloat((2.5 * baseFactor + 0.7).toFixed(1)), xp: Math.round(150 * baseFactor) }
-  ];
-
-  const totalStudyHours = studyData.reduce((acc, curr) => acc + curr.hours, 0).toFixed(1);
-  const avgAccuracy = Math.round(accuracyData.reduce((acc, curr) => acc + curr.accuracy, 0) / accuracyData.length);
-
-  // 4. Dynamic AI Diagnostics
-  let strengthSubject = null;
-  let weaknessSubject = null;
-
-  if (subjectGrades.length > 0) {
-    // Sort to find highest and lowest total marks
-    const sortedByGrade = [...subjectGrades].sort((a, b) => (b.total_marks || 0) - (a.total_marks || 0));
-    strengthSubject = sortedByGrade[0];
-    weaknessSubject = sortedByGrade[sortedByGrade.length - 1];
-    // Avoid having the same subject for both if multiple exist
-    if (strengthSubject === weaknessSubject && sortedByGrade.length > 1) {
-      weaknessSubject = sortedByGrade[sortedByGrade.length - 1];
-    }
-  }
-
-  const strengthName = strengthSubject ? strengthSubject.subject_name : "Core Foundations";
-  const strengthScore = strengthSubject ? strengthSubject.total_marks : 85;
-  const weaknessName = weaknessSubject ? weaknessSubject.subject_name : "Cloud Systems";
-  const weaknessScore = weaknessSubject ? weaknessSubject.total_marks : 55;
-
   return (
     <motion.div
       initial={{ opacity: 0, y: 15 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4 }}
-      className="space-y-6"
+      className="space-y-8 pb-12 text-slate-800 dark:text-slate-100"
     >
       {/* Intro Header */}
       <div>
         <p className="text-xs text-indigo-500 font-bold uppercase tracking-wider">Metrics & Stats</p>
-        <h2 className="text-2xl font-black text-slate-800 dark:text-white">Performance Analytics Suite</h2>
-        <p className="text-slate-500 text-xs mt-1">
-          Review dynamic, visual evidence of your skills, study hours, and domains. Use this to prepare for college placement presentations.
+        <h2 className="text-2xl font-black text-slate-800 dark:text-white">Performance Analytics Command Center</h2>
+        <p className="text-slate-550 dark:text-slate-400 text-xs mt-1">
+          Review dynamic, visual evidence of your attendance records, quiz accuracy scores, curriculum milestones, and predictions.
         </p>
       </div>
 
       {/* Grid Stats Header Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 rounded-2xl shadow-sm flex items-center gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Attendance KPI */}
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 rounded-2xl shadow-sm flex items-center gap-4 hover:shadow-md transition-shadow">
           <div className="p-3 bg-indigo-500/10 text-indigo-500 rounded-xl">
-            <Clock size={22} />
+            <Percent size={20} />
           </div>
           <div>
-            <span className="text-[10px] text-slate-400 uppercase block font-bold">Total Weekly Effort</span>
-            <span className="text-xl font-extrabold text-slate-800 dark:text-white">{totalStudyHours} Hours</span>
+            <span className="text-[9px] text-slate-400 uppercase block font-bold tracking-wider">Overall Attendance</span>
+            <span className="text-lg font-extrabold text-slate-800 dark:text-white">{overallAttendanceVal.toFixed(1)}%</span>
           </div>
         </div>
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 rounded-2xl shadow-sm flex items-center gap-4">
-          <div className="p-3 bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 rounded-xl">
-            <Trophy size={22} />
-          </div>
-          <div>
-            <span className="text-[10px] text-slate-400 uppercase block font-bold">Total Study Capital</span>
-            <span className="text-xl font-extrabold text-slate-800 dark:text-white">{xp} XP</span>
-          </div>
-        </div>
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 rounded-2xl shadow-sm flex items-center gap-4">
+
+        {/* GPA / CGPA KPI */}
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 rounded-2xl shadow-sm flex items-center gap-4 hover:shadow-md transition-shadow">
           <div className="p-3 bg-emerald-500/10 text-emerald-500 rounded-xl">
-            <Target size={22} />
+            <Award size={20} />
           </div>
           <div>
-            <span className="text-[10px] text-slate-400 uppercase block font-bold">Average Quiz Accuracy</span>
-            <span className="text-xl font-extrabold text-slate-800 dark:text-white">{avgAccuracy}%</span>
+            <span className="text-[9px] text-slate-400 uppercase block font-bold tracking-wider">Predicted CGPA</span>
+            <span className="text-lg font-extrabold text-slate-800 dark:text-white">{cgpaVal.toFixed(2)} CGPA</span>
+          </div>
+        </div>
+
+        {/* Quiz Success Rate KPI */}
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 rounded-2xl shadow-sm flex items-center gap-4 hover:shadow-md transition-shadow">
+          <div className="p-3 bg-purple-500/10 text-purple-500 rounded-xl">
+            <Zap size={20} />
+          </div>
+          <div>
+            <span className="text-[9px] text-slate-400 uppercase block font-bold tracking-wider">Quiz Success Rate</span>
+            <span className="text-lg font-extrabold text-slate-800 dark:text-white">{passingRateVal.toFixed(1)}%</span>
+          </div>
+        </div>
+
+        {/* Daily Streak KPI */}
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 rounded-2xl shadow-sm flex items-center gap-4 hover:shadow-md transition-shadow">
+          <div className="p-3 bg-orange-500/10 text-orange-500 rounded-xl">
+            <Flame size={20} />
+          </div>
+          <div>
+            <span className="text-[9px] text-slate-400 uppercase block font-bold tracking-wider">Daily Streak</span>
+            <span className="text-lg font-extrabold text-slate-800 dark:text-white">{streak} Days</span>
           </div>
         </div>
       </div>
 
-      {/* Recharts Grid */}
+      {/* Charts Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Weekly Study Hours & XP Gain */}
+        
+        {/* Quiz Performance Timeline (Performance Trends) */}
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-3xl shadow-sm">
           <h3 className="font-extrabold text-slate-800 dark:text-white text-sm md:text-base mb-4 flex items-center gap-2">
             <TrendingUp size={18} className="text-indigo-500" />
-            Weekly Habit & XP Logs
+            Quiz Accuracy Score Performance Trend
           </h3>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={studyData}>
+              <LineChart data={performanceTrendData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.15} />
-                <XAxis dataKey="day" stroke="#64748b" fontSize={11} />
-                <YAxis yAxisId="left" stroke="#4f46e5" fontSize={11} />
-                <YAxis yAxisId="right" orientation="right" stroke="#06b6d4" fontSize={11} />
-                <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', borderRadius: '12px' }} labelStyle={{ color: '#94a3b8', fontSize: '11px' }} itemStyle={{ color: '#fff', fontSize: '12px' }} />
+                <XAxis dataKey="attempt" stroke="#64748b" fontSize={10} />
+                <YAxis stroke="#64748b" fontSize={11} domain={[0, 100]} />
+                <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', borderRadius: '12px' }} itemStyle={{ color: '#fff', fontSize: '12px' }} />
                 <Legend verticalAlign="top" height={36} iconType="circle" />
-                <Line yAxisId="left" type="monotone" dataKey="hours" stroke="#4f46e5" name="Study Hours" strokeWidth={3} activeDot={{ r: 6 }} />
-                <Line yAxisId="right" type="monotone" dataKey="xp" stroke="#06b6d4" name="XP Gained" strokeWidth={3} />
+                <Line type="monotone" dataKey="score" stroke="#6366f1" name="Score Accuracy (%)" strokeWidth={3} activeDot={{ r: 6 }} />
               </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* Subject wise Attendance breakdown (Attendance Trends) */}
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-3xl shadow-sm">
+          <h3 className="font-extrabold text-slate-800 dark:text-white text-sm md:text-base mb-4 flex items-center gap-2">
+            <Calendar size={18} className="text-indigo-500" />
+            Subject-wise Attendance Distribution
+          </h3>
+          <div className="h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={attendanceChartData}>
+                <defs>
+                  <linearGradient id="colorAttStudent" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#4f46e5" stopOpacity={0.25}/>
+                    <stop offset="95%" stopColor="#4f46e5" stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.15} />
+                <XAxis dataKey="subject" stroke="#64748b" fontSize={10} />
+                <YAxis stroke="#64748b" fontSize={11} domain={[0, 100]} />
+                <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', borderRadius: '12px' }} itemStyle={{ color: '#fff', fontSize: '12px' }} />
+                <Area type="monotone" dataKey="percentage" stroke="#4f46e5" fillOpacity={1} fill="url(#colorAttStudent)" strokeWidth={3} name="Attendance Rate (%)" />
+              </AreaChart>
             </ResponsiveContainer>
           </div>
         </div>
@@ -228,7 +305,7 @@ const Analytics = () => {
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-3xl shadow-sm">
           <h3 className="font-extrabold text-slate-800 dark:text-white text-sm md:text-base mb-4 flex items-center gap-2">
             <Brain size={18} className="text-indigo-500" />
-            Domain Skill Proficiency (%)
+            Syllabus Subject Proficiency Radar Index
           </h3>
           <div className="h-64 flex items-center justify-center">
             <ResponsiveContainer width="100%" height="100%">
@@ -236,41 +313,18 @@ const Analytics = () => {
                 <PolarGrid stroke="#475569" opacity={0.2} />
                 <PolarAngleAxis dataKey="subject" stroke="#64748b" fontSize={10} />
                 <PolarRadiusAxis stroke="#64748b" fontSize={9} />
-                <Radar name="Proficiency" dataKey="value" stroke="#4f46e5" fill="#4f46e5" fillOpacity={0.2} />
+                <Radar name="Proficiency Rate (%)" dataKey="value" stroke="#818cf8" fill="#818cf8" fillOpacity={0.25} />
                 <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', borderRadius: '12px' }} itemStyle={{ color: '#fff', fontSize: '12px' }} />
               </RadarChart>
             </ResponsiveContainer>
           </div>
         </div>
 
-        {/* Quiz Accuracy Bar Chart */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-3xl shadow-sm">
-          <h3 className="font-extrabold text-slate-800 dark:text-white text-sm md:text-base mb-4 flex items-center gap-2">
-            <Zap size={18} className="text-indigo-500" />
-            Domain Quiz Accuracy Rate
-          </h3>
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={accuracyData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.15} />
-                <XAxis dataKey="domain" stroke="#64748b" fontSize={10} />
-                <YAxis stroke="#64748b" fontSize={11} />
-                <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', borderRadius: '12px' }} itemStyle={{ color: '#fff', fontSize: '12px' }} />
-                <Bar dataKey="accuracy" fill="#6366f1" radius={[8, 8, 0, 0]} name="Accuracy (%)">
-                  {accuracyData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.accuracy >= 80 ? '#10b981' : entry.accuracy >= 60 ? '#6366f1' : '#f59e0b'} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        {/* Diagnostics Suite (Strength / Weakness analysis) */}
+        {/* Diagnostics & AI Career Recommendations */}
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-3xl shadow-sm flex flex-col justify-between">
           <div>
-            <h3 className="font-extrabold text-slate-800 dark:text-white text-sm md:text-base mb-1">AI Diagnostics</h3>
-            <p className="text-xs text-slate-400">Feedback mapped to quiz logs & study consistency</p>
+            <h3 className="font-extrabold text-slate-800 dark:text-white text-sm md:text-base mb-1">AI Diagnostics Command Center</h3>
+            <p className="text-xs text-slate-400">Personalized feedback synced with your database scores</p>
           </div>
 
           <div className="space-y-4 my-6">
@@ -299,11 +353,14 @@ const Analytics = () => {
             </div>
           </div>
 
-          <div className="bg-slate-50 dark:bg-slate-950 p-3.5 rounded-xl border border-slate-100 dark:border-slate-850/80 text-[11px] text-indigo-600 dark:text-indigo-400 font-semibold text-center">
-            Recommendation: Attempt practice questions in {weaknessName}
+          <div className="bg-slate-50 dark:bg-slate-950 p-3.5 rounded-xl border border-slate-100 dark:border-slate-850/80 text-[11px] text-indigo-650 dark:text-indigo-400 font-bold text-center">
+            Recommendation: Refile practice runs for '{weaknessName}' inside the Quiz Arena.
           </div>
         </div>
       </div>
+
+      {/* Activity Heatmap Grid */}
+      <ContributionGrid />
     </motion.div>
   );
 };

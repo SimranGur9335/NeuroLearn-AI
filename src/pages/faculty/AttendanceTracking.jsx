@@ -789,8 +789,8 @@ const AttendanceTracking = () => {
                     >
                       <defs>
                         <linearGradient id="colorAttendance" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.4} />
-                          <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
+                          <stop offset="5%" stopColor="#7C3AED" stopOpacity={0.4} />
+                          <stop offset="95%" stopColor="#7C3AED" stopOpacity={0} />
                         </linearGradient>
                       </defs>
                       <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.1} />
@@ -821,7 +821,7 @@ const AttendanceTracking = () => {
                       <Area
                         type="monotone"
                         dataKey="Attendance %"
-                        stroke="#8b5cf6"
+                        stroke="#7C3AED"
                         strokeWidth={3}
                         fillOpacity={1}
                         fill="url(#colorAttendance)"

@@ -6,8 +6,6 @@ import {
   Heart,
   Trophy,
   Bell,
-  Sun,
-  Moon,
   Menu,
   X,
   Sparkles,
@@ -33,8 +31,6 @@ const Header = () => {
     refillHearts,
     searchTerm,
     setSearchTerm,
-    darkMode,
-    toggleDarkMode,
     profile
   } = useStudent();
 
@@ -295,75 +291,73 @@ const Header = () => {
   const unreadCount = notifications.filter(n => !n.is_read).length;
 
   return (
-    <header className="glass-nav px-4 md:px-8 py-3 flex items-center justify-between border-slate-200 dark:border-slate-800/80">
+    <header className="glass-nav px-4 md:px-8 py-3 flex items-center justify-between border-b border-slate-200 dark:border-brand-border/60">
       {/* Title & Mobile Toggle */}
       <div className="flex items-center gap-3">
         <button
           onClick={() => setMobileMenuOpen(true)}
-          className="md:hidden p-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg cursor-pointer"
+          className="md:hidden p-1.5 text-slate-500 dark:text-brand-muted hover:bg-slate-100 dark:hover:bg-brand-cardlight rounded-lg cursor-pointer transition-colors"
         >
-          <Menu size={22} />
+          <Menu size={18} />
         </button>
         <div>
-          <h2 className="text-xl md:text-2xl font-extrabold text-slate-800 dark:text-white tracking-tight">
+          <h2 className="text-base md:text-lg font-bold text-slate-800 dark:text-white tracking-tight">
             {getPageTitle()}
           </h2>
         </div>
       </div>
 
-
-
       {/* Stats and Controls */}
-      <div className="flex items-center gap-2 md:gap-4">
+      <div className="flex items-center gap-2 md:gap-3">
         {role === 'student' ? (
           <>
-            <div className="flex items-center gap-1.5 bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 px-3 py-1.5 rounded-full border border-yellow-500/20 text-sm font-bold shadow-sm">
-              <Trophy size={16} />
+            <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-brand-card text-slate-700 dark:text-slate-200 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-brand-border text-xs font-mono font-medium shadow-sm">
+              <Trophy size={14} className="text-brand-accent" />
               <span>{xp} XP</span>
             </div>
 
-            <div className="flex items-center gap-1.5 bg-orange-500/10 text-orange-600 dark:text-orange-500 px-3 py-1.5 rounded-full border border-orange-500/20 text-sm font-bold shadow-sm animate-fire">
-              <Flame size={16} />
+            <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-brand-card text-slate-700 dark:text-slate-200 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-brand-border text-xs font-mono font-medium shadow-sm animate-fire">
+              <Flame size={14} className="text-amber-500 fill-amber-500/20" />
               <span>{streak}d</span>
             </div>
 
             <button
               onClick={() => setShowHeartsModal(true)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-sm font-bold shadow-sm transition-all duration-200 cursor-pointer ${hearts === 0
-                  ? 'bg-red-500/20 text-red-500 border-red-500/30 animate-pulse'
-                  : 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20 hover:scale-105'
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-mono font-medium shadow-sm transition-all duration-200 cursor-pointer bg-slate-50 dark:bg-brand-card hover:bg-slate-100 dark:hover:bg-brand-cardlight ${hearts === 0
+                  ? 'border-brand-danger text-brand-danger animate-pulse'
+                  : 'border-slate-200 dark:border-brand-border text-brand-danger'
                 }`}
             >
-              <Heart size={16} className={hearts > 0 ? "fill-current animate-heart" : "text-red-500"} />
+              <Heart size={14} className={hearts > 0 ? "fill-current animate-heart text-brand-danger" : "text-brand-danger"} />
               <span>{hearts}</span>
             </button>
           </>
         ) : role === 'faculty' ? (
           <>
             {/* Academic Year Badge */}
-            <div className="hidden lg:flex items-center gap-1.5 bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 px-3 py-1.5 rounded-full border border-indigo-500/20 text-xs font-extrabold tracking-wide uppercase">
+            <div className="hidden lg:flex items-center gap-1.5 bg-slate-50 dark:bg-brand-card text-slate-500 dark:text-brand-muted px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-brand-border text-[10px] font-mono font-medium tracking-wider uppercase">
               <span>AY 2026-27 · Term I</span>
             </div>
             {/* Department Badge */}
-            <div className="hidden sm:flex items-center gap-1.5 bg-purple-500/10 text-purple-600 dark:text-purple-400 px-3 py-1.5 rounded-full border border-purple-500/20 text-xs font-extrabold tracking-wide uppercase">
+            <div className="hidden sm:flex items-center gap-1.5 bg-slate-50 dark:bg-brand-card text-slate-500 dark:text-brand-muted px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-brand-border text-[10px] font-mono font-medium tracking-wider uppercase">
               <span>{profile.branch}</span>
             </div>
             {/* Role designation */}
-            <div className="bg-purple-600 text-white text-[10px] font-black tracking-widest uppercase px-3.5 py-1.5 rounded-full shadow-md">
+            <div className="bg-slate-200 dark:bg-brand-cardlight text-slate-800 dark:text-slate-200 text-[10px] font-bold tracking-wider uppercase px-3 py-1.5 rounded-lg border border-slate-300 dark:border-brand-border">
               Faculty
             </div>
           </>
         ) : (
           <>
-            <div className="hidden lg:flex items-center gap-1.5 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-3 py-1.5 rounded-full border border-emerald-500/20 text-xs font-extrabold tracking-wide uppercase">
+            <div className="hidden lg:flex items-center gap-1.5 bg-slate-50 dark:bg-brand-card text-slate-500 dark:text-brand-muted px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-brand-border text-[10px] font-mono font-medium">
               <span>{profile.college}</span>
             </div>
-            <div className="hidden sm:flex items-center gap-1.5 bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 px-3 py-1.5 rounded-full border border-cyan-500/20 text-xs font-semibold">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
-              <span className="font-mono">Sys: Active</span>
+            <div className="hidden sm:flex items-center gap-1.5 bg-slate-50 dark:bg-brand-card text-slate-650 dark:text-brand-muted px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-brand-border text-[10px] font-mono">
+              <span className="w-1.5 h-1.5 rounded-full bg-brand-secondary animate-ping" />
+              <span>Sys: Active</span>
             </div>
-            <div className="bg-emerald-600 text-white text-[10px] font-black tracking-widest uppercase px-3.5 py-1.5 rounded-full shadow-md">
-              System Admin
+            <div className="bg-slate-200 dark:bg-brand-cardlight text-slate-800 dark:text-slate-200 text-[10px] font-bold tracking-wider uppercase px-3 py-1.5 rounded-lg border border-slate-300 dark:border-brand-border">
+              Admin
             </div>
           </>
         )}
@@ -372,66 +366,58 @@ const Header = () => {
         <div className="relative">
           <button
             onClick={() => setShowNotifications(true)}
-            className="relative p-2.5 text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-850 rounded-xl transition-colors cursor-pointer"
+            className="relative p-2 text-slate-500 hover:text-slate-850 dark:text-brand-muted dark:hover:text-white hover:bg-slate-100 dark:hover:bg-brand-cardlight rounded-lg transition-colors cursor-pointer"
           >
-            <Bell size={18} />
+            <Bell size={16} />
             {unreadCount > 0 && (
-              <span className={`absolute top-1.5 right-1.5 ${unreadCount > 9 ? 'px-1.5 w-auto h-4 rounded-full' : 'w-4 h-4 rounded-full'} bg-red-500 text-white text-[9px] font-black flex items-center justify-center border border-white dark:border-slate-900 animate-bounce`}>
-                {unreadCount > 99 ? '99+' : unreadCount}
-              </span>
+              <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-brand-danger" />
             )}
           </button>
         </div>
 
-        {/* Dark Mode Toggle */}
-        <button
-          onClick={toggleDarkMode}
-          className="p-2.5 text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-850 rounded-xl transition-colors cursor-pointer"
-        >
-          {darkMode ? <Sun size={18} /> : <Moon size={18} />}
-        </button>
+
       </div>
 
       {/* Hearts/Life refill Dialog */}
       {showHeartsModal && (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-3xl max-w-sm w-full shadow-2xl relative">
+        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-brand-card border border-slate-200 dark:border-brand-border p-6 rounded-2xl max-w-sm w-full shadow-2xl relative">
             <button
               onClick={() => setShowHeartsModal(false)}
-              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 dark:hover:text-white"
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 dark:hover:text-white transition-colors"
             >
-              <X size={20} />
+              <X size={18} />
             </button>
             <div className="text-center">
-              <div className="mx-auto w-16 h-16 rounded-full bg-rose-500/10 flex items-center justify-center text-rose-500 text-3xl mb-4">
+              <div className="mx-auto w-12 h-12 rounded-full bg-rose-500/5 flex items-center justify-center text-brand-danger text-2xl mb-3">
                 <Heart className="fill-current animate-heart" />
               </div>
-              <h3 className="text-xl font-black text-slate-800 dark:text-white">Life Refill Depot</h3>
-              <p className="text-sm text-slate-500 dark:text-slate-400 mt-2">
-                Running low on hearts? Buy a full 3-heart refill using your hard-earned study XP!
+              <h3 className="text-lg font-bold text-slate-800 dark:text-white">Life Refill</h3>
+              <p className="text-xs text-slate-500 dark:text-brand-muted mt-2 leading-relaxed">
+                Buy a full 3-heart refill using your hard-earned study XP!
               </p>
 
-              <div className="my-6 bg-slate-50 dark:bg-slate-950 rounded-2xl p-4 border border-slate-100 dark:border-slate-800 flex justify-between items-center">
+              <div className="my-5 bg-slate-50 dark:bg-brand-dark/40 rounded-xl p-3.5 border border-slate-150 dark:border-brand-border flex justify-between items-center text-xs font-mono">
                 <div className="text-left">
-                  <span className="text-xs text-slate-400 block">Cost</span>
-                  <span className="font-bold text-slate-700 dark:text-slate-200">150 XP</span>
+                  <span className="text-[10px] text-slate-400 block uppercase">Cost</span>
+                  <span className="font-semibold text-slate-700 dark:text-slate-250">150 XP</span>
                 </div>
                 <div className="text-right">
-                  <span className="text-xs text-slate-400 block">Your Balance</span>
-                  <span className="font-bold text-yellow-500">{xp} XP</span>
+                  <span className="text-[10px] text-slate-400 block uppercase">Balance</span>
+                  <span className="font-semibold text-brand-accent">{xp} XP</span>
                 </div>
               </div>
 
-              <div className="flex gap-3 mt-6">
+              <div className="flex gap-2 mt-5">
                 <button
                   onClick={() => setShowHeartsModal(false)}
-                  className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-medium text-sm transition-colors cursor-pointer"
+                  className="flex-1 px-4 py-2 rounded-lg border border-slate-200 dark:border-brand-border hover:bg-slate-50 dark:hover:bg-brand-cardlight text-slate-700 dark:text-brand-muted font-medium text-xs transition-colors cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleRefillHearts}
-                  className="flex-1 px-4 py-2.5 rounded-xl bg-rose-500 hover:bg-rose-600 text-white font-bold text-sm shadow-lg shadow-rose-500/20 transition-all cursor-pointer"
+                  className="flex-1 px-4 py-2 rounded-lg bg-brand-danger hover:bg-red-650 text-white font-bold text-xs shadow transition-all cursor-pointer"
                 >
                   Refill Now
                 </button>

@@ -28,15 +28,15 @@ const PlatformAdminLayout = () => {
   ];
 
   return (
-    <div className="flex h-screen overflow-hidden bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-150">
+    <div className="flex h-screen overflow-hidden bg-slate-50 dark:bg-brand-dark text-slate-800 dark:text-slate-150">
       {/* Platform Owner Sidebar */}
       <motion.aside
-        className="hidden md:flex flex-col bg-slate-900 border-r border-slate-800 text-slate-300 relative h-screen sticky top-0"
-        animate={{ width: isCollapsed ? '70px' : '260px' }}
-        transition={{ duration: 0.3, ease: 'easeInOut' }}
+        className="hidden md:flex flex-col bg-white dark:bg-brand-card border-r border-slate-200 dark:border-brand-border text-slate-650 dark:text-brand-muted relative h-screen sticky top-0"
+        animate={{ width: isCollapsed ? '72px' : '250px' }}
+        transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
       >
         {/* Header/Logo */}
-        <div className="flex items-center justify-between p-4 h-16 border-b border-slate-800 bg-slate-950">
+        <div className="flex items-center justify-between p-4 h-16 border-b border-slate-200 dark:border-brand-border bg-slate-50 dark:bg-brand-dark/40">
           <AnimatePresence>
             {!isCollapsed && (
               <motion.div
@@ -45,25 +45,25 @@ const PlatformAdminLayout = () => {
                 exit={{ opacity: 0, x: -10 }}
                 className="flex items-center gap-2"
               >
-                <div className="p-1.5 rounded-lg text-white bg-gradient-to-br from-indigo-600 to-cyan-500">
-                  <Sparkles size={20} className="animate-pulse" />
+                <div className="p-1.5 rounded-lg text-white bg-brand-primary">
+                  <Sparkles size={16} />
                 </div>
-                <span className="font-extrabold text-sm tracking-wide bg-gradient-to-r from-indigo-400 to-cyan-400 bg-clip-text text-transparent">
-                  Platform Admin
+                <span className="font-extrabold text-sm tracking-tight text-slate-800 dark:text-white">
+                  Platform <span className="text-slate-400 font-medium">Owner</span>
                 </span>
               </motion.div>
             )}
           </AnimatePresence>
           
           {isCollapsed && (
-            <div className="p-1.5 rounded-lg text-white mx-auto bg-gradient-to-br from-indigo-600 to-cyan-500">
-              <Sparkles size={20} />
+            <div className="p-1.5 rounded-lg text-white mx-auto bg-brand-primary">
+              <Sparkles size={16} />
             </div>
           )}
         </div>
 
         {/* Navigation links */}
-        <nav className="flex-1 px-3 py-4 space-y-1.5 overflow-y-auto">
+        <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
           {menuItems.map((item) => {
             const Icon = item.icon;
             return (
@@ -71,26 +71,26 @@ const PlatformAdminLayout = () => {
                 key={item.path}
                 to={item.path}
                 className={({ isActive }) => 
-                  `flex items-center gap-4 px-3 py-3 rounded-xl transition-all duration-200 group relative ${
+                  `flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200 group relative text-xs ${
                     isActive 
-                      ? 'bg-indigo-600 text-white font-semibold shadow-lg shadow-indigo-600/30' 
-                      : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                      ? 'bg-brand-primary/5 dark:bg-brand-primary/10 text-brand-primary font-semibold border-l-2 border-brand-primary shadow-sm' 
+                      : 'text-slate-500 hover:text-slate-900 dark:text-brand-muted dark:hover:text-white hover:bg-slate-100 dark:hover:bg-brand-cardlight/50'
                   }`
                 }
               >
-                <Icon size={20} className="shrink-0" />
+                <Icon size={16} className="shrink-0 transition-transform group-hover:scale-105" />
                 {!isCollapsed && (
                   <motion.span
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
-                    className="text-sm tracking-wide"
+                    className="tracking-normal font-medium"
                   >
                     {item.name}
                   </motion.span>
                 )}
                 {isCollapsed && (
-                  <div className="absolute left-16 bg-slate-950 text-white text-xs px-2 py-1.5 rounded-md opacity-0 group-hover:opacity-100 transition-opacity duration-150 pointer-events-none z-50 whitespace-nowrap shadow-md border border-slate-800">
+                  <div className="absolute left-16 bg-slate-950 text-white text-[10px] px-2 py-1 rounded-md opacity-0 group-hover:opacity-100 transition-opacity duration-150 pointer-events-none z-50 whitespace-nowrap shadow-md border border-brand-border">
                     {item.name}
                   </div>
                 )}
@@ -102,22 +102,22 @@ const PlatformAdminLayout = () => {
         {/* Collapsible toggle */}
         <button
           onClick={() => setIsCollapsed(!isCollapsed)}
-          className="absolute bottom-20 -right-3 bg-indigo-600 hover:bg-indigo-500 text-white p-1 rounded-full border border-slate-900 shadow-md cursor-pointer z-50"
+          className="absolute bottom-20 -right-3 w-6 h-6 flex items-center justify-center bg-white dark:bg-brand-card text-slate-400 dark:text-brand-muted border border-slate-200 dark:border-brand-border hover:text-slate-800 dark:hover:text-white rounded-full shadow-sm hover:shadow cursor-pointer z-50 transition-all"
         >
-          {isCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
+          {isCollapsed ? <ChevronRight size={12} /> : <ChevronLeft size={12} />}
         </button>
 
         {/* Logout bottom */}
         <div 
           onClick={logout}
-          className="p-4 border-t border-slate-800 bg-slate-950/40 flex items-center gap-3 cursor-pointer hover:bg-slate-800/20 text-slate-400 hover:text-white transition-colors"
+          className="p-4 border-t border-slate-200 dark:border-brand-border bg-slate-50 dark:bg-brand-dark/20 flex items-center gap-3 cursor-pointer hover:bg-slate-100 dark:hover:bg-brand-cardlight/30 transition-colors group"
         >
-          <LogOut size={20} className="shrink-0 text-red-500" />
+          <LogOut size={16} className="shrink-0 text-brand-danger" />
           {!isCollapsed && (
             <motion.span 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="text-xs font-semibold"
+              className="text-xs font-semibold text-slate-800 dark:text-slate-350"
             >
               Sign Out Owner
             </motion.span>
@@ -130,7 +130,7 @@ const PlatformAdminLayout = () => {
         {/* Unified Top Header bar */}
         <Header />
 
-        <main className="flex-1 overflow-y-auto px-4 md:px-8 py-6 bg-slate-950">
+        <main className="flex-1 overflow-y-auto px-4 md:px-8 py-6 bg-slate-50 dark:bg-brand-dark">
           <Outlet />
         </main>
       </div>
@@ -139,3 +139,4 @@ const PlatformAdminLayout = () => {
 };
 
 export default PlatformAdminLayout;
+

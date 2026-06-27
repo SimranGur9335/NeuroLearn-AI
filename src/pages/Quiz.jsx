@@ -96,15 +96,18 @@ const Quiz = () => {
     badges,
     nodeStates,
     quizHistory,
-    profile 
+    profile,
+    domainsList
   } = useStudent();
 
   const nodeId = searchParams.get('node');
   const domainId = searchParams.get('domain');
 
+  const activeDomains = domainsList && domainsList.length > 0 ? domainsList : DOMAINS;
+
   // fallback selections if user navigates directly to Quiz Arena without params
-  const [selectedDomainId, setSelectedDomainId] = useState(DOMAINS[0].id);
-  const [selectedNodeId, setSelectedNodeId] = useState(DOMAINS[0].nodes[0].id);
+  const [selectedDomainId, setSelectedDomainId] = useState(activeDomains[0].id || activeDomains[0].domain_key);
+  const [selectedNodeId, setSelectedNodeId] = useState(activeDomains[0].nodes[0].id);
 
   // Active quiz states
   const [quizStarted, setQuizStarted] = useState(false);
@@ -124,9 +127,9 @@ const Quiz = () => {
   const activeDomainId = domainId || selectedDomainId;
   const activeNodeId = nodeId || selectedNodeId;
 
-  const currentDomain = DOMAINS.find(d => d.id === activeDomainId) || DOMAINS[0];
-  const currentNode = currentDomain.nodes.find(n => n.id === activeNodeId) || currentDomain.nodes[0];
-  const questions = currentNode.quiz || [];
+  const currentDomain = activeDomains.find(d => d.id === activeDomainId || d.domain_key === activeDomainId) || activeDomains[0];
+  const currentNode = currentDomain?.nodes?.find(n => n.id === activeNodeId) || currentDomain?.nodes?.[0];
+  const questions = currentNode?.quiz || [];
 
   // Reset quiz states when node changes
   useEffect(() => {
@@ -216,29 +219,17 @@ const Quiz = () => {
       setSubmittingQuiz(true);
       setSubmissionError(null);
 
-      const results = completeQuiz(currentNode.id, currentDomain.id, finalScore, questions.length);
-      setQuizResults(results);
-
       try {
-        const response = await apiFetch("/quiz/submit", {
-          method: "POST",
-          body: JSON.stringify({
-            node_id: currentNode.id,
-            domain_id: currentDomain.id,
-            score: finalScore,
-            total_questions: questions.length,
-            xp_earned: results.xpReward
-          })
-        });
-
-        if (!response.ok) {
-          throw new Error("Academic registry API compilation failed");
-        }
-
+        const results = await completeQuiz(currentNode.id, currentDomain.id, finalScore, questions.length);
+        setQuizResults(results);
         setQuizCompleted(true);
       } catch (err) {
-        console.error(err);
-        setSubmissionError("Network error: Result was not synced to database. It has been saved locally.");
+        console.error("Error submitting quiz progress:", err);
+        setSubmissionError("Network error: Result was not synced to database. Saved locally.");
+        const percentage = (finalScore / questions.length) * 100;
+        const passed = percentage >= 60;
+        const xpReward = passed ? Math.round(percentage) : 10;
+        setQuizResults({ passed, xpReward });
         setQuizCompleted(true);
       } finally {
         setSubmittingQuiz(false);

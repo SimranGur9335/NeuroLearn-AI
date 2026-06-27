@@ -1,4 +1,59 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700;800;900&family=Geist+Mono:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700;800&family=Manrope:wght@300;400;500;600;700;800&display=swap');
+
+:root {
+  /* Extracted Brand Palette & Logo Tokens */
+  --primary-50: #EEF2FF;
+  --primary-100: #E0E7FF;
+  --primary-200: #C7D2FE;
+  --primary-300: #A5B4FC;
+  --primary-400: #818CF8;
+  --primary-500: #4F46E5;
+  --primary-600: #4F46E5;
+  --primary-700: #3730A3;
+  --primary-800: #0E0C5A; /* Logo "Neuro" Dark Purple/Navy */
+  --primary-900: #0E0C5A;
+  
+  --accent: #2563EB; /* Logo "Learn" Royal Blue */
+  --gradient-start: #7C3AED;
+  --gradient-middle: #4F46E5;
+  --gradient-end: #2563EB;
+
+  --text-primary: #0E0C5A;
+  --text-secondary: #312E81;
+  --text-body: #475569;
+  --text-muted: #64748B;
+
+  --border: #E5E7EB;
+  --surface: #F8FAFC;
+  --background: #FFFFFF;
+  
+  --hover: #F1F5F9;
+  --active: #E2E8F0;
+  --focus: #6366F1;
+  --disabled: #CBD5E1;
+  
+  --success: #10B981;
+  --warning: #F59E0B;
+  --error: #EF4444;
+
+  --color-primary-deep: #6D28D9;
+  --color-primary-royal: #7C3AED;
+  --color-primary-indigo: #4F46E5;
+  --color-primary-blue: #2563EB;
+  --color-primary-bright: #3B82F6;
+  --color-primary-light: #60A5FA;
+
+  --color-text-primary: #0E0C5A;
+  --color-text-secondary: #312E81;
+  --color-text-accent: #2563EB;
+
+  --color-background: #FFFFFF;
+  --color-surface: #F8FAFC;
+  --color-border: #E5E7EB;
+
+  --shadow-premium: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.05);
+  --shadow-premium-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.04), 0 4px 6px -4px rgba(0, 0, 0, 0.04);
+}
 
 @tailwind base;
 @tailwind components;
@@ -6,32 +61,39 @@
 
 @layer base {
   body {
-    font-family: 'Inter', sans-serif;
-    @apply transition-colors duration-300;
+    font-family: 'Manrope', 'Inter', sans-serif;
+    font-weight: 500;
+    @apply transition-colors duration-300 antialiased bg-white text-slate-800;
   }
   
   h1, h2, h3, h4, h5, h6 {
-    font-family: 'Outfit', sans-serif;
+    font-family: 'Geist', 'Manrope', sans-serif;
+    font-weight: 600;
+    @apply tracking-tight font-heading;
+  }
+  
+  code, pre {
+    font-family: 'Geist Mono', monospace;
   }
 }
 
-/* Glassmorphism custom classes */
+/* Glassmorphism custom classes redesigned for premium SaaS look */
 .glass-panel {
-  @apply backdrop-blur-md border border-white/10 dark:border-slate-800 bg-white/70 dark:bg-slate-900/60 shadow-lg;
+  @apply backdrop-blur-md border border-slate-200/60 bg-white/80 shadow-sm;
 }
 
 .glass-card {
-  @apply backdrop-blur-sm border border-white/5 dark:border-slate-800 bg-white/40 dark:bg-slate-900/40 hover:bg-white/60 dark:hover:bg-slate-900/50 transition-all duration-300 shadow-md;
+  @apply border border-slate-200/60 bg-white hover:bg-slate-50/50 transition-all duration-300 shadow-sm hover:shadow-md;
 }
 
 .glass-nav {
-  @apply backdrop-blur-lg border-b border-white/10 dark:border-slate-800/80 bg-white/80 dark:bg-slate-950/80 sticky top-0 z-40;
+  @apply backdrop-blur-lg border-b border-slate-200/80 bg-white/90 sticky top-0 z-40;
 }
 
 /* Custom Scrollbar */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 
 ::-webkit-scrollbar-track {
@@ -39,46 +101,47 @@
 }
 
 ::-webkit-scrollbar-thumb {
-  @apply bg-slate-300 dark:bg-slate-800 rounded-full hover:bg-slate-400 dark:hover:bg-slate-700 transition-colors;
+  @apply bg-slate-200 rounded-full hover:bg-slate-300 transition-colors;
 }
 
-/* Glowing text and nodes */
+/* Glowing text and nodes - redefined to be subtle */
 .glow-cyan {
-  text-shadow: 0 0 10px rgba(6, 182, 212, 0.5), 0 0 20px rgba(6, 182, 212, 0.2);
+  text-shadow: 0 0 8px rgba(96, 165, 250, 0.3);
 }
 
 .glow-indigo {
-  text-shadow: 0 0 10px rgba(99, 102, 241, 0.5), 0 0 20px rgba(99, 102, 241, 0.2);
+  text-shadow: 0 0 8px rgba(79, 70, 229, 0.3);
 }
 
 /* Contribution grid cells styles */
 .contrib-cell {
   aspect-ratio: 1;
-  border-radius: 2px;
+  border-radius: 3px;
   transition: all 0.2s ease;
 }
 
-.contrib-level-0 { @apply bg-slate-100 dark:bg-slate-800/60; }
-.contrib-level-1 { @apply bg-indigo-200 dark:bg-indigo-950/40; }
-.contrib-level-2 { @apply bg-indigo-400 dark:bg-indigo-800/60; }
-.contrib-level-3 { @apply bg-indigo-600 dark:bg-indigo-600; }
-.contrib-level-4 { @apply bg-indigo-800 dark:bg-indigo-400; }
+.contrib-level-0 { @apply bg-slate-100; }
+.contrib-level-1 { @apply bg-indigo-50 border border-indigo-500/10; }
+.contrib-level-2 { @apply bg-indigo-200 border border-indigo-500/20; }
+.contrib-level-3 { @apply bg-indigo-500; }
+.contrib-level-4 { @apply bg-indigo-700; }
 
 /* Custom animations for streaks and hearts */
 @keyframes heart-pulse {
   0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.15); }
+  50% { transform: scale(1.1); }
 }
 
 .animate-heart {
-  animation: heart-pulse 0.8s ease-in-out infinite;
+  animation: heart-pulse 1.2s ease-in-out infinite;
 }
 
 @keyframes fire-glow {
-  0%, 100% { filter: drop-shadow(0 0 2px #f97316); }
-  50% { filter: drop-shadow(0 0 8px #ea580c) scale(1.05); }
+  0%, 100% { filter: drop-shadow(0 0 1px #f59e0b); }
+  50% { filter: drop-shadow(0 0 5px #d97706) scale(1.03); }
 }
 
 .animate-fire {
-  animation: fire-glow 1.5s ease-in-out infinite;
+  animation: fire-glow 2s ease-in-out infinite;
 }
+

@@ -4,6 +4,7 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   server: {
+    port: 5000,
     proxy: {
       '^/(api|admin|faculty|student|student-hub|class|attendance|assignments|announcements|marks|remedial|submissions)': {
         target: 'http://localhost:8000',

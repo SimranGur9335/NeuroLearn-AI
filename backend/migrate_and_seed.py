@@ -490,7 +490,35 @@ def run_migrations():
             db.execute(text("ALTER TABLE announcements ADD COLUMN is_edited INTEGER DEFAULT 0;"))
             print("Altered table announcements to add is_edited column.")
         
+        # 31. Create domains table
+        db.execute(text("""
+            CREATE TABLE IF NOT EXISTS domains (
+                domain_id SERIAL PRIMARY KEY,
+                domain_key VARCHAR(100) UNIQUE NOT NULL,
+                category VARCHAR(100) NOT NULL,
+                title VARCHAR(255) NOT NULL,
+                description TEXT NOT NULL,
+                icon VARCHAR(100) NOT NULL,
+                difficulty VARCHAR(50) NOT NULL DEFAULT 'Intermediate',
+                duration VARCHAR(50) NOT NULL DEFAULT '100 Hours',
+                avg_salary VARCHAR(100) NOT NULL DEFAULT '$80,000',
+                popular BOOLEAN NOT NULL DEFAULT FALSE,
+                skills JSONB NOT NULL DEFAULT '[]'::jsonb,
+                roadmap JSONB NOT NULL DEFAULT '[]'::jsonb,
+                courses JSONB NOT NULL DEFAULT '[]'::jsonb,
+                certifications JSONB NOT NULL DEFAULT '[]'::jsonb,
+                projects JSONB NOT NULL DEFAULT '[]'::jsonb,
+                salary JSONB NOT NULL DEFAULT '{}'::jsonb,
+                placements JSONB NOT NULL DEFAULT '[]'::jsonb,
+                learning_resources JSONB NOT NULL DEFAULT '[]'::jsonb,
+                interview_prep JSONB NOT NULL DEFAULT '[]'::jsonb,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        """))
+        db.execute(text("CREATE INDEX IF NOT EXISTS idx_domains_key ON domains(domain_key);"))
         db.commit()
+        print("OK: domains table verified/created.")
+
 
     except Exception as e:
         print(f"Error during migration: {e}")
@@ -632,6 +660,35 @@ def run_seeding():
             db.commit()
         else:
             term_id = term.term_id
+
+        # Make sure classes 1, 2, 3 exist
+        for cid, name, div, dept, sem in [
+            (1, 'TE Computer A', 'A', 'Computer Engineering', 5),
+            (2, 'TE Computer B', 'B', 'Computer Engineering', 5),
+            (3, 'TE AI A', 'A', 'AI & DS', 5)
+        ]:
+            existing_class = db.execute(text("SELECT class_id FROM classes WHERE class_id = :cid"), {"cid": cid}).fetchone()
+            if not existing_class:
+                db.execute(text("""
+                    INSERT INTO classes (class_id, class_name, division, department, semester, term_id, institution_id)
+                    VALUES (:cid, :name, :div, :dept, :sem, :tid, 1)
+                """), {"cid": cid, "name": name, "div": div, "dept": dept, "sem": sem, "tid": term_id})
+        db.commit()
+
+        # Make sure subjects 1, 2, 3 exist
+        for sid, code, name, credits, dept, sem in [
+            (1, 'CS501', 'DBMS', 4, 'Computer Engineering', 5),
+            (2, 'CS502', 'Machine Learning', 4, 'Computer Engineering', 5),
+            (3, 'CS503', 'Mini Project', 2, 'Computer Engineering', 5)
+        ]:
+            existing_subject = db.execute(text("SELECT subject_id FROM subjects WHERE subject_id = :sid"), {"sid": sid}).fetchone()
+            if not existing_subject:
+                db.execute(text("""
+                    INSERT INTO subjects (subject_id, subject_code, subject_name, credits, department, semester, institution_id)
+                    VALUES (:sid, :code, :name, :credits, :dept, :sem, 1)
+                """), {"sid": sid, "code": code, "name": name, "credits": credits, "dept": dept, "sem": sem})
+        db.commit()
+
 
         # 3. Seed students if students table has very few records (like <= 2)
         student_count = db.execute(text("SELECT COUNT(*) FROM students")).scalar()
@@ -810,10 +867,18 @@ def run_seeding():
         else:
             print(f"Assignments already exist ({assignment_count} records).")
 
+        # Seed domains table from seed_domains_helper
+        try:
+            from backend.seed_domains_helper import seed_domains_data
+            seed_domains_data()
+        except Exception as seed_err:
+            print(f"Error seeding domains helper: {seed_err}")
+
         # Double check/ensure all tables have default institution_id = 1 assigned
         for table in ['users', 'students', 'faculty', 'classes', 'subjects', 'courses', 'announcements', 'departments']:
             db.execute(text(f"UPDATE {table} SET institution_id = 1 WHERE institution_id IS NULL;"))
         db.commit()
+
 
     except Exception as e:
         print(f"Error during seeding: {e}")

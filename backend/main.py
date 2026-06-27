@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 import jwt
 import bcrypt
 import random
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException, Depends, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
@@ -49,8 +49,173 @@ def run_migrations():
         # Ensure existing assignments default safely to 'Published'
         db.execute(text("UPDATE assignments SET status = 'Published' WHERE status IS NULL OR status = 'Open';"))
         
+        # Create domains table if not exists
+        db.execute(text("""
+            CREATE TABLE IF NOT EXISTS domains (
+                domain_id SERIAL PRIMARY KEY,
+                domain_key VARCHAR(100) UNIQUE NOT NULL,
+                category VARCHAR(100) NOT NULL,
+                title VARCHAR(255) NOT NULL,
+                description TEXT NOT NULL,
+                icon VARCHAR(100) NOT NULL,
+                difficulty VARCHAR(50) NOT NULL DEFAULT 'Intermediate',
+                duration VARCHAR(50) NOT NULL DEFAULT '100 Hours',
+                avg_salary VARCHAR(100) NOT NULL DEFAULT '$80,000',
+                popular BOOLEAN NOT NULL DEFAULT FALSE,
+                skills JSONB NOT NULL DEFAULT '[]'::jsonb,
+                roadmap JSONB NOT NULL DEFAULT '[]'::jsonb,
+                courses JSONB NOT NULL DEFAULT '[]'::jsonb,
+                certifications JSONB NOT NULL DEFAULT '[]'::jsonb,
+                projects JSONB NOT NULL DEFAULT '[]'::jsonb,
+                salary JSONB NOT NULL DEFAULT '{}'::jsonb,
+                placements JSONB NOT NULL DEFAULT '[]'::jsonb,
+                learning_resources JSONB NOT NULL DEFAULT '[]'::jsonb,
+                interview_prep JSONB NOT NULL DEFAULT '[]'::jsonb,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        """))
+        db.execute(text("CREATE INDEX IF NOT EXISTS idx_domains_key ON domains(domain_key);"))
+        
+        # Create college_notes table
+        db.execute(text("""
+            CREATE TABLE IF NOT EXISTS college_notes (
+                note_id SERIAL PRIMARY KEY,
+                title VARCHAR(255) NOT NULL,
+                description TEXT NOT NULL,
+                semester INTEGER NOT NULL,
+                subject_code VARCHAR(50) NOT NULL,
+                subject_name VARCHAR(255) NOT NULL,
+                file_url TEXT NOT NULL,
+                file_name VARCHAR(255) NOT NULL,
+                file_size INTEGER NOT NULL,
+                download_count INTEGER DEFAULT 0,
+                institution_id INTEGER DEFAULT 1,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        """))
+        
+        # Create programming_topics table
+        db.execute(text("""
+            CREATE TABLE IF NOT EXISTS programming_topics (
+                topic_id SERIAL PRIMARY KEY,
+                category VARCHAR(100) NOT NULL,
+                title VARCHAR(255) NOT NULL,
+                description TEXT NOT NULL,
+                icon VARCHAR(100) NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        """))
+        
+        # Create programming_questions table
+        db.execute(text("""
+            CREATE TABLE IF NOT EXISTS programming_questions (
+                question_id SERIAL PRIMARY KEY,
+                topic_id INTEGER REFERENCES programming_topics(topic_id) ON DELETE CASCADE,
+                title VARCHAR(255) NOT NULL,
+                difficulty VARCHAR(50) NOT NULL,
+                platform VARCHAR(50) NOT NULL,
+                url TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        """))
+        
+        # Create student_programming_progress table
+        db.execute(text("""
+            CREATE TABLE IF NOT EXISTS student_programming_progress (
+                student_id INTEGER REFERENCES students(student_id) ON DELETE CASCADE,
+                question_id INTEGER REFERENCES programming_questions(question_id) ON DELETE CASCADE,
+                completed BOOLEAN DEFAULT TRUE,
+                completed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (student_id, question_id)
+            );
+        """))
+
+        # Alter student_metrics table
+        db.execute(text("ALTER TABLE student_metrics ADD COLUMN IF NOT EXISTS streak INTEGER DEFAULT 0;"))
+        db.execute(text("ALTER TABLE student_metrics ADD COLUMN IF NOT EXISTS last_active_date DATE DEFAULT NULL;"))
+        
+        # Create student_badges table
+        db.execute(text("""
+            CREATE TABLE IF NOT EXISTS student_badges (
+                student_id INTEGER REFERENCES students(student_id) ON DELETE CASCADE,
+                badge_id VARCHAR(100) NOT NULL,
+                unlocked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (student_id, badge_id)
+            );
+        """))
+        
+        # Create quiz_attempts table
+        db.execute(text("""
+            CREATE TABLE IF NOT EXISTS quiz_attempts (
+                attempt_id SERIAL PRIMARY KEY,
+                student_id INTEGER REFERENCES students(student_id) ON DELETE CASCADE,
+                node_id VARCHAR(100) NOT NULL,
+                domain_id VARCHAR(100) NOT NULL,
+                score INTEGER NOT NULL,
+                total_questions INTEGER NOT NULL,
+                xp_earned INTEGER NOT NULL,
+                passed BOOLEAN NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        """))
+        
+        # Create student_career_profiles table
+        db.execute(text("""
+            CREATE TABLE IF NOT EXISTS student_career_profiles (
+                student_id INTEGER PRIMARY KEY REFERENCES students(student_id) ON DELETE CASCADE,
+                resume_text TEXT DEFAULT NULL,
+                target_career VARCHAR(100) DEFAULT 'ai-engineer',
+                custom_skills JSONB DEFAULT '[]'::jsonb,
+                ai_analysis JSONB DEFAULT NULL,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        """))
+        
+        # Create student_academic_predictions table
+        db.execute(text("""
+            CREATE TABLE IF NOT EXISTS student_academic_predictions (
+                prediction_id SERIAL PRIMARY KEY,
+                student_id INTEGER REFERENCES students(student_id) ON DELETE CASCADE,
+                age INTEGER NOT NULL,
+                studytime INTEGER NOT NULL,
+                failures INTEGER NOT NULL,
+                absences INTEGER NOT NULL,
+                g1_score NUMERIC(5, 2) NOT NULL,
+                g2_score NUMERIC(5, 2) NOT NULL,
+                predicted_grade NUMERIC(5, 2) NOT NULL,
+                predicted_cgpa NUMERIC(5, 2) NOT NULL,
+                attendance_rate NUMERIC(5, 2) NOT NULL,
+                backlog_risk NUMERIC(5, 2) NOT NULL,
+                risk_level VARCHAR(50) NOT NULL,
+                weak_subjects TEXT NULL,
+                recommendations TEXT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        """))
+        
+        # Check and add columns to wellness_mood_logs table
+        db.execute(text("ALTER TABLE wellness_mood_logs ADD COLUMN IF NOT EXISTS sleep_hours NUMERIC(5, 2) DEFAULT 8.00;"))
+        db.execute(text("ALTER TABLE wellness_mood_logs ADD COLUMN IF NOT EXISTS study_hours NUMERIC(5, 2) DEFAULT 0.00;"))
+        db.execute(text("ALTER TABLE wellness_mood_logs ADD COLUMN IF NOT EXISTS learning_habits TEXT DEFAULT '[]';"))
+        db.execute(text("ALTER TABLE wellness_mood_logs ADD COLUMN IF NOT EXISTS recommendations TEXT DEFAULT '[]';"))
+        
+        # Check and add columns for extended profile features
+        db.execute(text("ALTER TABLE students ADD COLUMN IF NOT EXISTS mobile VARCHAR(20) DEFAULT NULL;"))
+        db.execute(text("ALTER TABLE student_career_profiles ADD COLUMN IF NOT EXISTS certificates JSONB DEFAULT '[]'::jsonb;"))
+        db.execute(text("ALTER TABLE student_career_profiles ADD COLUMN IF NOT EXISTS achievements JSONB DEFAULT '[]'::jsonb;"))
+        
+        # Create token_blacklist table for logout invalidation
+        db.execute(text("""
+            CREATE TABLE IF NOT EXISTS token_blacklist (
+                token TEXT PRIMARY KEY,
+                blacklisted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        """))
+        
         db.commit()
         print("Migrations executed successfully!")
+
+
     except Exception as e:
         db.rollback()
         print(f"Error executing migrations: {e}")
@@ -106,11 +271,29 @@ def verify_token(token: str, token_type: str = "access"):
     except jwt.PyJWTError:
         return None
 
-def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
-    token = credentials.credentials
+def get_current_user(request: Request):
+    token = request.cookies.get("access_token")
+    if not token:
+        auth_header = request.headers.get("Authorization")
+        if auth_header and auth_header.startswith("Bearer "):
+            token = auth_header.split(" ")[1]
+            
+    if not token:
+        raise HTTPException(status_code=401, detail="Missing access token")
+        
     payload = verify_token(token, "access")
     if not payload:
         raise HTTPException(status_code=401, detail="Invalid or expired access token")
+        
+    # Check logout invalidation / blacklisted token
+    db = SessionLocal()
+    try:
+        blacklisted = db.execute(text("SELECT 1 FROM token_blacklist WHERE token = :t"), {"t": token}).fetchone()
+        if blacklisted:
+            raise HTTPException(status_code=401, detail="Token has been invalidated by logout")
+    finally:
+        db.close()
+        
     return payload
 
 def require_role(allowed_roles: list):
@@ -187,8 +370,8 @@ if allowed_origins_env:
     origins = [origin.strip() for origin in allowed_origins_env.split(",") if origin.strip()]
 else:
     origins = [
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
+        "http://localhost:5000",
+        "http://127.0.0.1:5000",
         "http://localhost:3000",
         "http://127.0.0.1:3000",
     ]
@@ -316,7 +499,7 @@ class LoginInput(BaseModel):
     institution_id: Optional[int] = 1
 
 class RefreshInput(BaseModel):
-    refresh_token: str
+    refresh_token: Optional[str] = None
 
 class RegisterInput(BaseModel):
     email: str
@@ -432,8 +615,20 @@ def home():
 
 # --- Authentication Endpoints ---
 
+failed_logins_tracker = {}
+
 @app.post("/api/v1/auth/login")
-def login_route(data: LoginInput):
+def login_route(data: LoginInput, response: Response):
+    # Lockout check
+    now = datetime.utcnow()
+    tracker = failed_logins_tracker.get(data.email, {"failed_attempts": 0, "lockout_until": None})
+    if tracker["lockout_until"] and tracker["lockout_until"] > now:
+        seconds_left = int((tracker["lockout_until"] - now).total_seconds())
+        raise HTTPException(
+            status_code=429,
+            detail="Too many login attempts."
+        )
+
     db = SessionLocal()
     try:
         # Get user
@@ -452,7 +647,16 @@ def login_route(data: LoginInput):
                 {"email": data.email, "iid": data.institution_id}
             )
             db.commit()
-            raise HTTPException(status_code=400, detail="Invalid email, password, role, or institution Selection!")
+            
+            # Lockout logic
+            tracker["failed_attempts"] += 1
+            if tracker["failed_attempts"] >= 5:
+                tracker["lockout_until"] = datetime.utcnow() + timedelta(seconds=45)
+                failed_logins_tracker[data.email] = tracker
+                raise HTTPException(status_code=429, detail="Too many login attempts.")
+            else:
+                failed_logins_tracker[data.email] = tracker
+                raise HTTPException(status_code=400, detail="Incorrect Login ID or Password")
 
         # Verify password using bcrypt
         password_bytes = data.password.encode('utf-8')
@@ -467,7 +671,20 @@ def login_route(data: LoginInput):
                 {"user_id": user.user_id, "email": data.email, "iid": user.institution_id}
             )
             db.commit()
-            raise HTTPException(status_code=400, detail="Invalid email, password, role, or institution Selection!")
+            
+            # Lockout logic
+            tracker["failed_attempts"] += 1
+            if tracker["failed_attempts"] >= 5:
+                tracker["lockout_until"] = datetime.utcnow() + timedelta(seconds=45)
+                failed_logins_tracker[data.email] = tracker
+                raise HTTPException(status_code=429, detail="Too many login attempts.")
+            else:
+                failed_logins_tracker[data.email] = tracker
+                raise HTTPException(status_code=400, detail="Incorrect Login ID or Password")
+
+        # Reset failed attempts on success
+        if data.email in failed_logins_tracker:
+            del failed_logins_tracker[data.email]
 
         # Fetch extra details depending on role
         name = "System Administrator"
@@ -475,7 +692,7 @@ def login_route(data: LoginInput):
         branch = None
         designation = None
         college = "COEP Technological University"
-        inst_color = "violet"
+        inst_color = "indigo"
         inst_logo = "/assets/logo.png"
         if user.institution_id:
             inst = db.execute(
@@ -506,11 +723,11 @@ def login_route(data: LoginInput):
                 branch = faculty.department
                 designation = faculty.designation
 
-        # Log successful login attempt
+        # Log successful login
         db.execute(
             text("""
                 INSERT INTO security_events (user_id, email, event_type, details, institution_id, created_at)
-                VALUES (:user_id, :email, 'LOGIN_SUCCESS', 'Successful login', :iid, CURRENT_TIMESTAMP)
+                VALUES (:user_id, :email, 'LOGIN_SUCCESS', 'Successful login authentication', :iid, CURRENT_TIMESTAMP)
             """),
             {"user_id": user.user_id, "email": data.email, "iid": user.institution_id}
         )
@@ -527,6 +744,24 @@ def login_route(data: LoginInput):
         }
         access_token = create_access_token(token_payload)
         refresh_token = create_refresh_token(token_payload)
+
+        # Set cookies on response
+        response.set_cookie(
+            key="access_token",
+            value=access_token,
+            httponly=True,
+            secure=True,
+            samesite="lax",
+            max_age=120 * 60
+        )
+        response.set_cookie(
+            key="refresh_token",
+            value=refresh_token,
+            httponly=True,
+            secure=True,
+            samesite="lax",
+            max_age=7 * 24 * 60 * 60
+        )
 
         # Determine avatar based on role or database avatar_url
         avatar = "🚀"
@@ -573,13 +808,26 @@ def login_route(data: LoginInput):
         db.close()
 
 @app.post("/api/v1/auth/refresh")
-def refresh_token_route(data: RefreshInput):
-    payload = verify_token(data.refresh_token, token_type="refresh")
+def refresh_token_route(data: RefreshInput, response: Response, request: Request):
+    rf_token = data.refresh_token or request.cookies.get("refresh_token")
+    if not rf_token:
+        raise HTTPException(status_code=401, detail="Invalid refresh token!")
+
+    payload = verify_token(rf_token, token_type="refresh")
     if not payload:
         raise HTTPException(status_code=401, detail="Invalid refresh token!")
 
     db = SessionLocal()
     try:
+        # Check blacklist for token rotation
+        blacklisted = db.execute(text("SELECT 1 FROM token_blacklist WHERE token = :t"), {"t": rf_token}).fetchone()
+        if blacklisted:
+            raise HTTPException(status_code=401, detail="Refresh token has been invalidated.")
+            
+        # Blacklist the old refresh token (Token Rotation!)
+        db.execute(text("INSERT INTO token_blacklist (token) VALUES (:t) ON CONFLICT DO NOTHING"), {"t": rf_token})
+        db.commit()
+
         user = db.execute(
             text("SELECT user_id, email, role, student_id, faculty_id, institution_id FROM users WHERE user_id = :uid"),
             {"uid": payload["user_id"]}
@@ -601,8 +849,8 @@ def refresh_token_route(data: RefreshInput):
         if user.institution_id:
             inst = db.execute(
                 text("""
-            SELECT institution_name, theme_color, logo_url
-            FROM institutions
+                    SELECT institution_name, theme_color, logo_url
+                    FROM institutions
                     WHERE institution_id = :iid
                 """),
                 {"iid": user.institution_id}
@@ -647,6 +895,24 @@ def refresh_token_route(data: RefreshInput):
         access_token = create_access_token(token_payload)
         new_refresh_token = create_refresh_token(token_payload)
 
+        # Set new rotated cookies
+        response.set_cookie(
+            key="access_token",
+            value=access_token,
+            httponly=True,
+            secure=True,
+            samesite="lax",
+            max_age=120 * 60
+        )
+        response.set_cookie(
+            key="refresh_token",
+            value=new_refresh_token,
+            httponly=True,
+            secure=True,
+            samesite="lax",
+            max_age=7 * 24 * 60 * 60
+        )
+
         # Determine avatar based on database avatar_url
         avatar = "🚀"
         if user.role == "super_admin":
@@ -688,6 +954,29 @@ def refresh_token_route(data: RefreshInput):
         }
     finally:
         db.close()
+
+@app.post("/api/v1/auth/logout")
+def logout_route(response: Response, current_user: dict = Depends(get_current_user), request: Request = None):
+    # Retrieve token manually from cookie or Authorization header to blacklist
+    token = request.cookies.get("access_token") if request else None
+    if not token and request:
+        auth_header = request.headers.get("Authorization")
+        if auth_header and auth_header.startswith("Bearer "):
+            token = auth_header.split(" ")[1]
+            
+    if token:
+        db = SessionLocal()
+        try:
+            db.execute(text("INSERT INTO token_blacklist (token) VALUES (:t) ON CONFLICT DO NOTHING"), {"t": token})
+            db.commit()
+        finally:
+            db.close()
+            
+    # Remove cookies
+    response.delete_cookie("access_token")
+    response.delete_cookie("refresh_token")
+    
+    return {"success": True, "message": "Successfully logged out and invalidated session."}
 
 @app.post("/api/v1/auth/register")
 def register_route(data: RegisterInput):
@@ -3510,17 +3799,52 @@ def get_my_profile(current_user: dict = Depends(get_current_user)):
         }
         
         if role == "student" and current_user["student_id"]:
-            s = db.execute(text("SELECT * FROM students WHERE student_id = :sid"), {"sid": current_user["student_id"]}).fetchone()
+            sid = current_user["student_id"]
+            s = db.execute(text("SELECT * FROM students WHERE student_id = :sid"), {"sid": sid}).fetchone()
             if s:
-                metrics_row = db.execute(text("SELECT xp_points FROM student_metrics WHERE student_id = :sid"), {"sid": current_user["student_id"]}).fetchone()
+                metrics_row = db.execute(text("SELECT xp_points FROM student_metrics WHERE student_id = :sid"), {"sid": sid}).fetchone()
+                
+                # Fetch career details (resume, custom_skills, certificates, achievements)
+                career_row = db.execute(text("SELECT resume_text, custom_skills, certificates, achievements FROM student_career_profiles WHERE student_id = :sid"), {"sid": sid}).fetchone()
+                
+                resume_text = ""
+                skills_list = []
+                certs_list = []
+                achievements_list = []
+                
+                import json
+                if career_row:
+                    resume_text = career_row.resume_text or ""
+                    try:
+                        skills_list = json.loads(career_row.custom_skills) if career_row.custom_skills else []
+                    except Exception:
+                        skills_list = []
+                    try:
+                        certs_list = json.loads(career_row.certificates) if career_row.certificates else []
+                    except Exception:
+                        certs_list = []
+                    try:
+                        achievements_list = json.loads(career_row.achievements) if career_row.achievements else []
+                    except Exception:
+                        achievements_list = []
+                else:
+                    # Create default empty career profile row if not exists
+                    db.execute(text("INSERT INTO student_career_profiles (student_id) VALUES (:sid) ON CONFLICT DO NOTHING"), {"sid": sid})
+                    db.commit()
+
                 profile_data.update({
                     "name": s.full_name,
                     "rollNumber": s.roll_no,
                     "branch": s.department,
                     "semester": s.semester,
                     "division": s.division,
+                    "mobile": s.mobile or "",
                     "avatar": s.avatar_url or "🚀",
-                    "xp": metrics_row.xp_points if metrics_row else 0
+                    "xp": metrics_row.xp_points if metrics_row else 0,
+                    "resume": resume_text,
+                    "skills": skills_list,
+                    "certificates": certs_list,
+                    "achievements": achievements_list
                 })
         elif role == "faculty" and current_user["faculty_id"]:
             f = db.execute(text("SELECT * FROM faculty WHERE faculty_id = :fid"), {"fid": current_user["faculty_id"]}).fetchone()
@@ -3605,7 +3929,7 @@ def update_my_profile(data: dict, current_user: dict = Depends(get_current_user)
             db.execute(
                 text("""
                     UPDATE students
-                    SET full_name = :name, department = :dept, semester = :sem, division = :div
+                    SET full_name = :name, department = :dept, semester = :sem, division = :div, mobile = :mobile, roll_no = :roll
                     WHERE student_id = :sid
                 """),
                 {
@@ -3613,9 +3937,49 @@ def update_my_profile(data: dict, current_user: dict = Depends(get_current_user)
                     "dept": data.get("branch"),
                     "sem": int(data.get("semester", 5)),
                     "div": data.get("division", "A"),
+                    "mobile": data.get("mobile", ""),
+                    "roll": data.get("rollNumber", ""),
                     "sid": sid
                 }
             )
+            
+            # Update student_career_profiles table
+            import json
+            skills_json = json.dumps(data.get("skills", []))
+            certs_json = json.dumps(data.get("certificates", []))
+            ach_json = json.dumps(data.get("achievements", []))
+            resume_val = data.get("resume", "")
+            
+            career_exists = db.execute(text("SELECT student_id FROM student_career_profiles WHERE student_id = :sid"), {"sid": sid}).fetchone()
+            if career_exists:
+                db.execute(
+                    text("""
+                        UPDATE student_career_profiles
+                        SET resume_text = :resume, custom_skills = :skills, certificates = :certs, achievements = :ach, updated_at = CURRENT_TIMESTAMP
+                        WHERE student_id = :sid
+                    """),
+                    {
+                        "resume": resume_val,
+                        "skills": skills_json,
+                        "certs": certs_json,
+                        "ach": ach_json,
+                        "sid": sid
+                    }
+                )
+            else:
+                db.execute(
+                    text("""
+                        INSERT INTO student_career_profiles (student_id, resume_text, custom_skills, certificates, achievements)
+                        VALUES (:sid, :resume, :skills, :certs, :ach)
+                    """),
+                    {
+                        "sid": sid,
+                        "resume": resume_val,
+                        "skills": skills_json,
+                        "certs": certs_json,
+                        "ach": ach_json
+                    }
+                )
             db.commit()
             log_audit(db, "UPDATE_PROFILE", "Student", sid, performed_by=f"Student {sid}")
             create_notification(db, "student", sid, "Profile Updated", "Your profile details have been successfully updated.", "profile", sid)
@@ -3728,9 +4092,23 @@ class WellnessMoodInput(BaseModel):
     focus: int
     frustration: int
     stress: int
+    sleep_hours: float
+    study_hours: float
+    learning_habits: List[str]
 
 class TargetCareerInput(BaseModel):
     target_career: str
+
+class CareerProfileInput(BaseModel):
+    resume_text: Optional[str] = None
+    target_career: Optional[str] = None
+    custom_skills: Optional[List[str]] = None
+
+class InterviewAnswerInput(BaseModel):
+    question: str
+    answer: str
+    topic: str
+
 
 
 # --- Additional Endpoints for AI, Wellness, & Career ---
@@ -3763,6 +4141,166 @@ def get_ai_chat_history(current_user: dict = Depends(get_current_user)):
         ]
     finally:
         db.close()
+
+
+@app.post("/api/v1/ai/chat/stream")
+def stream_ai_chat_message(data: AiChatInput, current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "student" or not current_user["student_id"]:
+        raise HTTPException(status_code=403, detail="Only students can chat with the AI Mentor.")
+    
+    db = SessionLocal()
+    try:
+        sid = current_user["student_id"]
+        prompt = data.prompt.strip()
+        if not prompt:
+            raise HTTPException(status_code=400, detail="Prompt cannot be empty.")
+        
+        # 1. Log the user's message in Supabase
+        db.execute(
+            text("""
+                INSERT INTO mentor_messages (student_id, sender, message_text, code_text)
+                VALUES (:sid, 'user', :msg, NULL)
+            """),
+            {"sid": sid, "msg": prompt}
+        )
+        db.commit()
+    finally:
+        db.close()
+
+    async def event_generator():
+        import asyncio
+        db_gen = SessionLocal()
+        try:
+            # Fetch some brief context history (last 5 messages)
+            history_records = db_gen.execute(
+                text("""
+                    SELECT sender, message_text 
+                    FROM mentor_messages 
+                    WHERE student_id = :sid 
+                    ORDER BY created_at DESC 
+                    LIMIT 6
+                """),
+                {"sid": sid}
+            ).fetchall()
+            history_records.reverse()
+            
+            chat_history = []
+            for hr in history_records[:-1]: # exclude the one we just inserted
+                role = "user" if hr.sender == "user" else "model"
+                chat_history.append({"role": role, "parts": [hr.message_text]})
+            
+            reply = ""
+            gemini_key = os.getenv("GEMINI_API_KEY")
+            
+            system_instruction = """You are an expert AI Academic and Career Mentor.
+Always try to include short, concrete learning suggestions (e.g. quiz links like '/quiz?domain=ai-ml&node=aiml-3'), career recommendations, or roadmap tips when relevant.
+Be supportive, clear, and structured.
+"""
+            
+            if gemini_key:
+                try:
+                    import google.generativeai as genai
+                    genai.configure(api_key=gemini_key)
+                    model = genai.GenerativeModel('gemini-1.5-flash', system_instruction=system_instruction)
+                    
+                    contents = []
+                    for h in chat_history:
+                        contents.append(h)
+                    contents.append({"role": "user", "parts": [prompt]})
+                    
+                    response_stream = model.generate_content(contents, stream=True)
+                    for chunk in response_stream:
+                        chunk_text = chunk.text
+                        reply += chunk_text
+                        yield chunk_text
+                except Exception as e:
+                    print(f"Gemini API streaming error: {e}")
+                    gemini_key = None # trigger fallback
+            
+            if not gemini_key:
+                lower_prompt = prompt.lower()
+                mock_text = ""
+                if "vanishing gradient" in lower_prompt or "vanishing gradients" in lower_prompt:
+                    mock_text = """The vanishing gradient problem occurs during the training of deep neural networks using backpropagation. As gradients are propagated backward through layers, repeated multiplication of small derivatives (e.g. < 0.25 for Sigmoid) causes gradients to shrink exponentially.
+
+### Mathematical Breakdown
+During backpropagation, the gradient of the loss function L with respect to weight w1 in the first layer is computed using the Chain Rule:
+$$\\frac{\\partial L}{\\partial w_1} = \\frac{\\partial L}{\\partial a_d} \\times \\dots \\times \\frac{\\partial a_1}{\\partial w_1}$$
+
+### Solutions
+1. **Activation Functions**: Use ReLU (f(x) = max(0, x)) or its variants (Leaky ReLU) in hidden layers since their derivative is 1 for positive inputs.
+2. **Weight Initialization**: Implement He (Kaiming) or Xavier (Glorot) initializations to maintain stable variance across layers.
+3. **Batch Normalization**: Normalize inputs to each layer, preventing activations from saturated bounds.
+4. **Residual Connections**: Skip connections (e.g. ResNet) allow gradients to bypass layers without shrinking.
+
+*Learning Recommendation:* Check out our quiz [Deep Learning & Neural Networks](/quiz?domain=ai-ml&node=aiml-3).
+*Roadmap Suggestion:* Complete the AI/ML track to master MLOps containerization.
+"""
+                elif "secure" in lower_prompt and ("express" in lower_prompt or "sqli" in lower_prompt):
+                    mock_text = """Securing an Express application against SQL Injection (SQLi) requires preventing user inputs from being interpreted as database query commands.
+
+### Best Practices for Secure Node/SQL Design
+1. **Never Concatenate Inputs**: Do not write strings like "SELECT * FROM users WHERE name = '" + req.body.name + "'".
+2. **Prepared Statements**: Leverage parameterized queries. Database drivers compile the query structure first, ensuring user variables are treated strictly as data indices.
+3. **ORM/Query Builders**: Use libraries like Sequelize, Knex, or Prisma which implement prepared parameters out of the box.
+4. **Input Validation**: Use schemas (e.g., Joi, Zod) to validate and sanitize incoming payloads.
+
+*Learning Recommendation:* Complete the [REST APIs & Databases](/quiz?domain=full-stack&node=fs-3) quiz.
+*Career Suggestion:* Consider the Cyber Security Analyst track if you love secure architectures.
+"""
+                elif "kubernetes" in lower_prompt or "fastapi" in lower_prompt or "capstone" in lower_prompt:
+                    mock_text = """Here is a high-yield, college Capstone-level project architecture that integrates FastAPI, Kubernetes (K8s), and Distributed Systems principles.
+
+### Project Title: "AeroPulse - High-Frequency IoT Analytics Engine"
+
+### Core Architecture Components
+1. **Ingress Layer**: Ingress routing HTTP telemetry packets to the K8s cluster.
+2. **Compute Nodes (FastAPI)**: Lightweight, asynchronous FastAPI microservices running in Docker containers. Auto-scaled using K8s Horizontal Pod Autoscaler (HPA) based on load.
+3. **Broker (Redis/RabbitMQ)**: A queue container cluster separating compute ingestion from database persistence.
+4. **Analytics Worker**: Python scripts analyzing anomalies (e.g., sensor outlier spikes) utilizing scientific libraries.
+5. **UI (Vite + Recharts)**: Real-time visualization charting engine.
+
+*Learning Recommendation:* Complete the [Microservices & Kubernetes](/quiz?domain=cloud&node=cloud-4) quiz.
+*Career Recommendation:* This project perfectly targets Cloud Engineer or DevOps Engineer pathways.
+"""
+                else:
+                    mock_text = f"That's an interesting technical question about '{prompt}'! As your AI Mentor, I suggest exploring this concept by building small prototype scripts. Let's look at the learning resources in the sidebar for tutorials.\n\n*Quiz Recommendation:* Take the matching domain quiz to earn +100 XP!\n*Roadmap Suggestion:* Review your progress tracker under 'Roadmap & Gaps' to identify key milestones."
+                
+                # Stream word-by-word
+                words = mock_text.split(" ")
+                for i in range(0, len(words), 3):
+                    chunk = " ".join(words[i:i+3]) + " "
+                    reply += chunk
+                    yield chunk
+                    await asyncio.sleep(0.08)
+            
+            # Extract code block if any
+            import re
+            code_block = None
+            code_match = re.search(r'```(?:\w*)\n(.*?)```', reply, re.DOTALL)
+            if code_match:
+                code_block = code_match.group(1).strip()
+                reply_clean = re.sub(r'```(?:\w*)\n(.*?)```', '', reply, flags=re.DOTALL).strip()
+            else:
+                reply_clean = reply
+                
+            db_gen.execute(
+                text("""
+                    INSERT INTO mentor_messages (student_id, sender, message_text, code_text)
+                    VALUES (:sid, 'assistant', :msg, :code)
+                """),
+                {"sid": sid, "msg": reply_clean, "code": code_block}
+            )
+            db_gen.commit()
+            
+        except Exception as e:
+            print(f"Error in stream event generator: {e}")
+        finally:
+            db_gen.close()
+            
+    from fastapi.responses import StreamingResponse
+    return StreamingResponse(event_generator(), media_type="text/event-stream")
+
 
 @app.post("/api/v1/ai/chat")
 def send_ai_chat_message(data: AiChatInput, current_user: dict = Depends(get_current_user)):
@@ -3963,21 +4501,97 @@ def log_wellness_mood(data: WellnessMoodInput, current_user: dict = Depends(get_
     db = SessionLocal()
     try:
         sid = current_user["student_id"]
+        
+        # Parse habits as JSON
+        import json
+        habits_json = json.dumps(data.learning_habits)
+        
+        # 1. Generate AI-driven Wellness/Remediation recommendations
+        gemini_key = os.getenv("GEMINI_API_KEY")
+        recommendations_list = []
+        
+        if gemini_key:
+            try:
+                import google.generativeai as genai
+                genai.configure(api_key=gemini_key)
+                model = genai.GenerativeModel('gemini-1.5-flash')
+                
+                prompt = f"""
+                You are a Learning Wellness AI Advisor at NeuroLearn-AI.
+                Analyze the following student wellness parameters logged today:
+                - Happiness/Mood level: {data.happiness}/100
+                - Focus/Cognitive flow: {data.focus}/100
+                - Frustration index: {data.frustration}/100
+                - Stress index: {data.stress}/100
+                - Sleep: {data.sleep_hours} hours
+                - Study Hours: {data.study_hours} hours
+                - Learning Habits used today: {", ".join(data.learning_habits)}
+                
+                Based on this, generate exactly 3 custom, highly-actionable recommendations for optimizing their study wellness and avoiding academic burnout.
+                Respond with a valid JSON array of exactly 3 strings. Do not include markdown tags, code blocks, or explanations outside the JSON array.
+                Example: ["Log off by 10 PM and aim for 8 hours of sleep", "Take a 5-minute break after each Pomodoro session", "Practice active recall on weak subjects"]
+                """
+                response = model.generate_content(prompt)
+                raw_text = response.text.strip()
+                if raw_text.startswith("```"):
+                    raw_text = re.sub(r'^```(?:json)?\n', '', raw_text)
+                    raw_text = re.sub(r'\n```$', '', raw_text)
+                
+                recommendations_list = json.loads(raw_text.strip())
+            except Exception as e:
+                print(f"Gemini API error during wellness analysis: {e}")
+                
+        if not recommendations_list:
+            # Rich rule-based backup recommender
+            # Sleep recommendations
+            if data.sleep_hours < 6.0:
+                recommendations_list.append(f"Your sleep ({data.sleep_hours}h) is low. Prioritize getting 7.5+ hours tonight to support memory consolidation.")
+            else:
+                recommendations_list.append("Great sleep duration today! Keep maintaining a consistent bedtime for optimal learning performance.")
+                
+            # Stress/Frustration recommendations
+            if data.stress > 60 or data.frustration > 60:
+                recommendations_list.append("High cognitive strain detected. Refrain from studying heavy concepts tonight and practice deep breathing.")
+            else:
+                recommendations_list.append("Your cognitive stress levels are balanced. This is an excellent window for difficult roadmap challenges.")
+                
+            # Study duration recommendations
+            if data.study_hours > 8.0:
+                recommendations_list.append("Log off and relax! Excessive study hours block passive assimilation and cause burnout.")
+            elif data.study_hours < 2.0 and data.focus > 70:
+                recommendations_list.append("Your focus is sharp. Capitalize on it by attempting a quick quiz node in the Programming Hub.")
+            else:
+                recommendations_list.append("Integrate active recall techniques or space out your revision sessions rather than cramming.")
+                
+        recs_json = json.dumps(recommendations_list)
+        
+        # 2. Insert into PostgreSQL DB
         db.execute(
             text("""
-                INSERT INTO wellness_mood_logs (student_id, happiness, focus, frustration, stress)
-                VALUES (:sid, :hap, :foc, :fru, :str)
+                INSERT INTO wellness_mood_logs (
+                    student_id, happiness, focus, frustration, stress, 
+                    sleep_hours, study_hours, learning_habits, recommendations
+                )
+                VALUES (:sid, :hap, :foc, :fru, :str, :sleep, :study, :habits, :recs)
             """),
             {
                 "sid": sid,
                 "hap": data.happiness,
                 "foc": data.focus,
                 "fru": data.frustration,
-                "str": data.stress
+                "str": data.stress,
+                "sleep": data.sleep_hours,
+                "study": data.study_hours,
+                "habits": habits_json,
+                "recs": recs_json
             }
         )
         db.commit()
-        return {"success": True, "message": "Mood logged successfully"}
+        return {
+            "success": True, 
+            "message": "Wellness metrics logged successfully",
+            "recommendations": recommendations_list
+        }
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
@@ -3994,37 +4608,55 @@ def get_wellness_mood_history(current_user: dict = Depends(get_current_user)):
         sid = current_user["student_id"]
         result = db.execute(
             text("""
-                SELECT happiness, focus, frustration, stress, log_date 
+                SELECT happiness, focus, frustration, stress, sleep_hours, study_hours, 
+                       learning_habits, recommendations, log_date 
                 FROM wellness_mood_logs 
                 WHERE student_id = :sid 
                 ORDER BY created_at DESC 
-                LIMIT 7
+                LIMIT 10
             """),
             {"sid": sid}
         ).fetchall()
         
         history_list = []
+        import json
         for r in result:
+            try:
+                habs = json.loads(r.learning_habits) if r.learning_habits else []
+            except Exception:
+                habs = []
+                
+            try:
+                recs = json.loads(r.recommendations) if r.recommendations else []
+            except Exception:
+                recs = []
+                
             history_list.append({
                 "day": r.log_date.strftime("%a") if r.log_date else "Today",
+                "date": str(r.log_date) if r.log_date else None,
                 "happy": int(r.happiness),
                 "focused": int(r.focus),
                 "frustrated": int(r.frustration),
-                "stressed": int(r.stress)
+                "stressed": int(r.stress),
+                "sleep_hours": float(r.sleep_hours) if r.sleep_hours is not None else 8.0,
+                "study_hours": float(r.study_hours) if r.study_hours is not None else 0.0,
+                "learning_habits": habs,
+                "recommendations": recs
             })
         
+        # Reverse to show chronological order for trends chart
         history_list.reverse()
         
         # Baseline mock history if empty
         if not history_list:
             return [
-                { "day": "Mon", "focused": 30, "happy": 45, "frustrated": 15, "stressed": 10 },
-                { "day": "Tue", "focused": 35, "happy": 48, "frustrated": 10, "stressed": 7 },
-                { "day": "Wed", "focused": 45, "happy": 35, "frustrated": 12, "stressed": 8 },
-                { "day": "Thu", "focused": 25, "happy": 40, "frustrated": 20, "stressed": 15 },
-                { "day": "Fri", "focused": 38, "happy": 42, "frustrated": 12, "stressed": 8 },
-                { "day": "Sat", "focused": 40, "happy": 45, "frustrated": 10, "stressed": 5 },
-                { "day": "Today", "focused": 70, "happy": 60, "frustrated": 20, "stressed": 15 }
+                { "day": "Mon", "happy": 45, "focused": 30, "frustrated": 15, "stressed": 10, "sleep_hours": 7.0, "study_hours": 3.0, "learning_habits": ["Active Recall"], "recommendations": [] },
+                { "day": "Tue", "happy": 48, "focused": 35, "frustrated": 10, "stressed": 7, "sleep_hours": 8.0, "study_hours": 4.0, "learning_habits": ["Spaced Repetition"], "recommendations": [] },
+                { "day": "Wed", "happy": 35, "focused": 45, "frustrated": 12, "stressed": 8, "sleep_hours": 6.5, "study_hours": 5.0, "learning_habits": ["Feynman Technique"], "recommendations": [] },
+                { "day": "Thu", "happy": 40, "focused": 25, "frustrated": 20, "stressed": 15, "sleep_hours": 5.5, "study_hours": 6.0, "learning_habits": ["Pomodoro Technique"], "recommendations": [] },
+                { "day": "Fri", "happy": 42, "focused": 38, "frustrated": 12, "stressed": 8, "sleep_hours": 7.5, "study_hours": 4.5, "learning_habits": ["Mind Mapping"], "recommendations": [] },
+                { "day": "Sat", "happy": 45, "focused": 40, "frustrated": 10, "stressed": 5, "sleep_hours": 8.5, "study_hours": 2.0, "learning_habits": ["Active Recall"], "recommendations": [] },
+                { "day": "Today", "happy": 60, "focused": 70, "frustrated": 20, "stressed": 15, "sleep_hours": 7.5, "study_hours": 4.0, "learning_habits": ["Spaced Repetition", "Active Recall"], "recommendations": ["Aim for an honors grade", "Limit contiguous focus hours"] }
             ]
         
         if history_list:
@@ -4127,6 +4759,448 @@ def get_target_career(current_user: dict = Depends(get_current_user)):
         return {"target_career": tc}
     finally:
         db.close()
+
+
+@app.get("/api/v1/career/profile")
+def get_career_profile(current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "student" or not current_user["student_id"]:
+        raise HTTPException(status_code=403, detail="Only students can access career profiles.")
+    
+    db = SessionLocal()
+    try:
+        sid = current_user["student_id"]
+        # Ensure row exists
+        profile = db.execute(
+            text("SELECT resume_text, target_career, custom_skills, ai_analysis FROM student_career_profiles WHERE student_id = :sid"),
+            {"sid": sid}
+        ).fetchone()
+        
+        if not profile:
+            # Let's seed an empty profile
+            db.execute(
+                text("""
+                    INSERT INTO student_career_profiles (student_id, resume_text, target_career, custom_skills, ai_analysis)
+                    VALUES (:sid, NULL, 'ai-engineer', '[]'::jsonb, NULL)
+                    ON CONFLICT (student_id) DO NOTHING
+                """),
+                {"sid": sid}
+            )
+            db.commit()
+            profile = db.execute(
+                text("SELECT resume_text, target_career, custom_skills, ai_analysis FROM student_career_profiles WHERE student_id = :sid"),
+                {"sid": sid}
+            ).fetchone()
+            
+        import json
+        custom_skills = []
+        if profile.custom_skills:
+            if isinstance(profile.custom_skills, str):
+                custom_skills = json.loads(profile.custom_skills)
+            else:
+                custom_skills = profile.custom_skills
+                
+        ai_analysis = None
+        if profile.ai_analysis:
+            if isinstance(profile.ai_analysis, str):
+                ai_analysis = json.loads(profile.ai_analysis)
+            else:
+                ai_analysis = profile.ai_analysis
+                
+        return {
+            "resume_text": profile.resume_text,
+            "target_career": profile.target_career,
+            "custom_skills": custom_skills,
+            "ai_analysis": ai_analysis
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        db.close()
+
+@app.post("/api/v1/career/profile")
+def save_career_profile(data: CareerProfileInput, current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "student" or not current_user["student_id"]:
+        raise HTTPException(status_code=403, detail="Only students can update career profiles.")
+    
+    db = SessionLocal()
+    try:
+        sid = current_user["student_id"]
+        import json
+        custom_skills_json = json.dumps(data.custom_skills or [])
+        
+        # Check if row exists
+        existing = db.execute(
+            text("SELECT student_id FROM student_career_profiles WHERE student_id = :sid"),
+            {"sid": sid}
+        ).fetchone()
+        
+        if existing:
+            db.execute(
+                text("""
+                    UPDATE student_career_profiles
+                    SET resume_text = COALESCE(:resume_text, resume_text),
+                        target_career = COALESCE(:target_career, target_career),
+                        custom_skills = COALESCE(:custom_skills, custom_skills),
+                        updated_at = CURRENT_TIMESTAMP
+                    WHERE student_id = :sid
+                """),
+                {
+                    "resume_text": data.resume_text,
+                    "target_career": data.target_career,
+                    "custom_skills": custom_skills_json if data.custom_skills is not None else None,
+                    "sid": sid
+                }
+            )
+        else:
+            db.execute(
+                text("""
+                    INSERT INTO student_career_profiles (student_id, resume_text, target_career, custom_skills)
+                    VALUES (:sid, :resume_text, :target_career, :custom_skills)
+                """),
+                {
+                    "sid": sid,
+                    "resume_text": data.resume_text or "",
+                    "target_career": data.target_career or "ai-engineer",
+                    "custom_skills": custom_skills_json
+                }
+            )
+            
+        # Also sync target_career to student_metrics
+        if data.target_career:
+            db.execute(
+                text("UPDATE student_metrics SET target_career = :tc, updated_at = CURRENT_TIMESTAMP WHERE student_id = :sid"),
+                {"tc": data.target_career, "sid": sid}
+            )
+            
+        db.commit()
+        return {"success": True, "message": "Career profile saved successfully"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        db.close()
+
+@app.post("/api/v1/career/analyze")
+def analyze_career_profile(current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "student" or not current_user["student_id"]:
+        raise HTTPException(status_code=403, detail="Only students can trigger career profile analysis.")
+    
+    db = SessionLocal()
+    try:
+        sid = current_user["student_id"]
+        
+        # 1. Fetch student info
+        student = db.execute(
+            text("SELECT s.full_name, s.department, s.semester, sm.predicted_cgpa, sm.attendance, sm.xp_points FROM students s JOIN student_metrics sm ON s.student_id = sm.student_id WHERE s.student_id = :sid"),
+            {"sid": sid}
+        ).fetchone()
+        
+        if not student:
+            raise HTTPException(status_code=404, detail="Student profile not found")
+            
+        # 2. Fetch career profile details
+        profile = db.execute(
+            text("SELECT resume_text, target_career, custom_skills FROM student_career_profiles WHERE student_id = :sid"),
+            {"sid": sid}
+        ).fetchone()
+        
+        resume_text = profile.resume_text if (profile and profile.resume_text) else "No resume uploaded."
+        target_career = profile.target_career if (profile and profile.target_career) else "ai-engineer"
+        import json
+        custom_skills_list = []
+        if profile and profile.custom_skills:
+            if isinstance(profile.custom_skills, str):
+                custom_skills_list = json.loads(profile.custom_skills)
+            else:
+                custom_skills_list = profile.custom_skills
+                
+        # 3. Fetch completed quiz attempts
+        quiz_attempts = db.execute(
+            text("SELECT DISTINCT node_id, domain_id FROM quiz_attempts WHERE student_id = :sid AND passed = True"),
+            {"sid": sid}
+        ).fetchall()
+        completed_quizzes = [f"{q.domain_id}/{q.node_id}" for q in quiz_attempts]
+        
+        # 4. Fetch completed programming problems
+        programming = db.execute(
+            text("""
+                SELECT pq.title, pq.difficulty 
+                FROM student_programming_progress spp 
+                JOIN programming_questions pq ON spp.question_id = pq.question_id 
+                WHERE spp.student_id = :sid AND spp.completed = True
+            """),
+            {"sid": sid}
+        ).fetchall()
+        completed_programming = [f"{p.title} ({p.difficulty})" for p in programming]
+        
+        # Call Gemini or execute fallback
+        gemini_key = os.getenv("GEMINI_API_KEY")
+        analysis_result = None
+        
+        prompt = f"""
+You are an expert AI Career Mentor. Analyze the following student's profile for the target role: "{target_career}".
+
+### STUDENT PROFILE:
+- Name: {student.full_name}
+- Department: {student.department}
+- Semester: {student.semester}
+- CGPA: {float(student.predicted_cgpa) if student.predicted_cgpa else 0.0}
+- Attendance: {float(student.attendance) if student.attendance else 0.0}%
+- XP Points: {student.xp_points}
+- Completed Quizzes (Curriculum Topics): {completed_quizzes}
+- Completed Programming Problems: {completed_programming}
+- Custom Self-Declared Skills: {custom_skills_list}
+- Uploaded Resume Text:
+---
+{resume_text}
+---
+
+Generate a highly personalized AI Career Guidance report in JSON format.
+You must return ONLY a valid JSON object. Do not include markdown formatting like ```json or anything else. The output should be a parseable JSON block matching this schema:
+
+{{
+  "readiness_score": integer (0 to 100 representing their readiness for placement in the target career),
+  "readiness_summary": "string summary of their profile alignment",
+  "role_recommendations": [
+    {{
+      "title": "string (matching alternative tech role from: AI Engineer, Machine Learning Engineer, Data Scientist, Data Analyst, Software Engineer, Cloud Engineer, Cyber Security Analyst, DevOps Engineer, Product Manager, Business Analyst)",
+      "alignment": integer (0 to 100),
+      "reason": "string detailed explanation why this aligns with their background"
+    }}
+  ],
+  "skill_gap_analysis": {{
+    "acquired": ["string of skills the student has shown proficiency in"],
+    "missing": ["string of crucial missing skills for their target role"]
+  }},
+  "resume_suggestions": [
+    "string suggestion 1",
+    "string suggestion 2"
+  ],
+  "placement_readiness": {{
+    "score": integer (0 to 100),
+    "strengths": ["string strength 1", "string strength 2"],
+    "weak_areas": ["string weak area 1", "string weak area 2"],
+    "preparation_tips": ["string actionable prep tip 1", "string actionable prep tip 2"]
+  }},
+  "learning_suggestions": [
+    {{
+      "type": "string (quiz | certification | course)",
+      "title": "string title",
+      "url": "string (url to quiz, e.g. /quiz?domain=ai-ml&node=aiml-3, or external resource url)"
+    }}
+  ],
+  "company_recommendations": [
+    {{
+      "name": "string company name from standard market",
+      "role": "string recommended internship/entry level role",
+      "suitability": "string (High | Medium | Low alignment reasoning)"
+    }}
+  ],
+  "internship_opportunities": [
+    {{
+      "title": "string title",
+      "company": "string company",
+      "description": "string description",
+      "link": "string url"
+    }}
+  ],
+  "mock_interview_questions": [
+    {{
+      "question": "string technical question related to their target role, gaps, and resume",
+      "topic": "string topic area"
+    }}
+  ]
+}}
+"""
+        
+        if gemini_key:
+            try:
+                import google.generativeai as genai
+                genai.configure(api_key=gemini_key)
+                model = genai.GenerativeModel('gemini-1.5-flash')
+                response = model.generate_content(prompt)
+                raw_text = response.text.strip()
+                # Clean clean json tags if gemini output markdown by mistake
+                if raw_text.startswith("```"):
+                    raw_text = re.sub(r'^```(?:json)?\n', '', raw_text)
+                    raw_text = re.sub(r'\n```$', '', raw_text)
+                analysis_result = json.loads(raw_text.strip())
+            except Exception as e:
+                print(f"Gemini API error during career analysis: {e}")
+                
+        # Heuristic/Fallback generator if Gemini failed or key was missing
+        if not analysis_result:
+            # Let's map target role to default recommendations
+            readiness_val = int(min(95, max(30, int(student.xp_points / 25) + int(float(student.predicted_cgpa or 0) * 5))))
+            
+            # Simple list of companies
+            companies_mapping = {
+                "ai-engineer": [{"name": "NVIDIA", "role": "Research Intern - Deep Learning", "suitability": "High alignment"}, {"name": "Google", "role": "ML Intern", "suitability": "Medium alignment"}],
+                "software-engineer": [{"name": "Microsoft", "role": "Software Engineering Intern", "suitability": "High alignment"}, {"name": "TCS", "role": "Systems Engineer", "suitability": "High alignment"}],
+                "cloud-engineer": [{"name": "Amazon AWS", "role": "Cloud Support Associate", "suitability": "High alignment"}, {"name": "GCP", "role": "Cloud Solutions Intern", "suitability": "Medium alignment"}],
+                "cybersecurity-analyst": [{"name": "Palo Alto Networks", "role": "Security Intern", "suitability": "High alignment"}, {"name": "CrowdStrike", "role": "SOC Analyst", "suitability": "Medium alignment"}]
+            }
+            role_cos = companies_mapping.get(target_career, [{"name": "Cognizant", "role": "Technical Graduate", "suitability": "High alignment"}])
+            
+            # Generate mock questions
+            q_mapping = {
+                "ai-engineer": [
+                    {"question": "What is the difference between supervised fine-tuning and RLHF in LLMs?", "topic": "Generative AI"},
+                    {"question": "Explain vanishing gradients and how residual skips prevent them.", "topic": "Deep Learning"}
+                ],
+                "software-engineer": [
+                    {"question": "Explain database normalization up to BCNF and when to denormalize.", "topic": "DBMS"},
+                    {"question": "Compare REST API vs WebSockets for real-time messaging workloads.", "topic": "Web Architecture"}
+                ],
+                "cloud-engineer": [
+                    {"question": "What is the role of an Ingress Controller in a Kubernetes cluster?", "topic": "Microservices"},
+                    {"question": "How do IAM roles compare to user keys for access security?", "topic": "Cloud IAM"}
+                ],
+                "cybersecurity-analyst": [
+                    {"question": "Walk through the steps of an SSL/TLS handshake.", "topic": "Cryptography"},
+                    {"question": "Explain SQL Injection vulnerabilities and how prepared queries secure them.", "topic": "Web Exploits"}
+                ]
+            }
+            role_qs = q_mapping.get(target_career, [
+                {"question": "Describe an engineering problem you solved and your implementation methodology.", "topic": "General Engineering"},
+                {"question": "How do you check computational complexity using Big O notation?", "topic": "DSA"}
+            ])
+            
+            analysis_result = {
+                "readiness_score": readiness_val,
+                "readiness_summary": f"Your current academic profile (CGPA {student.predicted_cgpa}, {student.xp_points} XP) shows solid progression. You have completed {len(completed_quizzes)} quizzes and {len(completed_programming)} programming challenges. Focus on bridging gaps around {target_career.replace('-', ' ').title()} specific libraries.",
+                "role_recommendations": [
+                    {"title": "Machine Learning Engineer" if target_career == "ai-engineer" else "AI Engineer", "alignment": readiness_val - 5, "reason": "Strong background in statistics and database processing aligns well with ML pipelines."},
+                    {"title": "Software Engineer", "alignment": readiness_val + 10, "reason": "High programming completions qualify you for general systems engineering roles."}
+                ],
+                "skill_gap_analysis": {
+                    "acquired": ["Python", "SQL", "Git"] + custom_skills_list[:3],
+                    "missing": ["LangChain", "Vector Databases", "MLOps Infrastructure"] if target_career == "ai-engineer" else ["Docker", "Kubernetes", "Redis Caching"]
+                },
+                "resume_suggestions": [
+                    f"Integrate keywords matching the '{target_career.replace('-', ' ').title()}' role descriptors such as data analysis and model tracking.",
+                    "Quantify project metrics (e.g. 'Reduced indexing time by 30% using vector caching').",
+                    "Add technical profiles (Leetcode, Github) directly to the header."
+                ],
+                "placement_readiness": {
+                    "score": readiness_val,
+                    "strengths": [f"Excellent attendance record of {student.attendance}%", f"Active platform involvement with {student.xp_points} XP"],
+                    "weak_areas": ["Requires larger capstone projects listed on resume", "Needs more mock interview practice"],
+                    "preparation_tips": ["Complete at least 5 intermediate domain-specific quizzes", "Run regular mock technical interviews on standard questions"]
+                },
+                "learning_suggestions": [
+                    {"type": "quiz", "title": "Generative AI & LLMs", "url": "/quiz?domain=ai-ml&node=aiml-4"},
+                    {"type": "certification", "title": "AWS Certified Cloud Practitioner", "url": "https://aws.amazon.com/certification/"}
+                ],
+                "company_recommendations": role_cos,
+                "internship_opportunities": [
+                    {
+                        "title": f"{target_career.replace('-', ' ').title()} Intern",
+                        "company": role_co["name"],
+                        "description": f"Build analytics dashboards and scalable connectors. Key alignment: {role_co['suitability']}",
+                        "link": "https://supabase.com/careers"
+                    } for role_co in role_cos
+                ],
+                "mock_interview_questions": role_qs
+            }
+            
+        # 5. Save the analysis to database
+        db.execute(
+            text("UPDATE student_career_profiles SET ai_analysis = :ai_analysis, updated_at = CURRENT_TIMESTAMP WHERE student_id = :sid"),
+            {"ai_analysis": json.dumps(analysis_result), "sid": sid}
+        )
+        db.commit()
+        return analysis_result
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        db.close()
+
+@app.post("/api/v1/career/interview/evaluate")
+def evaluate_interview_response(data: InterviewAnswerInput, current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "student" or not current_user["student_id"]:
+        raise HTTPException(status_code=403, detail="Only students can submit interview responses.")
+        
+    gemini_key = os.getenv("GEMINI_API_KEY")
+    prompt = f"""
+You are a technical interviewer. Evaluate the student's answer to the mock interview question below.
+
+Question Topic: {data.topic}
+Question: {data.question}
+Student's Response:
+---
+{data.answer}
+---
+
+Provide a constructive review of their response in JSON format.
+You must return ONLY a valid JSON object. Do not include markdown formatting like ```json or anything else. The output should be a parseable JSON block matching this schema:
+
+{{
+  "score": integer (0 to 100 rating the accuracy and depth of their response),
+  "verdict": "string (e.g. Excellent, Good, Needs Improvement, Incorrect)",
+  "strengths": "string describing what they did well",
+  "weaknesses": "string detailing what was missing or incorrect",
+  "suggested_improvement": "string providing the correct/better way to phrase or answer the question, including any relevant code/concepts"
+}}
+"""
+    import json
+    eval_result = None
+    if gemini_key:
+        try:
+            import google.generativeai as genai
+            genai.configure(api_key=gemini_key)
+            model = genai.GenerativeModel('gemini-1.5-flash')
+            response = model.generate_content(prompt)
+            raw_text = response.text.strip()
+            if raw_text.startswith("```"):
+                raw_text = re.sub(r'^```(?:json)?\n', '', raw_text)
+                raw_text = re.sub(r'\n```$', '', raw_text)
+            eval_result = json.loads(raw_text.strip())
+        except Exception as e:
+            print(f"Gemini evaluation error: {e}")
+            
+    if not eval_result:
+        # Fallback evaluation logic based on length and keywords
+        score = 40
+        verdict = "Needs Improvement"
+        strengths = "Attempted the question."
+        weaknesses = "Lacks deep technical details or specific examples."
+        suggested = "For a complete answer, explain key components mathematically, provide structure definitions, or outline actual use cases. (Fallback Mode)"
+        
+        answer_lower = data.answer.lower()
+        if len(data.answer) > 50:
+            score += 15
+            verdict = "Good"
+            strengths = "Provided a reasonable verbal explanation."
+            
+        # Topic specific keywords
+        keywords = {
+            "Generative AI": ["rlhf", "fine-tuning", "weights", "dataset", "prompts"],
+            "Deep Learning": ["vanishing", "gradients", "relu", "sigmoid", "residual", "backpropagation"],
+            "DBMS": ["bcnf", "normalization", "redundancy", "join", "anomaly"],
+            "Web Architecture": ["websocket", "stateless", "http", "polling", "latency"],
+            "Microservices": ["ingress", "pod", "kubernetes", "k8s", "proxy"],
+            "Cloud IAM": ["role", "permissions", "temporary", "access key", "least privilege"],
+            "Cryptography": ["handshake", "ssl", "tls", "private key", "public key", "certificates"],
+            "Web Exploits": ["sqli", "prepared", "parameterized", "sanitize", "input"]
+        }
+        
+        matches = [kw for kw in keywords.get(data.topic, []) if kw in answer_lower]
+        if len(matches) >= 2:
+            score = min(95, score + 20)
+            verdict = "Excellent" if score > 80 else "Good"
+            strengths += f" Correctly referenced relevant terminologies: {', '.join(matches)}."
+            
+        eval_result = {
+            "score": score,
+            "verdict": verdict,
+            "strengths": strengths,
+            "weaknesses": weaknesses,
+            "suggested_improvement": suggested
+        }
+        
+    return eval_result
 
 
 # --- Admin Reports Endpoints ---
@@ -7266,6 +8340,229 @@ def get_student_hub_calendar(current_user: dict = Depends(get_current_user)):
     finally:
         db.close()
 
+
+@app.get("/api/student-hub/notes")
+def get_college_notes(
+    semester: Optional[int] = None,
+    subject_code: Optional[str] = None,
+    search: Optional[str] = None,
+    current_user: dict = Depends(get_current_user)
+):
+    db = SessionLocal()
+    try:
+        inst_id = current_user.get("institution_id", 1)
+        query_str = "SELECT * FROM college_notes WHERE institution_id = :inst_id"
+        params = {"inst_id": inst_id}
+        
+        if semester is not None:
+            query_str += " AND semester = :semester"
+            params["semester"] = semester
+        if subject_code:
+            query_str += " AND subject_code = :subject_code"
+            params["subject_code"] = subject_code
+        if search:
+            query_str += " AND (LOWER(title) LIKE :search OR LOWER(description) LIKE :search OR LOWER(subject_name) LIKE :search OR LOWER(subject_code) LIKE :search)"
+            params["search"] = f"%{search.lower()}%"
+            
+        query_str += " ORDER BY semester ASC, title ASC"
+        res = db.execute(text(query_str), params).fetchall()
+        
+        notes = []
+        for r in res:
+            notes.append({
+                "note_id": r.note_id,
+                "title": r.title,
+                "description": r.description,
+                "semester": r.semester,
+                "subject_code": r.subject_code,
+                "subject_name": r.subject_name,
+                "file_url": r.file_url,
+                "file_name": r.file_name,
+                "file_size": r.file_size,
+                "download_count": r.download_count,
+                "created_at": str(r.created_at) if r.created_at else None
+            })
+        return notes
+    finally:
+        db.close()
+
+@app.post("/api/student-hub/notes/{note_id}/download")
+def download_note(note_id: int, current_user: dict = Depends(get_current_user)):
+    db = SessionLocal()
+    try:
+        # Increment download_count
+        db.execute(text("""
+            UPDATE college_notes 
+            SET download_count = download_count + 1 
+            WHERE note_id = :nid
+        """), {"nid": note_id})
+        db.commit()
+        return {"success": True}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        db.close()
+
+@app.get("/api/programming/topics")
+def get_programming_topics(category: Optional[str] = None, current_user: dict = Depends(get_current_user)):
+    db = SessionLocal()
+    try:
+        query_str = "SELECT * FROM programming_topics"
+        params = {}
+        if category:
+            query_str += " WHERE category = :category"
+            params["category"] = category
+        query_str += " ORDER BY topic_id ASC"
+        res = db.execute(text(query_str), params).fetchall()
+        
+        topics = []
+        for r in res:
+            topics.append({
+                "topic_id": r.topic_id,
+                "category": r.category,
+                "title": r.title,
+                "description": r.description,
+                "icon": r.icon,
+                "created_at": str(r.created_at) if r.created_at else None
+            })
+        return topics
+    finally:
+        db.close()
+
+@app.get("/api/programming/questions")
+def get_programming_questions(topic_id: Optional[int] = None, current_user: dict = Depends(get_current_user)):
+    db = SessionLocal()
+    try:
+        student_id = current_user.get("student_id")
+        query_str = """
+            SELECT q.*, COALESCE(p.completed, FALSE) as completed
+            FROM programming_questions q
+            LEFT JOIN student_programming_progress p 
+              ON q.question_id = p.question_id AND p.student_id = :sid
+        """
+        params = {"sid": student_id or 0}
+        
+        if topic_id is not None:
+            query_str += " WHERE q.topic_id = :topic_id"
+            params["topic_id"] = topic_id
+            
+        query_str += " ORDER BY q.question_id ASC"
+        res = db.execute(text(query_str), params).fetchall()
+        
+        questions = []
+        for r in res:
+            questions.append({
+                "question_id": r.question_id,
+                "topic_id": r.topic_id,
+                "title": r.title,
+                "difficulty": r.difficulty,
+                "platform": r.platform,
+                "url": r.url,
+                "completed": bool(r.completed),
+                "created_at": str(r.created_at) if r.created_at else None
+            })
+        return questions
+    finally:
+        db.close()
+
+@app.post("/api/programming/questions/{question_id}/toggle-complete")
+def toggle_question_complete(question_id: int, current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "student":
+        raise HTTPException(status_code=403, detail="Only students can track programming progress")
+    
+    student_id = current_user["student_id"]
+    db = SessionLocal()
+    try:
+        # Check if progress exists
+        row = db.execute(text("""
+            SELECT completed FROM student_programming_progress 
+            WHERE student_id = :sid AND question_id = :qid
+        """), {"sid": student_id, "qid": question_id}).fetchone()
+        
+        if row:
+            # Toggle completion
+            new_status = not row.completed
+            db.execute(text("""
+                UPDATE student_programming_progress 
+                SET completed = :status, completed_at = CURRENT_TIMESTAMP
+                WHERE student_id = :sid AND question_id = :qid
+            """), {"sid": student_id, "qid": question_id, "status": new_status})
+        else:
+            new_status = True
+            db.execute(text("""
+                INSERT INTO student_programming_progress (student_id, question_id, completed)
+                VALUES (:sid, :qid, TRUE)
+            """), {"sid": student_id, "qid": question_id})
+        
+        db.commit()
+        return {"success": True, "completed": new_status}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        db.close()
+
+@app.get("/api/programming/stats")
+def get_programming_stats(current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "student":
+        raise HTTPException(status_code=403, detail="Only students have programming stats")
+        
+    student_id = current_user["student_id"]
+    db = SessionLocal()
+    try:
+        # 1. Total questions count by difficulty and platform
+        all_q = db.execute(text("""
+            SELECT difficulty, platform, COUNT(*) as count 
+            FROM programming_questions 
+            GROUP BY difficulty, platform
+        """)).fetchall()
+        
+        # 2. Solved questions count by difficulty and platform
+        solved_q = db.execute(text("""
+            SELECT q.difficulty, q.platform, COUNT(*) as count
+            FROM programming_questions q
+            JOIN student_programming_progress p ON q.question_id = p.question_id
+            WHERE p.student_id = :sid AND p.completed = TRUE
+            GROUP BY q.difficulty, q.platform
+        """), {"sid": student_id}).fetchall()
+        
+        # Format totals
+        total_easy = sum(r.count for r in all_q if r.difficulty.lower() == "easy")
+        total_medium = sum(r.count for r in all_q if r.difficulty.lower() == "medium")
+        total_hard = sum(r.count for r in all_q if r.difficulty.lower() == "hard")
+        total_questions = sum(r.count for r in all_q)
+        
+        solved_easy = sum(r.count for r in solved_q if r.difficulty.lower() == "easy")
+        solved_medium = sum(r.count for r in solved_q if r.difficulty.lower() == "medium")
+        solved_hard = sum(r.count for r in solved_q if r.difficulty.lower() == "hard")
+        total_solved = sum(r.count for r in solved_q)
+        
+        # Platform breakdown
+        platforms = ["Leetcode", "Codeforces", "HackerRank", "GitHub", "Practice"]
+        platform_stats = {}
+        for plat in platforms:
+            tot = sum(r.count for r in all_q if r.platform.lower() == plat.lower())
+            sol = sum(r.count for r in solved_q if r.platform.lower() == plat.lower())
+            platform_stats[plat] = {
+                "total": tot,
+                "solved": sol
+            }
+            
+        return {
+            "total_questions": total_questions,
+            "total_solved": total_solved,
+            "difficulty_breakdown": {
+                "easy": {"total": total_easy, "solved": solved_easy},
+                "medium": {"total": total_medium, "solved": solved_medium},
+                "hard": {"total": total_hard, "solved": solved_hard}
+            },
+            "platform_breakdown": platform_stats
+        }
+    finally:
+        db.close()
+
+
 # --- Remedial Reusable Helpers ---
 
 def create_remedial_session_helper(db, payload: RemedialSessionCreateInput) -> int:
@@ -8855,4 +10152,826 @@ def get_faculty_dashboard_command_center(
     finally:
         db.close()
 
+
+# --- Dynamic Domains Module Endpoints ---
+
+@app.get("/api/domains")
+@app.get("/api/v1/domains")
+def get_domains():
+    db = SessionLocal()
+    try:
+        rows = db.execute(text("""
+            SELECT domain_id, domain_key, category, title, description, icon, difficulty, duration, avg_salary, popular,
+                   skills, roadmap, courses, certifications, projects, salary, placements, learning_resources, interview_prep
+            FROM domains
+            ORDER BY domain_id ASC
+        """)).fetchall()
+        
+        result = []
+        for r in rows:
+            import json
+            result.append({
+                "id": r.domain_key,
+                "domain_id": r.domain_id,
+                "domain_key": r.domain_key,
+                "category": r.category,
+                "title": r.title,
+                "description": r.description,
+                "icon": r.icon,
+                "difficulty": r.difficulty,
+                "duration": r.duration,
+                "avgSalary": r.avg_salary,
+                "popular": r.popular,
+                "skills": json.loads(r.skills) if isinstance(r.skills, str) else r.skills,
+                "nodes": json.loads(r.roadmap) if isinstance(r.roadmap, str) else r.roadmap,
+                "courses": json.loads(r.courses) if isinstance(r.courses, str) else r.courses,
+                "certifications": json.loads(r.certifications) if isinstance(r.certifications, str) else r.certifications,
+                "projects": json.loads(r.projects) if isinstance(r.projects, str) else r.projects,
+                "salary": json.loads(r.salary) if isinstance(r.salary, str) else r.salary,
+                "placements": json.loads(r.placements) if isinstance(r.placements, str) else r.placements,
+                "learning_resources": json.loads(r.learning_resources) if isinstance(r.learning_resources, str) else r.learning_resources,
+                "interview_prep": json.loads(r.interview_prep) if isinstance(r.interview_prep, str) else r.interview_prep
+            })
+        return result
+    finally:
+        db.close()
+
+
+@app.get("/api/domains/{domain_key}")
+@app.get("/api/v1/domains/{domain_key}")
+def get_domain_detail(domain_key: str):
+    db = SessionLocal()
+    try:
+        r = db.execute(text("""
+            SELECT domain_id, domain_key, category, title, description, icon, difficulty, duration, avg_salary, popular,
+                   skills, roadmap, courses, certifications, projects, salary, placements, learning_resources, interview_prep
+            FROM domains
+            WHERE domain_key = :key
+        """), {"key": domain_key}).fetchone()
+        
+        if not r:
+            raise HTTPException(status_code=404, detail="Domain not found")
+            
+        import json
+        return {
+            "id": r.domain_key,
+            "domain_id": r.domain_id,
+            "domain_key": r.domain_key,
+            "category": r.category,
+            "title": r.title,
+            "description": r.description,
+            "icon": r.icon,
+            "difficulty": r.difficulty,
+            "duration": r.duration,
+            "avgSalary": r.avg_salary,
+            "popular": r.popular,
+            "skills": json.loads(r.skills) if isinstance(r.skills, str) else r.skills,
+            "nodes": json.loads(r.roadmap) if isinstance(r.roadmap, str) else r.roadmap,
+            "courses": json.loads(r.courses) if isinstance(r.courses, str) else r.courses,
+            "certifications": json.loads(r.certifications) if isinstance(r.certifications, str) else r.certifications,
+            "projects": json.loads(r.projects) if isinstance(r.projects, str) else r.projects,
+            "salary": json.loads(r.salary) if isinstance(r.salary, str) else r.salary,
+            "placements": json.loads(r.placements) if isinstance(r.placements, str) else r.placements,
+            "learning_resources": json.loads(r.learning_resources) if isinstance(r.learning_resources, str) else r.learning_resources,
+            "interview_prep": json.loads(r.interview_prep) if isinstance(r.interview_prep, str) else r.interview_prep
+        }
+    finally:
+        db.close()
+
+
+@app.post("/api/quiz/submit")
+@app.post("/api/v1/quiz/submit")
+def submit_quiz_score(data: QuizSubmitInput, current_user: dict = Depends(get_current_user)):
+    db = SessionLocal()
+    try:
+        student_id = current_user.get("student_id")
+        if not student_id:
+            raise HTTPException(status_code=400, detail="Only students can submit quiz scores")
+            
+        accuracy = (data.score / data.total_questions) if data.total_questions > 0 else 0.0
+        passed = accuracy >= 0.60
+        
+        # 1. Insert into quiz_attempts
+        db.execute(text("""
+            INSERT INTO quiz_attempts (student_id, node_id, domain_id, score, total_questions, xp_earned, passed)
+            VALUES (:sid, :nid, :did, :score, :tq, :xp, :passed)
+        """), {
+            "sid": student_id,
+            "nid": data.node_id,
+            "did": data.domain_id,
+            "score": int(data.score),
+            "tq": data.total_questions,
+            "xp": data.xp_earned,
+            "passed": passed
+        })
+        
+        # 2. Calculate and update streak
+        metrics = db.execute(text("SELECT streak, last_active_date FROM student_metrics WHERE student_id = :sid"), {"sid": student_id}).fetchone()
+        current_streak = metrics.streak if metrics and metrics.streak else 0
+        last_active = metrics.last_active_date if metrics else None
+        
+        today = datetime.now().date()
+        if last_active:
+            if last_active == today:
+                pass
+            elif last_active == today - timedelta(days=1):
+                current_streak += 1
+            else:
+                current_streak = 1
+        else:
+            current_streak = 1
+            
+        # 3. Update student metrics (XP & Streak)
+        db.execute(text("""
+            UPDATE student_metrics 
+            SET xp_points = xp_points + :xp, streak = :streak, last_active_date = :today, updated_at = CURRENT_TIMESTAMP
+            WHERE student_id = :sid
+        """), {"xp": data.xp_earned, "streak": current_streak, "today": today, "sid": student_id})
+        
+        # 4. Insert completion notification
+        db.execute(text("""
+            INSERT INTO notifications (student_id, title, message, type, created_at)
+            VALUES (:sid, 'Quiz Completed', :msg, 'general', CURRENT_TIMESTAMP)
+        """), {
+            "sid": student_id,
+            "msg": f"Congratulations! You completed the quiz for '{data.node_id}' and earned {data.xp_earned} XP."
+        })
+        
+        # 5. Badge Unlocks Check
+        unlocked_res = db.execute(text("SELECT badge_id FROM student_badges WHERE student_id = :sid"), {"sid": student_id}).fetchall()
+        unlocked_badge_ids = {r.badge_id for r in unlocked_res}
+        
+        new_badges = []
+        
+        # Check: AI Enthusiast (b12) -> 100% score on any AI/ML quiz
+        if data.domain_id == 'artificial-intelligence' and accuracy >= 1.0 and "b12" not in unlocked_badge_ids:
+            new_badges.append(("b12", "AI Enthusiast", 200))
+            
+        # Check: Consistent Learner (b5) -> 15 day streak
+        if current_streak >= 15 and "b5" not in unlocked_badge_ids:
+            new_badges.append(("b5", "Consistent Learner", 200))
+            
+        # Check: Quiz Master (b10) -> 5 quizzes completed successfully
+        quizzes_passed = db.execute(text("SELECT COUNT(*) FROM quiz_attempts WHERE student_id = :sid AND passed = TRUE"), {"sid": student_id}).scalar() or 0
+        if quizzes_passed >= 5 and "b10" not in unlocked_badge_ids:
+            new_badges.append(("b10", "Quiz Master", 300))
+            
+        # Check: Knowledge Explorer (b11) -> Quizzes attempted in 4 different domains
+        unique_domains = db.execute(text("SELECT COUNT(DISTINCT domain_id) FROM quiz_attempts WHERE student_id = :sid"), {"sid": student_id}).scalar() or 0
+        if unique_domains >= 4 and "b11" not in unlocked_badge_ids:
+            new_badges.append(("b11", "Knowledge Explorer", 150))
+            
+        # Insert new badges and trigger notifications
+        for bid, bname, reward in new_badges:
+            db.execute(text("""
+                INSERT INTO student_badges (student_id, badge_id)
+                VALUES (:sid, :bid) ON CONFLICT DO NOTHING
+            """), {"sid": student_id, "bid": bid})
+            db.execute(text("""
+                UPDATE student_metrics SET xp_points = xp_points + :reward WHERE student_id = :sid
+            """), {"reward": reward, "sid": student_id})
+            db.execute(text("""
+                INSERT INTO notifications (student_id, title, message, type, created_at)
+                VALUES (:sid, 'Badge Unlocked!', :msg, 'general', CURRENT_TIMESTAMP)
+            """), {
+                "sid": student_id,
+                "msg": f"Prestige Unlock: You earned the '{bname}' badge and +{reward} XP!"
+            })
+            
+        db.commit()
+        return {"status": "success", "xp_earned": data.xp_earned, "passed": passed, "streak": current_streak, "unlocked_badges": [b[1] for b in new_badges]}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        db.close()
+
+
+@app.get("/api/gamification/badges")
+def get_student_badges_api(current_user: dict = Depends(get_current_user)):
+    db = SessionLocal()
+    try:
+        student_id = current_user.get("student_id")
+        if not student_id:
+            raise HTTPException(status_code=400, detail="Student ID required")
+            
+        metrics = db.execute(text("""
+            SELECT attendance, quiz_score, predicted_cgpa, xp_points, streak 
+            FROM student_metrics WHERE student_id = :sid
+        """), {"sid": student_id}).fetchone()
+        
+        assign_count = db.execute(text("""
+            SELECT COUNT(*) FROM assignment_submissions 
+            WHERE student_id = :sid AND status = 'Graded'
+        """), {"sid": student_id}).scalar() or 0
+        
+        quizzes_passed = db.execute(text("""
+            SELECT COUNT(*) FROM quiz_attempts 
+            WHERE student_id = :sid AND passed = TRUE
+        """), {"sid": student_id}).scalar() or 0
+        
+        domains_count = db.execute(text("""
+            SELECT COUNT(DISTINCT domain_id) FROM quiz_attempts 
+            WHERE student_id = :sid
+        """), {"sid": student_id}).scalar() or 0
+        
+        unlocked_res = db.execute(text("""
+            SELECT badge_id FROM student_badges WHERE student_id = :sid
+        """), {"sid": student_id}).fetchall()
+        unlocked_badge_ids = {r.badge_id for r in unlocked_res}
+        
+        xp_pts = metrics.xp_points if metrics else 0
+        streak_val = metrics.streak if metrics else 0
+        cgpa_val = float(metrics.predicted_cgpa) if metrics else 0.0
+        attendance_val = float(metrics.attendance) if metrics else 0.0
+        
+        badges_list = [
+          { "id": "b1", "name": "Academic Topper", "description": "Achieve the highest score in your department quiz.", "category": "Academic Excellence", "icon": "Trophy", "xpReward": 500, "unlockCondition": "Rank 1 in Department Quiz", "unlocked": "b1" in unlocked_badge_ids, "progress": { "current": 1 if "b1" in unlocked_badge_ids else 0, "target": 1 } },
+          { "id": "b2", "name": "Dean's List", "description": "Maintain an academic CGPA of 9.0 or above.", "category": "Academic Excellence", "icon": "Award", "xpReward": 400, "unlockCondition": "CGPA >= 9.0", "unlocked": cgpa_val >= 9.0 or "b2" in unlocked_badge_ids, "progress": { "current": cgpa_val, "target": 9.0 } },
+          { "id": "b3", "name": "Subject Master", "description": "Complete all quizzes in a single domain with >90% average.", "category": "Academic Excellence", "icon": "BookOpen", "xpReward": 300, "unlockCondition": "Average score > 90%", "unlocked": "b3" in unlocked_badge_ids, "progress": { "current": 90 if "b3" in unlocked_badge_ids else 89, "target": 90 } },
+          { "id": "b4", "name": "Perfect Attendance", "description": "Maintain a high attendance rate of 95% or higher.", "category": "Attendance", "icon": "CalendarCheck", "xpReward": 250, "unlockCondition": "Attendance >= 95%", "unlocked": attendance_val >= 95.0 or "b4" in unlocked_badge_ids, "progress": { "current": attendance_val, "target": 95 } },
+          { "id": "b5", "name": "Consistent Learner", "description": "Maintain a study streak of 15 consecutive days.", "category": "Attendance", "icon": "Flame", "xpReward": 200, "unlockCondition": "15 Day Streak", "unlocked": streak_val >= 15 or "b5" in unlocked_badge_ids, "progress": { "current": streak_val, "target": 15 } },
+          { "id": "b6", "name": "Campus Regular", "description": "Check in on campus for 30 consecutive days.", "category": "Attendance", "icon": "MapPin", "xpReward": 150, "unlockCondition": "30 Days Check-in", "unlocked": "b6" in unlocked_badge_ids, "progress": { "current": 30 if "b6" in unlocked_badge_ids else 12, "target": 30 } },
+          { "id": "b7", "name": "Assignment Warrior", "description": "Complete 10 course assignments successfully.", "category": "Assignments", "icon": "FileText", "xpReward": 300, "unlockCondition": "10 Assignments Completed", "unlocked": assign_count >= 10 or "b7" in unlocked_badge_ids, "progress": { "current": assign_count, "target": 10 } },
+          { "id": "b8", "name": "Deadline Crusher", "description": "Submit 5 assignments 24 hours before the deadline.", "category": "Assignments", "icon": "Clock", "xpReward": 200, "unlockCondition": "5 Early Submissions", "unlocked": "b8" in unlocked_badge_ids, "progress": { "current": 5 if "b8" in unlocked_badge_ids else 3, "target": 5 } },
+          { "id": "b9", "name": "Zero Backlog Shield", "description": "Keep your backlog list completely clear for the semester.", "category": "Assignments", "icon": "Shield", "xpReward": 250, "unlockCondition": "No Pending Assignments", "unlocked": "b9" in unlocked_badge_ids, "progress": { "current": 0, "target": 0 } },
+          { "id": "b10", "name": "Quiz Master", "description": "Complete 5 quizzes with an average score of over 85%.", "category": "Learning & Skills", "icon": "CheckCircle", "xpReward": 300, "unlockCondition": "5 Quizzes with >85% Score", "unlocked": quizzes_passed >= 5 or "b10" in unlocked_badge_ids, "progress": { "current": quizzes_passed, "target": 5 } },
+          { "id": "b11", "name": "Knowledge Explorer", "description": "Unlock and view 4 learning domains.", "category": "Learning & Skills", "icon": "Compass", "xpReward": 150, "unlockCondition": "4 Domains Visited", "unlocked": domains_count >= 4 or "b11" in unlocked_badge_ids, "progress": { "current": domains_count, "target": 4 } },
+          { "id": "b12", "name": "AI Enthusiast", "description": "Earn a score of 100% on any AI/ML track quiz.", "category": "Learning & Skills", "icon": "Cpu", "xpReward": 200, "unlockCondition": "100% Score on AI Quiz", "unlocked": "b12" in unlocked_badge_ids, "progress": { "current": 1 if "b12" in unlocked_badge_ids else 0, "target": 1 } },
+          { "id": "b13", "name": "Club Contributor", "description": "Participate in 3 campus club technical events.", "category": "Community & Events", "icon": "Users", "xpReward": 200, "unlockCondition": "Attend 3 Events", "unlocked": "b13" in unlocked_badge_ids, "progress": { "current": 3 if "b13" in unlocked_badge_ids else 1, "target": 3 } },
+          { "id": "b14", "name": "Campus Ambassador", "description": "Refer 5 other students to join the NeuroLearn portal.", "category": "Community & Events", "icon": "Megaphone", "xpReward": 350, "unlockCondition": "5 Referrals Registered", "unlocked": "b14" in unlocked_badge_ids, "progress": { "current": 3 if "b14" in unlocked_badge_ids else 0, "target": 5 } },
+          { "id": "b15", "name": "Legend Rank", "description": "Reach Level 10 and enter the elite Legend leaderboard.", "category": "Elite Achievements", "icon": "Crown", "xpReward": 1000, "unlockCondition": "Reach Level 10", "unlocked": xp_pts >= 10000 or "b15" in unlocked_badge_ids, "progress": { "current": min(10, int(xp_pts / 1000)), "target": 10 } }
+        ]
+        
+        # Save newly unlocked badges automatically
+        modified = False
+        for b in badges_list:
+            if b["unlocked"] and b["id"] not in unlocked_badge_ids:
+                db.execute(text("""
+                    INSERT INTO student_badges (student_id, badge_id)
+                    VALUES (:sid, :bid) ON CONFLICT DO NOTHING
+                """), {"sid": student_id, "bid": b["id"]})
+                db.execute(text("""
+                    UPDATE student_metrics SET xp_points = xp_points + :xp WHERE student_id = :sid
+                """), {"xp": b["xpReward"], "sid": student_id})
+                db.execute(text("""
+                    INSERT INTO notifications (student_id, title, message, type, created_at)
+                    VALUES (:sid, 'Badge Unlocked!', :msg, 'general', CURRENT_TIMESTAMP)
+                """), {"sid": student_id, "msg": f"Prestige Unlock: You earned the '{b['name']}' badge and +{b['xpReward']} XP!"})
+                modified = True
+                
+        if modified:
+            db.commit()
+            
+        return badges_list
+    finally:
+        db.close()
+
+
+@app.get("/api/gamification/leaderboard")
+def get_gamification_leaderboard(
+    type: str = "student", 
+    filter: str = "institution",
+    current_user: dict = Depends(get_current_user)
+):
+    db = SessionLocal()
+    try:
+        inst_id = current_user.get("institution_id", 1)
+        
+        if type == "faculty":
+            # Rank faculty by log count in faculty_activities
+            query_str = """
+                SELECT f.faculty_id as id, f.full_name as name, f.faculty_code as "facultyCode",
+                       f.department as branch, f.designation, f.avatar_url as avatar,
+                       COUNT(fa.activity_id) as xp,
+                       COUNT(CASE WHEN fa.module = 'attendance' THEN 1 END) as streak
+                FROM faculty f
+                LEFT JOIN faculty_activities fa ON f.faculty_id = fa.faculty_id
+                WHERE f.institution_id = :inst_id
+                GROUP BY f.faculty_id, f.full_name, f.faculty_code, f.department, f.designation, f.avatar_url
+                ORDER BY xp DESC
+            """
+            rows = db.execute(text(query_str), {"inst_id": inst_id}).fetchall()
+            leaderboard = []
+            for idx, r in enumerate(rows):
+                leaderboard.append({
+                    "id": f"FC-{r.id}",
+                    "name": r.name,
+                    "facultyCode": r.facultyCode,
+                    "branch": r.branch,
+                    "designation": r.designation,
+                    "avatar": r.avatar or "👨‍🏫",
+                    "xp": r.xp * 150 + 500, 
+                    "streak": r.streak or 0,
+                    "rank": idx + 1
+                })
+            return leaderboard
+            
+        else: # student or overall
+            query_str = """
+                SELECT s.student_id as id, s.full_name as name, s.roll_no as "rollNumber",
+                       s.department as branch, s.semester, s.avatar_url as avatar,
+                       COALESCE(sm.xp_points, 0) as xp, COALESCE(sm.streak, 0) as streak
+                FROM students s
+                LEFT JOIN student_metrics sm ON s.student_id = sm.student_id
+                WHERE s.institution_id = :inst_id
+            """
+            params = {"inst_id": inst_id}
+            
+            if filter == "department" and current_user.get("role") == "student":
+                user_dept = db.execute(text("SELECT department FROM students WHERE student_id = :sid"), {"sid": current_user["student_id"]}).scalar()
+                if user_dept:
+                    query_str += " AND s.department = :dept"
+                    params["dept"] = user_dept
+            elif filter == "semester" and current_user.get("role") == "student":
+                user_sem = db.execute(text("SELECT semester FROM students WHERE student_id = :sid"), {"sid": current_user["student_id"]}).scalar()
+                if user_sem:
+                    query_str += " AND s.semester = :sem"
+                    params["sem"] = user_sem
+                    
+            rows = db.execute(text(query_str), params).fetchall()
+            leaderboard = []
+            for r in rows:
+                leaderboard.append({
+                    "id": f"ST-{r.id}",
+                    "name": r.name,
+                    "rollNumber": r.rollNumber,
+                    "branch": r.branch,
+                    "year": f"Semester {r.semester}",
+                    "avatar": r.avatar or "🚀",
+                    "xp": r.xp,
+                    "streak": r.streak,
+                })
+                
+            if filter == "weekly":
+                for item in leaderboard:
+                    item["xp"] = int((item["xp"] * 0.15) + (item["streak"] * 12) + (item["id"].split("-")[1].encode()[0] * 5))
+                    
+            leaderboard.sort(key=lambda x: x["xp"], reverse=True)
+            for idx, item in enumerate(leaderboard):
+                item["rank"] = idx + 1
+            return leaderboard
+    finally:
+        db.close()
+
+
+@app.get("/api/gamification/stats")
+def get_gamification_stats(current_user: dict = Depends(get_current_user)):
+    db = SessionLocal()
+    try:
+        student_id = current_user.get("student_id")
+        if not student_id:
+            raise HTTPException(status_code=400, detail="Gamification stats only available to students")
+            
+        metrics = db.execute(text("""
+            SELECT COALESCE(xp_points, 0) as xp, COALESCE(streak, 0) as streak 
+            FROM student_metrics WHERE student_id = :sid
+        """), {"sid": student_id}).fetchone()
+        
+        xp = metrics.xp if metrics else 0
+        streak = metrics.streak if metrics else 0
+        
+        level_map = [
+          { "level": 1, "name": "Freshman", "minXp": 0, "maxXp": 199 },
+          { "level": 2, "name": "Learner", "minXp": 200, "maxXp": 499 },
+          { "level": 3, "name": "Explorer", "minXp": 500, "maxXp": 999 },
+          { "level": 4, "name": "Scholar", "minXp": 1000, "maxXp": 1799 },
+          { "level": 5, "name": "Achiever", "minXp": 1800, "maxXp": 2799 },
+          { "level": 6, "name": "Innovator", "minXp": 2800, "maxXp": 3999 },
+          { "level": 7, "name": "Expert", "minXp": 4000, "maxXp": 5499 },
+          { "level": 8, "name": "Mentor", "minXp": 5500, "maxXp": 7499 },
+          { "level": 9, "name": "Elite", "minXp": 7500, "maxXp": 9999 },
+          { "level": 10, "name": "Legend", "minXp": 10000, "maxXp": 999999 }
+        ]
+        current_lvl = next((lvl for lvl in level_map if xp >= lvl["minXp"] and xp <= lvl["maxXp"]), level_map[-1])
+        
+        all_students = db.execute(text("""
+            SELECT s.student_id, COALESCE(sm.xp_points, 0) as xp 
+            FROM students s 
+            LEFT JOIN student_metrics sm ON s.student_id = sm.student_id 
+            WHERE s.institution_id = :iid
+            ORDER BY xp DESC
+        """), {"iid": current_user.get("institution_id", 1)}).fetchall()
+        
+        total_cohort = len(all_students)
+        user_rank = 1
+        for idx, r in enumerate(all_students):
+            if r.student_id == student_id:
+                user_rank = idx + 1
+                break
+                
+        pct = (user_rank / total_cohort * 100) if total_cohort > 0 else 100
+        percentile_str = "Top 1%" if pct <= 1 else f"Top {round(pct)}%"
+        
+        badges_unlocked = db.execute(text("""
+            SELECT COUNT(*) FROM student_badges WHERE student_id = :sid
+        """), {"sid": student_id}).scalar() or 0
+        
+        progress_range = (current_lvl["maxXp"] - current_lvl["minXp"] + 1)
+        progress_percent = round(((xp - current_lvl["minXp"]) / progress_range) * 100) if current_lvl["maxXp"] != 999999 else 100
+        
+        return {
+            "xp": xp,
+            "streak": streak,
+            "level": current_lvl["level"],
+            "level_name": current_lvl["name"],
+            "min_xp": current_lvl["minXp"],
+            "max_xp": current_lvl["maxXp"],
+            "progress_percent": progress_percent,
+            "rank": user_rank,
+            "total_cohort": total_cohort,
+            "percentile": percentile_str,
+            "badges_unlocked": badges_unlocked
+        }
+    finally:
+        db.close()
+
+
+@app.get("/api/gamification/analytics")
+def get_gamification_analytics(current_user: dict = Depends(get_current_user)):
+    db = SessionLocal()
+    try:
+        student_id = current_user.get("student_id")
+        if not student_id:
+            raise HTTPException(status_code=400, detail="Only students have quiz analytics")
+            
+        attempts = db.execute(text("""
+            SELECT score, total_questions, passed, created_at 
+            FROM quiz_attempts 
+            WHERE student_id = :sid 
+            ORDER BY created_at ASC
+        """), {"sid": student_id}).fetchall()
+        
+        if not attempts:
+            return {
+                "total_quizzes": 0,
+                "passed_quizzes": 0,
+                "avg_score": 0.0,
+                "passing_rate": 0.0,
+                "history": []
+            }
+            
+        total = len(attempts)
+        passed = sum(1 for a in attempts if a.passed)
+        avg = sum((float(a.score) / float(a.total_questions) * 100) if a.total_questions > 0 else 0 for a in attempts) / total
+        
+        history = []
+        for a in attempts:
+            history.append({
+                "score": a.score,
+                "total_questions": a.total_questions,
+                "passed": a.passed,
+                "date": str(a.created_at.date()) if a.created_at else None
+            })
+            
+        return {
+            "total_quizzes": total,
+            "passed_quizzes": passed,
+            "avg_score": round(avg, 1),
+            "passing_rate": round(passed / total * 100, 1),
+            "history": history
+        }
+    finally:
+        db.close()
+
+
+# --- Academic Predictions Endpoints ---
+
+class AcademicPredictInput(BaseModel):
+    age: int
+    studytime: int
+    failures: int
+    absences: int
+    G1: float
+    G2: float
+
+
+@app.get("/api/v1/academic/student-stats")
+def get_academic_student_stats(current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "student":
+        raise HTTPException(status_code=400, detail="Only students can access academic stats")
+    
+    student_id = current_user["student_id"]
+    db = SessionLocal()
+    try:
+        # Calculate failures (count of grades F or total_marks < 40)
+        failures_row = db.execute(text("""
+            SELECT COUNT(*) FROM student_marks 
+            WHERE student_id = :sid AND (grade = 'F' OR total_marks < 40)
+        """), {"sid": student_id}).fetchone()
+        failures = failures_row[0] if failures_row else 0
+        
+        # Calculate absences (count of status = 'Absent')
+        absences_row = db.execute(text("""
+            SELECT COUNT(*) FROM attendance_records 
+            WHERE student_id = :sid AND status = 'Absent'
+        """), {"sid": student_id}).fetchone()
+        absences = absences_row[0] if absences_row else 0
+        
+        # Calculate average internal (G1)
+        g1_row = db.execute(text("""
+            SELECT AVG(internal_marks) FROM student_marks 
+            WHERE student_id = :sid AND internal_marks IS NOT NULL
+        """), {"sid": student_id}).fetchone()
+        g1_avg = float(g1_row[0]) if g1_row and g1_row[0] is not None else 14.0
+        if g1_avg > 20.0:
+            g1_avg = (g1_avg / 100.0) * 20.0
+            
+        # Calculate average quiz/midterm (G2)
+        g2_row = db.execute(text("""
+            SELECT AVG(quiz_marks) FROM student_marks 
+            WHERE student_id = :sid AND quiz_marks IS NOT NULL
+        """), {"sid": student_id}).fetchone()
+        g2_avg = float(g2_row[0]) if g2_row and g2_row[0] is not None else 15.0
+        if g2_avg > 20.0:
+            g2_avg = (g2_avg / 100.0) * 20.0
+            
+        # Default age and studytime
+        age = 20
+        studytime = 3
+        
+        # Try to pull from previous runs to remember age and studytime
+        prev_pred = db.execute(text("""
+            SELECT age, studytime FROM student_academic_predictions 
+            WHERE student_id = :sid 
+            ORDER BY created_at DESC LIMIT 1
+        """), {"sid": student_id}).fetchone()
+        if prev_pred:
+            age = prev_pred.age
+            studytime = prev_pred.studytime
+            
+        return {
+            "age": age,
+            "studytime": studytime,
+            "failures": min(4, failures),
+            "absences": min(93, absences),
+            "G1": round(g1_avg, 1),
+            "G2": round(g2_avg, 1)
+        }
+    finally:
+        db.close()
+
+
+@app.post("/api/v1/academic/predict")
+def predict_academic_outcome(data: AcademicPredictInput, current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "student":
+        raise HTTPException(status_code=400, detail="Only students can run academic projections")
+    
+    student_id = current_user["student_id"]
+    db = SessionLocal()
+    try:
+        # 1. Run grade prediction
+        predicted_grade = 14.5 # Default fallback
+        if student_model:
+            try:
+                # Format to integers for random forest features shape
+                prediction = student_model.predict([
+                    [
+                        0, 0, data.age, 0, 0, 0, 2, 2, 0, 0, 0, 0, 1,
+                        data.studytime, data.failures, 0, 0, 0, 0, 0, 0, 0, 0,
+                        3, 3, 3, 1, 1, 3, data.absences, int(data.G1), int(data.G2), 0
+                    ]
+                ])
+                predicted_grade = round(float(prediction[0]), 2)
+            except Exception as e:
+                print(f"Model inference error: {e}")
+                
+        # 2. Compute metrics
+        predicted_cgpa = round(min(10.0, max(0.0, (predicted_grade / 20.0) * 10.0)), 2)
+        
+        # Heuristic for attendance prediction
+        predicted_attendance = max(0.0, min(100.0, 100.0 - (data.absences * 1.5) + (data.studytime * 0.5)))
+        predicted_attendance = round(predicted_attendance, 2)
+        
+        # Backlog risk score
+        risk_score = (data.failures * 30.0) + (2.5 * data.absences) + (1.8 * (20.0 - data.G2))
+        risk_score = min(100.0, max(0.0, round(risk_score, 2)))
+        
+        risk_level = "Low"
+        if risk_score >= 70:
+            risk_level = "High"
+        elif risk_score >= 40:
+            risk_level = "Medium"
+            
+        # 3. Detect Weak Subjects
+        weak_subjects_list = []
+        db_marks = db.execute(text("""
+            SELECT sm.total_marks, s.subject_name 
+            FROM student_marks sm 
+            JOIN subjects s ON sm.subject_id = s.subject_id 
+            WHERE sm.student_id = :sid AND sm.total_marks IS NOT NULL
+        """), {"sid": student_id}).fetchall()
+        
+        if db_marks:
+            sorted_marks = sorted(db_marks, key=lambda x: float(x[0]))
+            for row in sorted_marks:
+                if float(row[0]) < 50.0 or len(weak_subjects_list) < 2:
+                    weak_subjects_list.append(row.subject_name)
+        
+        if not weak_subjects_list:
+            s_profile = db.execute(text("SELECT department FROM students WHERE student_id = :sid"), {"sid": student_id}).fetchone()
+            dept = s_profile.department if s_profile else "Computer Engineering"
+            
+            dept_subjects = db.execute(text("""
+                SELECT subject_name FROM subjects 
+                WHERE department = :dept LIMIT 3
+            """), {"dept": dept}).fetchall()
+            
+            if dept_subjects:
+                weak_subjects_list = [row.subject_name for row in dept_subjects[:2]]
+            else:
+                weak_subjects_list = ["Data Structures & Algorithms", "Operating Systems"]
+                
+        # 4. Generate Recommendations (Gemini or Fallback Rules)
+        gemini_key = os.getenv("GEMINI_API_KEY")
+        recommendations_list = []
+        
+        if gemini_key:
+            try:
+                import google.generativeai as genai
+                genai.configure(api_key=gemini_key)
+                model = genai.GenerativeModel('gemini-1.5-flash')
+                
+                studytime_desc = {1: "Under 2 hours", 2: "2 to 5 hours", 3: "5 to 10 hours", 4: "Over 10 hours"}.get(data.studytime, "Medium")
+                prompt = f"""
+                You are an academic advisor AI at NeuroLearn-AI.
+                Analyze the following student metrics and generate exactly 4 actionable recommendations for the student.
+                
+                Student Metrics:
+                - Age: {data.age}
+                - Weekly Study Time: {studytime_desc}
+                - Past Academic Failures: {data.failures}
+                - Absences this Semester: {data.absences}
+                - Internal Marks (G1): {data.G1}/20
+                - Midterm Marks (G2): {data.G2}/20
+                - Predicted Final Grade: {predicted_grade}/20 (CGPA: {predicted_cgpa}/10.0)
+                - Projected Attendance: {predicted_attendance}%
+                - Backlog Risk Level: {risk_level} (Risk Score: {risk_score}%)
+                - Weak Subjects identified: {", ".join(weak_subjects_list)}
+                
+                Respond with a valid JSON array of exactly 4 strings. Do not include markdown tags, code blocks, or explanations outside the JSON array.
+                Example: ["Increase study time to 5-10 hours", "Attend next 5 classes to avoid attendance shortage", "Focus on operating systems", "Schedule AI mentor review"]
+                """
+                
+                response = model.generate_content(prompt)
+                raw_text = response.text.strip()
+                if raw_text.startswith("```"):
+                    raw_text = re.sub(r'^```(?:json)?\n', '', raw_text)
+                    raw_text = re.sub(r'\n```$', '', raw_text)
+                
+                recommendations_list = json.loads(raw_text.strip())
+            except Exception as e:
+                print(f"Gemini API error during academic recommendations: {e}")
+                
+        if not recommendations_list:
+            if data.studytime <= 2:
+                recommendations_list.append("Allocate 2-3 additional hours weekly to study outside class. Shifting study hours up helps improve final CGPA.")
+            else:
+                recommendations_list.append("Maintain your study routine! Dedicate specific focus sessions on core engineering concepts before finals.")
+                
+            if data.absences > 8:
+                recommendations_list.append(f"Your attendance rate ({predicted_attendance}%) is approaching the warning limit. Attend all remaining classes to avoid debarment.")
+            else:
+                recommendations_list.append("Excellent lecture attendance consistency. Keep it up to earn academic compliance marks.")
+                
+            if risk_level == "High" or risk_level == "Medium":
+                recommendations_list.append(f"Schedule a remediation checkpoint with your subject teachers or the AI Mentor to address concerns in {', '.join(weak_subjects_list)}.")
+            else:
+                recommendations_list.append(f"Strengthen your preparation in {weak_subjects_list[0] if weak_subjects_list else 'core topics'} by practicing interactive programming questions in the Student Hub.")
+                
+            if data.G2 < 12:
+                recommendations_list.append(f"Review previous mid-term test questions and focus on topics where you scored lower in {weak_subjects_list[0] if weak_subjects_list else 'key courses'}.")
+            else:
+                recommendations_list.append("Aim for an honors grade by target-practicing advanced problem sets and attempting certification mocks.")
+        
+        # 5. Insert history record
+        import json
+        weak_subjects_json = json.dumps(weak_subjects_list)
+        recommendations_json = json.dumps(recommendations_list)
+        
+        db.execute(text("""
+            INSERT INTO student_academic_predictions (
+                student_id, age, studytime, failures, absences, g1_score, g2_score,
+                predicted_grade, predicted_cgpa, attendance_rate, backlog_risk, risk_level,
+                weak_subjects, recommendations
+            ) VALUES (
+                :sid, :age, :studytime, :failures, :absences, :g1, :g2,
+                :p_grade, :p_cgpa, :p_att, :b_risk, :risk_lvl,
+                :w_sub, :recs
+            )
+        """), {
+            "sid": student_id, "age": data.age, "studytime": data.studytime, "failures": data.failures,
+            "absences": data.absences, "g1": data.G1, "g2": data.G2,
+            "p_grade": predicted_grade, "p_cgpa": predicted_cgpa, "p_att": predicted_attendance,
+            "b_risk": risk_score, "risk_lvl": risk_level,
+            "w_sub": weak_subjects_json, "recs": recommendations_json
+        })
+        db.commit()
+        
+        # 6. Update student_metrics table
+        metrics_exist = db.execute(text("SELECT student_id FROM student_metrics WHERE student_id = :sid"), {"sid": student_id}).fetchone()
+        if metrics_exist:
+            db.execute(text("""
+                UPDATE student_metrics 
+                SET attendance = :att, quiz_score = :qs, risk_level = :rl, predicted_cgpa = :cgpa, updated_at = CURRENT_TIMESTAMP
+                WHERE student_id = :sid
+            """), {
+                "att": predicted_attendance, "qs": float(data.G2), "rl": risk_level, "cgpa": predicted_cgpa, "sid": student_id
+            })
+        else:
+            db.execute(text("""
+                INSERT INTO student_metrics (student_id, attendance, quiz_score, risk_level, predicted_cgpa)
+                VALUES (:sid, :att, :qs, :rl, :cgpa)
+            """), {
+                "sid": student_id, "att": predicted_attendance, "qs": float(data.G2), "rl": risk_level, "cgpa": predicted_cgpa
+            })
+        db.commit()
+        
+        # 7. Sync with risk_predictions table
+        db.execute(text("""
+            INSERT INTO risk_predictions (student_id, class_id, risk_score, risk_level, attendance_score, quiz_score, prediction_reason)
+            VALUES (
+                :sid,
+                (SELECT class_id FROM enrollments WHERE student_id = :sid ORDER BY created_at DESC LIMIT 1),
+                :r_score, :r_lvl, :att, :quiz,
+                :reason
+            )
+        """), {
+            "sid": student_id,
+            "r_score": risk_score,
+            "r_lvl": risk_level,
+            "att": predicted_attendance,
+            "quiz": float(data.G2),
+            "reason": f"Self-reported prediction. Study hours: {data.studytime}. Absences: {data.absences}. Failures: {data.failures}."
+        })
+        db.commit()
+
+        return {
+            "predicted_grade": predicted_grade,
+            "predicted_cgpa": predicted_cgpa,
+            "attendance_rate": predicted_attendance,
+            "backlog_risk": risk_score,
+            "risk_level": risk_level,
+            "weak_subjects": weak_subjects_list,
+            "recommendations": recommendations_list
+        }
+    except Exception as e:
+        db.rollback()
+        print(f"Error in academic predictions: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        db.close()
+
+
+@app.get("/api/v1/academic/predictions/history")
+def get_academic_predictions_history(current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "student":
+        raise HTTPException(status_code=400, detail="Only students can view predictions history")
+    
+    student_id = current_user["student_id"]
+    db = SessionLocal()
+    try:
+        import json
+        query = text("""
+            SELECT prediction_id, age, studytime, failures, absences, g1_score, g2_score,
+                   predicted_grade, predicted_cgpa, attendance_rate, backlog_risk, risk_level,
+                   weak_subjects, recommendations, created_at
+            FROM student_academic_predictions
+            WHERE student_id = :sid
+            ORDER BY created_at DESC
+        """)
+        rows = db.execute(query, {"sid": student_id}).fetchall()
+        
+        history = []
+        for r in rows:
+            try:
+                w_subs = json.loads(r.weak_subjects) if r.weak_subjects else []
+            except Exception:
+                w_subs = r.weak_subjects.split(",") if r.weak_subjects else []
+                
+            try:
+                recs = json.loads(r.recommendations) if r.recommendations else []
+            except Exception:
+                recs = r.recommendations.split(",") if r.recommendations else []
+                
+            history.append({
+                "prediction_id": r.prediction_id,
+                "age": r.age,
+                "studytime": r.studytime,
+                "failures": r.failures,
+                "absences": r.absences,
+                "G1": float(r.g1_score),
+                "G2": float(r.g2_score),
+                "predicted_grade": float(r.predicted_grade),
+                "predicted_cgpa": float(r.predicted_cgpa),
+                "attendance_rate": float(r.attendance_rate),
+                "backlog_risk": float(r.backlog_risk),
+                "risk_level": r.risk_level,
+                "weak_subjects": w_subs,
+                "recommendations": recs,
+                "created_at": str(r.created_at)
+            })
+        return history
+    finally:
+        db.close()
 

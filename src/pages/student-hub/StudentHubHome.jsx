@@ -11,7 +11,9 @@ import {
   Activity,
   ArrowRight,
   GraduationCap,
-  Brain
+  Brain,
+  BookMarked,
+  Code
 } from 'lucide-react';
 import { apiFetch } from '../../services/api';
 import { useStudent } from '../../context/StudentContext';
@@ -64,6 +66,22 @@ const StudentHubHome = () => {
       icon: BookOpen,
       badge: `${data.courses_count} Active`,
       path: '/student-hub/courses'
+    },
+    {
+      id: 'notes',
+      title: 'College Notes Repository',
+      description: 'Browse, filter, and download semester-wise lecture notes & problem sheets.',
+      icon: BookMarked,
+      badge: 'Syllabus Notes',
+      path: '/student-hub/notes'
+    },
+    {
+      id: 'programming',
+      title: 'Developer Programming Hub',
+      description: 'Track DSA problems, practice languages, and check progress benchmarks.',
+      icon: Code,
+      badge: 'Code Practice',
+      path: '/student-hub/programming'
     },
     {
       id: 'assignments',

@@ -26,28 +26,28 @@ import { useStudent } from '../context/StudentContext';
 import { useAuth } from '../context/AuthContext';
 const GRADIENT_THEMES = {
   violet: {
-    gradient: "from-violet-900 via-slate-950 to-slate-950",
-    textGradient: "from-violet-400 to-fuchsia-400",
-    accent: "bg-violet-600 text-white font-semibold shadow-lg shadow-violet-600/30",
-    toggle: "bg-violet-600 hover:bg-violet-500",
+    gradient: "from-slate-50 to-white",
+    textGradient: "from-indigo-600 to-purple-600",
+    accent: "bg-indigo-50 text-indigo-750 font-semibold border-l-2 border-indigo-600 shadow-sm",
+    toggle: "bg-white text-slate-400 border border-slate-200 hover:text-slate-800 hover:bg-slate-50",
   },
   rose: {
-    gradient: "from-rose-900 via-slate-950 to-slate-950",
-    textGradient: "from-rose-400 to-pink-400",
-    accent: "bg-rose-600 text-white font-semibold shadow-lg shadow-rose-600/30",
-    toggle: "bg-rose-600 hover:bg-rose-500",
+    gradient: "from-slate-50 to-white",
+    textGradient: "from-indigo-600 to-purple-600",
+    accent: "bg-indigo-50 text-indigo-750 font-semibold border-l-2 border-indigo-600 shadow-sm",
+    toggle: "bg-white text-slate-400 border border-slate-200 hover:text-slate-800 hover:bg-slate-50",
   },
   amber: {
-    gradient: "from-amber-900 via-slate-950 to-slate-950",
-    textGradient: "from-amber-400 to-yellow-400",
-    accent: "bg-amber-600 text-white font-semibold shadow-lg shadow-amber-600/30",
-    toggle: "bg-amber-600 hover:bg-amber-500",
+    gradient: "from-slate-50 to-white",
+    textGradient: "from-indigo-600 to-purple-600",
+    accent: "bg-indigo-50 text-indigo-750 font-semibold border-l-2 border-indigo-600 shadow-sm",
+    toggle: "bg-white text-slate-400 border border-slate-200 hover:text-slate-800 hover:bg-slate-50",
   },
   indigo: {
-    gradient: "from-indigo-900 via-slate-950 to-slate-950",
-    textGradient: "from-indigo-400 to-cyan-400",
-    accent: "bg-indigo-600 text-white font-semibold shadow-lg shadow-indigo-600/30",
-    toggle: "bg-indigo-600 hover:bg-indigo-500",
+    gradient: "from-slate-50 to-white",
+    textGradient: "from-indigo-600 to-purple-600",
+    accent: "bg-indigo-50 text-indigo-750 font-semibold border-l-2 border-indigo-600 shadow-sm",
+    toggle: "bg-white text-slate-400 border border-slate-200 hover:text-slate-800 hover:bg-slate-50",
   }
 };
 
@@ -68,6 +68,7 @@ const AdminLayout = () => {
     {name: 'Course-Subject Map', path: '/admin/course-subject', icon: Layers},
     {name: 'Faculty Assignment', path: '/admin/faculty-mapping', icon: Users},
     {name: 'Faculty Workload', path: '/admin/workload', icon: BarChart3},
+    {name: 'Institution Analytics', path: '/admin/reports', icon: BarChart3},
     {name: 'Announcements', path: '/admin/announcements', icon: Megaphone},
     {name: 'Academic Structure', path: '/admin/academic-structure', icon: Calendar},
     {name: 'System Audit Logs', path: '/admin/audit-logs', icon: FileText},
@@ -84,15 +85,15 @@ const AdminLayout = () => {
   const logoText = profile.college ? (profile.college.split(' ')[0] || 'NeuroLearn') : 'NeuroLearn';
 
   return (
-    <div className="flex h-screen overflow-hidden bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-150">
+    <div className="flex h-screen overflow-hidden bg-slate-50 text-slate-800">
       {/* Administrator Sidebar */}
       <motion.aside
-        className="hidden md:flex flex-col bg-slate-900 border-r border-slate-800 text-slate-300 relative h-screen sticky top-0"
-        animate={{ width: isCollapsed ? '70px' : '260px' }}
-        transition={{ duration: 0.3, ease: 'easeInOut' }}
+        className="hidden md:flex flex-col bg-white border-r border-slate-200 text-slate-650 relative h-screen sticky top-0"
+        animate={{ width: isCollapsed ? '72px' : '250px' }}
+        transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
       >
         {/* Header/Logo */}
-        <div className="flex items-center justify-between p-4 h-16 border-b border-slate-800 bg-slate-950">
+        <div className="flex items-center justify-between p-4 h-16 border-b border-slate-200 bg-slate-50">
           <AnimatePresence>
             {!isCollapsed && (
               <motion.div
@@ -102,14 +103,14 @@ const AdminLayout = () => {
                 className="flex items-center gap-2"
               >
                 {profile.logo_url ? (
-                  <img src={profile.logo_url} alt="Logo" className="w-8 h-8 object-contain rounded-lg bg-slate-950 p-0.5 shrink-0" />
+                  <img src={profile.logo_url} alt="Logo" className="w-7 h-7 object-contain rounded-lg bg-slate-100 p-0.5 shrink-0" />
                 ) : (
-                  <div className={`p-1.5 rounded-lg text-white bg-gradient-to-br ${currentTheme.gradient}`}>
-                    <Sparkles size={20} className="animate-pulse" />
+                  <div className={`p-1.5 rounded-lg text-white ${currentTheme.toggle}`}>
+                    <Sparkles size={16} />
                   </div>
                 )}
-                <span className={`font-extrabold text-base bg-gradient-to-r ${currentTheme.textGradient} bg-clip-text text-transparent`}>
-                  {logoText} Admin
+                <span className="font-extrabold text-sm tracking-tight text-slate-800">
+                  {logoText} <span className="text-slate-400 font-medium">Admin</span>
                 </span>
               </motion.div>
             )}
@@ -117,17 +118,17 @@ const AdminLayout = () => {
           
           {isCollapsed && (
             profile.logo_url ? (
-              <img src={profile.logo_url} alt="Logo" className="w-8 h-8 object-contain rounded-lg mx-auto bg-slate-950 p-0.5" />
+              <img src={profile.logo_url} alt="Logo" className="w-7 h-7 object-contain rounded-lg mx-auto bg-slate-100 p-0.5" />
             ) : (
-              <div className={`p-1.5 rounded-lg text-white mx-auto bg-gradient-to-br ${currentTheme.gradient}`}>
-                <Sparkles size={20} />
+              <div className={`p-1.5 rounded-lg text-white mx-auto ${currentTheme.toggle}`}>
+                <Sparkles size={16} />
               </div>
             )
           )}
         </div>
 
         {/* Navigation links */}
-        <nav className="flex-1 px-3 py-4 space-y-1.5 overflow-y-auto">
+        <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
           {menuItems.map((item) => {
             const Icon = item.icon;
             return (
@@ -135,26 +136,26 @@ const AdminLayout = () => {
                 key={item.path}
                 to={item.path}
                 className={({ isActive }) => 
-                  `flex items-center gap-4 px-3 py-3 rounded-xl transition-all duration-200 group relative ${
+                  `flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200 group relative text-xs ${
                     isActive 
                       ? currentTheme.accent 
-                      : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                      : 'text-slate-500 hover:text-slate-900 hover:bg-slate-100'
                   }`
                 }
               >
-                <Icon size={20} className="shrink-0" />
+                <Icon size={16} className="shrink-0 transition-transform group-hover:scale-105" />
                 {!isCollapsed && (
                   <motion.span
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
-                    className="text-sm tracking-wide"
+                    className="tracking-normal font-medium"
                   >
                     {item.name}
                   </motion.span>
                 )}
                 {isCollapsed && (
-                  <div className="absolute left-16 bg-slate-950 text-white text-xs px-2 py-1.5 rounded-md opacity-0 group-hover:opacity-100 transition-opacity duration-150 pointer-events-none z-50 whitespace-nowrap shadow-md border border-slate-800">
+                  <div className="absolute left-16 bg-slate-950 text-white text-[10px] px-2 py-1 rounded-md opacity-0 group-hover:opacity-100 transition-opacity duration-150 pointer-events-none z-50 whitespace-nowrap shadow-md border border-brand-border">
                     {item.name}
                   </div>
                 )}
@@ -166,22 +167,22 @@ const AdminLayout = () => {
         {/* Collapsible toggle */}
         <button
           onClick={() => setIsCollapsed(!isCollapsed)}
-          className={`absolute bottom-20 -right-3 ${currentTheme.toggle} text-white p-1 rounded-full border border-slate-900 shadow-md cursor-pointer z-50`}
+          className="absolute bottom-20 -right-3 w-6 h-6 flex items-center justify-center bg-white text-slate-400 border border-slate-200 hover:text-slate-800 rounded-full shadow-sm hover:shadow cursor-pointer z-50 transition-all"
         >
-          {isCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
+          {isCollapsed ? <ChevronRight size={12} /> : <ChevronLeft size={12} />}
         </button>
 
         {/* Logout bottom */}
         <div 
           onClick={handleLogout}
-          className="p-4 border-t border-slate-800 bg-slate-950/40 flex items-center gap-3 cursor-pointer hover:bg-slate-800/20 text-slate-400 hover:text-white transition-colors"
+          className="p-4 border-t border-slate-200 bg-slate-50 flex items-center gap-3 cursor-pointer hover:bg-slate-100 transition-colors group"
         >
-          <LogOut size={20} className="shrink-0 text-red-500" />
+          <LogOut size={16} className="shrink-0 text-brand-danger" />
           {!isCollapsed && (
             <motion.span 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="text-xs font-semibold"
+              className="text-xs font-semibold text-slate-800"
             >
               Log Out Admin
             </motion.span>
@@ -203,3 +204,4 @@ const AdminLayout = () => {
 };
 
 export default AdminLayout;
+
