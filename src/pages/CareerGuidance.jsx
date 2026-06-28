@@ -833,7 +833,7 @@ const CareerGuidance = () => {
 
                         <button
                           onClick={handleTriggerAnalysis}
-                          className="px-6 py-2.5 bg-indigo-650 hover:bg-indigo-550 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-lg shadow-indigo-600/15"
+                          className="px-6 py-2.5 bg-indigo-650 hover:bg-indigo-550  rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-lg shadow-indigo-600/15"
                         >
                           <Sparkles size={14} />
                           Trigger Gemini Diagnostics

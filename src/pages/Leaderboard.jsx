@@ -194,11 +194,11 @@ const Leaderboard = () => {
   }, [badgesData]);
 
   return (
-    <div className="space-y-8 pb-12">
+    <div className="space-y-8 pb-12 font-sans text-slate-800 dark:text-slate-100">
       {/* 1. Profile Level Hero Section */}
       {statsData && (
-        <div className="relative overflow-hidden rounded-3xl border border-slate-200/50 dark:border-slate-800/50 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-950 p-6 md:p-8 shadow-2xl text-white">
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-indigo-500/10 via-transparent to-transparent pointer-events-none" />
+        <div className={`relative overflow-hidden rounded-3xl border ${theme.border} bg-gradient-to-r ${theme.gradient} p-6 md:p-8 shadow-xl text-white`}>
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-white/10 via-transparent to-transparent pointer-events-none" />
 
           <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
             <div className="flex items-center gap-4 md:gap-6">
@@ -208,18 +208,18 @@ const Leaderboard = () => {
               <div>
                 <div className="flex items-center gap-3">
                   <h2 className="text-xl md:text-2xl font-black tracking-tight">{profile.name}</h2>
-                  <span className="bg-indigo-50 text-white text-[9px] font-black uppercase px-2 py-0.5 rounded-full border border-indigo-400/30 tracking-wider">
+                  <span className="bg-white/10 text-white text-[9px] font-black uppercase px-2 py-0.5 rounded-full border border-white/10 backdrop-blur-sm tracking-wider">
                     {profile.role === 'student' ? 'Active Scholar' : 'Elite Mentor'}
                   </span>
                 </div>
-                <p className="text-slate-400 text-xs mt-0.5 font-medium">{profile.branch} • {profile.year}</p>
+                <p className="text-white/80 text-xs mt-0.5 font-medium">{profile.branch} • {profile.year}</p>
 
                 {profile.role === 'student' && (
                   <div className="mt-3 flex items-center gap-3">
-                    <span className="bg-white/10 text-indigo-300 text-xs px-2.5 py-0.5 rounded-md font-bold backdrop-blur-sm">
+                    <span className="bg-white/10 text-white text-xs px-2.5 py-0.5 rounded-md font-bold backdrop-blur-sm">
                       Lvl {statsData.level} — {statsData.level_name}
                     </span>
-                    <span className="text-xs text-slate-400 font-medium">
+                    <span className="text-xs text-white/80 font-medium">
                       {statsData.xp.toLocaleString()} XP Points
                     </span>
                   </div>
@@ -231,18 +231,18 @@ const Leaderboard = () => {
             {profile.role === 'student' && (
               <div className="grid grid-cols-3 gap-3 md:gap-4 w-full md:w-auto">
                 <div className="bg-white/5 backdrop-blur-md border border-white/5 rounded-2xl p-3 text-center min-w-[90px] md:min-w-[110px]">
-                  <span className="block text-[10px] text-slate-400 uppercase font-bold tracking-wider">Cohort Rank</span>
-                  <span className="text-base md:text-lg font-black text-indigo-400">#{statsData.rank}</span>
+                  <span className="block text-[10px] text-white/70 uppercase font-bold tracking-wider">Cohort Rank</span>
+                  <span className="text-base md:text-lg font-black text-white">#{statsData.rank}</span>
                 </div>
                 <div className="bg-white/5 backdrop-blur-md border border-white/5 rounded-2xl p-3 text-center min-w-[90px] md:min-w-[110px]">
-                  <span className="block text-[10px] text-slate-400 uppercase font-bold tracking-wider">Daily Streak</span>
-                  <span className="text-base md:text-lg font-black text-orange-400 flex items-center justify-center gap-1">
-                    {statsData.streak}d <Flame size={16} className="fill-current text-orange-500" />
+                  <span className="block text-[10px] text-white/70 uppercase font-bold tracking-wider">Daily Streak</span>
+                  <span className="text-base md:text-lg font-black text-orange-350 flex items-center justify-center gap-1">
+                    {statsData.streak}d <Flame size={16} className="fill-current text-orange-400" />
                   </span>
                 </div>
                 <div className="bg-white/5 backdrop-blur-md border border-white/5 rounded-2xl p-3 text-center min-w-[90px] md:min-w-[110px]">
-                  <span className="block text-[10px] text-slate-400 uppercase font-bold tracking-wider">Achievements</span>
-                  <span className="text-base md:text-lg font-black text-teal-400">
+                  <span className="block text-[10px] text-white/70 uppercase font-bold tracking-wider">Achievements</span>
+                  <span className="text-base md:text-lg font-black text-teal-300">
                     {statsData.badges_unlocked} Unlocked
                   </span>
                 </div>
@@ -252,17 +252,17 @@ const Leaderboard = () => {
 
           {/* XP Progress Bar */}
           {profile.role === 'student' && (
-            <div className="mt-6 pt-4 border-t border-white/5 relative z-10">
-              <div className="flex justify-between items-center text-xs text-slate-400 mb-2">
+            <div className="mt-6 pt-4 border-t border-white/10 relative z-10">
+              <div className="flex justify-between items-center text-xs text-white/80 mb-2">
                 <span>XP Level Progression</span>
                 <span>{statsData.progress_percent}% to Next Level</span>
               </div>
-              <div className="w-full h-2.5 bg-slate-950/80 rounded-full overflow-hidden border border-white/5">
+              <div className="w-full h-2.5 bg-slate-950/20 rounded-full overflow-hidden border border-white/10 backdrop-blur-sm">
                 <motion.div
                   initial={{ width: 0 }}
                   animate={{ width: `${statsData.progress_percent}%` }}
                   transition={{ duration: 0.8, ease: "easeOut" }}
-                  className="h-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 rounded-full"
+                  className="h-full bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400 rounded-full"
                 />
               </div>
             </div>
@@ -272,12 +272,12 @@ const Leaderboard = () => {
 
       {/* 2. Secondary Tab Switcher */}
       {profile?.role === 'student' && (
-        <div className="flex items-center justify-center bg-slate-900/60 border border-slate-800 p-1.5 rounded-2xl max-w-lg mx-auto">
+        <div className="flex items-center justify-center bg-slate-100 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 p-1.5 rounded-2xl max-w-lg mx-auto shadow-sm">
           <button
             onClick={() => setActiveTab("leaderboard")}
             className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${activeTab === "leaderboard"
-                ? `${theme.bg} ${theme.text} border border-indigo-500/20 shadow-md`
-                : 'text-slate-400 hover:text-white'
+                ? `${theme.bg} ${theme.text} border border-current/25 shadow-sm`
+                : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'
               }`}
           >
             <Trophy size={14} /> Campus Leaderboard
@@ -285,8 +285,8 @@ const Leaderboard = () => {
           <button
             onClick={() => setActiveTab("badges")}
             className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${activeTab === "badges"
-                ? `${theme.bg} ${theme.text} border border-indigo-500/20 shadow-md`
-                : 'text-slate-400 hover:text-white'
+                ? `${theme.bg} ${theme.text} border border-current/25 shadow-sm`
+                : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'
               }`}
           >
             <Award size={14} /> Badge Vault
@@ -294,8 +294,8 @@ const Leaderboard = () => {
           <button
             onClick={() => setActiveTab("analytics")}
             className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${activeTab === "analytics"
-                ? `${theme.bg} ${theme.text} border border-indigo-500/20 shadow-md`
-                : 'text-slate-400 hover:text-white'
+                ? `${theme.bg} ${theme.text} border border-current/25 shadow-sm`
+                : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'
               }`}
           >
             <BarChart2 size={14} /> Quiz Analytics
@@ -315,8 +315,8 @@ const Leaderboard = () => {
           >
             {/* Podium (Top 3) */}
             {podiumList.length > 0 && (
-              <div className="bg-slate-900/40 border border-slate-800 rounded-3xl p-6 shadow-sm">
-                <h3 className="font-extrabold text-white text-md mb-6 flex items-center gap-2">
+              <div className="bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm">
+                <h3 className="font-extrabold text-slate-800 dark:text-white text-md mb-6 flex items-center gap-2">
                   <Trophy className="text-yellow-500" size={18} />
                   Top Standings Podium
                 </h3>
@@ -329,16 +329,16 @@ const Leaderboard = () => {
                     return (
                       <div key={member.id} className="flex flex-col items-center">
                         <div className="relative group mb-3">
-                          <div className={`w-14 h-14 md:w-20 md:h-20 rounded-full bg-slate-900 flex items-center justify-center text-2xl md:text-4xl shadow-lg border-4 transition-transform duration-300 group-hover:scale-105 ${isRank1
+                          <div className={`w-14 h-14 md:w-20 md:h-20 rounded-full bg-slate-105 dark:bg-slate-900 flex items-center justify-center text-2xl md:text-4xl shadow-lg border-4 transition-transform duration-300 group-hover:scale-105 ${isRank1
                               ? 'border-yellow-400 dark:border-yellow-500 w-16 h-16 md:w-24 md:h-24 shadow-yellow-500/10'
                               : member.place === 2
-                                ? 'border-slate-400'
+                                ? 'border-slate-300 dark:border-slate-500'
                                 : 'border-amber-600'
-                            } ${isUser ? 'ring-4 ring-indigo-500/40 ring-offset-2 ring-offset-slate-950' : ''}`}>
+                            } ${isUser ? 'ring-4 ring-indigo-500/40 ring-offset-2 ring-offset-white dark:ring-offset-slate-950' : ''}`}>
                             {member.avatar || "🚀"}
                           </div>
 
-                          <span className={`absolute -bottom-1 -right-1 w-6 h-6 rounded-full flex items-center justify-center text-xs font-black shadow border border-slate-900 ${isRank1
+                          <span className={`absolute -bottom-1 -right-1 w-6 h-6 rounded-full flex items-center justify-center text-xs font-black shadow border border-slate-200 dark:border-slate-900 ${isRank1
                               ? 'bg-yellow-400 text-slate-950 text-sm'
                               : member.place === 2
                                 ? 'bg-slate-200 text-slate-700'
@@ -349,10 +349,10 @@ const Leaderboard = () => {
                         </div>
 
                         <div className="text-center w-full max-w-[120px]">
-                          <h4 className={`text-xs md:text-sm font-black truncate ${isUser ? 'text-indigo-400' : 'text-white'}`}>
+                          <h4 className={`text-xs md:text-sm font-black truncate ${isUser ? 'text-indigo-650 dark:text-indigo-400' : 'text-slate-800 dark:text-white'}`}>
                             {member.name}
                           </h4>
-                          <p className="text-[10px] text-slate-500 font-bold uppercase truncate tracking-wider mt-0.5">
+                          <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase truncate tracking-wider mt-0.5">
                             {member.branch || "Scholar"}
                           </p>
                         </div>
@@ -360,13 +360,13 @@ const Leaderboard = () => {
                         <div className={`w-full mt-4 rounded-t-2xl flex flex-col justify-end items-center p-3 text-center border-t shadow-inner ${isRank1
                             ? 'h-28 md:h-36 bg-gradient-to-b from-yellow-500/10 via-yellow-500/5 to-transparent border-yellow-500/35'
                             : member.place === 2
-                              ? 'h-20 md:h-26 bg-gradient-to-b from-slate-400/10 via-slate-400/5 to-transparent border-slate-400/30'
+                              ? 'h-20 md:h-26 bg-gradient-to-b from-slate-400/10 via-slate-400/5 to-transparent border-slate-300 dark:border-slate-400/30'
                               : 'h-16 md:h-20 bg-gradient-to-b from-amber-600/10 via-amber-600/5 to-transparent border-amber-600/30'
                           }`}>
-                          <span className="block text-xs font-black text-slate-200">
+                          <span className="block text-xs font-black text-slate-800 dark:text-slate-200">
                             {member.xp?.toLocaleString()}
                           </span>
-                          <span className="text-[9px] text-slate-500 font-bold uppercase tracking-wider">
+                          <span className="text-[9px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider">
                             XP
                           </span>
                         </div>
@@ -378,8 +378,8 @@ const Leaderboard = () => {
             )}
 
             {/* Standings Filter Controls */}
-            <div className="bg-slate-900/60 border border-slate-800 rounded-3xl p-6 space-y-6">
-              <div className="flex flex-col sm:flex-row gap-4 justify-between items-stretch sm:items-center border-b border-slate-800 pb-4">
+            <div className="bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 space-y-6 shadow-sm">
+              <div className="flex flex-col sm:flex-row gap-4 justify-between items-stretch sm:items-center border-b border-slate-100 dark:border-slate-805 pb-4">
                 {/* Board selector */}
                 <div className="flex gap-2">
                   <button
@@ -388,8 +388,8 @@ const Leaderboard = () => {
                       setLeaderboardFilter("institution");
                     }}
                     className={`px-4 py-2 rounded-xl text-xs font-bold border transition-all ${leaderboardType === "student"
-                        ? `${theme.bg} ${theme.text} border-indigo-500/50`
-                        : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-white'
+                        ? `${theme.bg} ${theme.text} border-current/30`
+                        : 'bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'
                       }`}
                   >
                     🏆 Student Leaderboard
@@ -400,8 +400,8 @@ const Leaderboard = () => {
                       setLeaderboardFilter("institution");
                     }}
                     className={`px-4 py-2 rounded-xl text-xs font-bold border transition-all ${leaderboardType === "faculty"
-                        ? `${theme.bg} ${theme.text} border-indigo-500/50`
-                        : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-white'
+                        ? `${theme.bg} ${theme.text} border-current/30`
+                        : 'bg-slate-50 dark:bg-slate-955 border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'
                       }`}
                   >
                     👨‍🏫 Faculty Leaderboard
@@ -410,7 +410,7 @@ const Leaderboard = () => {
 
                 {/* Sub filters */}
                 {leaderboardType === "student" && (
-                  <div className="flex overflow-x-auto gap-1 bg-slate-950 p-1 rounded-xl border border-slate-805 max-w-full">
+                  <div className="flex overflow-x-auto gap-1 bg-slate-50 dark:bg-slate-955 p-1 rounded-xl border border-slate-200 dark:border-slate-805 max-w-full">
                     {[
                       { id: "institution", name: "Campus" },
                       { id: "department", name: "Department" },
@@ -421,8 +421,8 @@ const Leaderboard = () => {
                         key={tab.id}
                         onClick={() => setLeaderboardFilter(tab.id)}
                         className={`text-[10px] md:text-xs font-black uppercase px-3 py-1.5 rounded-lg transition-all whitespace-nowrap ${leaderboardFilter === tab.id
-                            ? 'bg-indigo-650 text-white shadow'
-                            : 'text-slate-400 hover:text-white'
+                            ? `${theme.accent} text-white shadow`
+                            : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'
                           }`}
                       >
                         {tab.name}
@@ -435,20 +435,20 @@ const Leaderboard = () => {
               {/* Standings Table */}
               <div className="space-y-4">
                 <div className="relative">
-                  <Search size={14} className="absolute left-3 top-3 text-slate-500" />
+                  <Search size={14} className="absolute left-3 top-3 text-slate-400 dark:text-slate-500" />
                   <input
                     type="text"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     placeholder="Search by name, major, or code..."
-                    className="w-full pl-9 pr-3 py-2 text-xs bg-slate-900 border border-slate-800 rounded-xl focus:outline-none focus:border-slate-700 text-white placeholder-slate-500"
+                    className="w-full pl-9 pr-3 py-2.5 text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:border-slate-350 dark:focus:border-slate-700 text-slate-850 dark:text-white placeholder-slate-400 dark:placeholder-slate-555 shadow-sm"
                   />
                 </div>
 
-                <div className="overflow-x-auto border border-slate-800/80 rounded-2xl bg-slate-950/20">
+                <div className="overflow-x-auto border border-slate-200 dark:border-slate-800/80 rounded-2xl bg-white dark:bg-slate-950/20 shadow-sm">
                   <table className="w-full text-left border-collapse text-xs">
                     <thead>
-                      <tr className="border-b border-slate-800 text-slate-500 font-bold uppercase text-[9px] tracking-wider bg-slate-950/40">
+                      <tr className="border-b border-slate-205 dark:border-slate-800 text-slate-500 font-bold uppercase text-[9px] tracking-wider bg-slate-50 dark:bg-slate-955/40">
                         <th className="py-3 pl-4 text-center w-12">Rank</th>
                         <th className="py-3 pl-2">Name</th>
                         <th className="py-3">{leaderboardType === 'student' ? 'Department' : 'Designation'}</th>
@@ -457,17 +457,17 @@ const Leaderboard = () => {
                         <th className="py-3 text-right pr-4">XP Score</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-800/40">
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800/40">
                       {loading ? (
                         <tr>
                           <td colSpan={6} className="py-12 text-center">
-                            <div className="w-6 h-6 border-2 border-slate-700 border-t-indigo-500 rounded-full animate-spin mx-auto mb-2" />
-                            <span className="text-slate-500 text-xs font-semibold">Loading standings...</span>
+                            <div className="w-6 h-6 border-2 border-slate-350 dark:border-slate-700 border-t-indigo-500 rounded-full animate-spin mx-auto mb-2" />
+                            <span className="text-slate-400 dark:text-slate-500 text-xs font-semibold">Loading standings...</span>
                           </td>
                         </tr>
                       ) : searchedLeaderboard.length === 0 ? (
                         <tr>
-                          <td colSpan={6} className="py-8 text-center text-slate-500">
+                          <td colSpan={6} className="py-8 text-center text-slate-450 dark:text-slate-500">
                             No matching profiles found in cohort.
                           </td>
                         </tr>
@@ -480,8 +480,8 @@ const Leaderboard = () => {
                             <tr
                               key={item.id}
                               className={`transition-colors duration-150 ${isCurrentUser
-                                  ? 'bg-indigo-500/10 hover:bg-indigo-500/15 font-bold border-l-4 border-l-indigo-600'
-                                  : 'hover:bg-slate-900/40'
+                                  ? `${theme.highlight} font-bold border-l-4`
+                                  : 'hover:bg-slate-50 dark:hover:bg-slate-900/40'
                                 }`}
                             >
                               <td className="py-3.5 pl-4 text-center font-extrabold text-slate-400">
@@ -489,19 +489,19 @@ const Leaderboard = () => {
                               </td>
                               <td className="py-3.5 pl-2">
                                 <div className="flex items-center gap-3">
-                                  <span className="text-base w-7 h-7 rounded-full bg-slate-950 border border-slate-850 flex items-center justify-center">
+                                  <span className="text-base w-7 h-7 rounded-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 flex items-center justify-center">
                                     {item.avatar || "🚀"}
                                   </span>
-                                  <span className={isCurrentUser ? 'text-indigo-400 font-extrabold' : 'text-slate-200 font-semibold'}>
+                                  <span className={isCurrentUser ? `${theme.text} font-extrabold` : 'text-slate-800 dark:text-slate-200 font-semibold'}>
                                     {item.name}
                                   </span>
                                 </div>
                               </td>
-                              <td className="py-3.5 text-slate-400 font-medium">
+                              <td className="py-3.5 text-slate-500 dark:text-slate-400 font-medium">
                                 {leaderboardType === 'student' ? item.branch : item.designation}
                               </td>
                               {leaderboardType === 'student' && (
-                                <td className="py-3.5 text-slate-400 font-medium">
+                                <td className="py-3.5 text-slate-500 dark:text-slate-400 font-medium">
                                   {item.year || "3rd Year"}
                                 </td>
                               )}
@@ -513,15 +513,15 @@ const Leaderboard = () => {
                                       <span>{item.streak}d</span>
                                     </div>
                                   ) : (
-                                    <span className="text-slate-650">-</span>
+                                    <span className="text-slate-400 dark:text-slate-650">-</span>
                                   )
                                 ) : (
-                                  <span className="text-indigo-400 font-bold bg-indigo-500/5 px-2 py-0.5 rounded-full border border-indigo-500/10 text-[10px]">
-                                    Active Tasking
-                                  </span>
+                                   <span className={`${theme.text} ${theme.bg} font-bold px-2 py-0.5 rounded-full border border-current/15 text-[10px]`}>
+                                     Active Tasking
+                                   </span>
                                 )}
                               </td>
-                              <td className="py-3.5 text-right pr-4 font-black text-white">
+                              <td className={`py-3.5 text-right pr-4 font-black ${isCurrentUser ? theme.text : 'text-slate-800 dark:text-white'}`}>
                                 {item.xp?.toLocaleString()} XP
                               </td>
                             </tr>
@@ -532,30 +532,30 @@ const Leaderboard = () => {
                       {/* Sticky current user indicator if not visible */}
                       {!isCurrentUserInSearchResults && currentUserRow && searchQuery === "" && (
                         <>
-                          <tr className="bg-slate-900/60">
-                            <td colSpan={6} className="py-1 text-center text-[9px] uppercase font-bold text-slate-500">
+                          <tr className="bg-slate-50 dark:bg-slate-900/60">
+                            <td colSpan={6} className="py-1 text-center text-[9px] uppercase font-bold text-slate-400 dark:text-slate-500">
                               ... Out of view standings ...
                             </td>
                           </tr>
-                          <tr className="bg-indigo-500/15 font-bold border-l-4 border-l-indigo-600 shadow-md">
-                            <td className="py-3.5 pl-4 text-center font-extrabold text-indigo-400">
+                          <tr className={`${theme.highlight} font-bold border-l-4 shadow-md`}>
+                            <td className={`py-3.5 pl-4 text-center font-extrabold ${theme.text}`}>
                               {currentUserRow.rank}
                             </td>
                             <td className="py-3.5 pl-2">
                               <div className="flex items-center gap-3">
-                                <span className="text-base w-7 h-7 rounded-full bg-slate-950 border border-slate-800 flex items-center justify-center">
+                                <span className="text-base w-7 h-7 rounded-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-805 flex items-center justify-center">
                                   {currentUserRow.avatar || "🚀"}
                                 </span>
-                                <span className="text-indigo-400">
+                                <span className={theme.text}>
                                   {currentUserRow.name}
                                 </span>
                               </div>
                             </td>
-                            <td className="py-3.5 text-slate-400 font-medium">
+                            <td className="py-3.5 text-slate-500 dark:text-slate-400 font-medium">
                               {leaderboardType === 'student' ? currentUserRow.branch : currentUserRow.designation}
                             </td>
                             {leaderboardType === 'student' && (
-                              <td className="py-3.5 text-slate-400 font-medium">
+                              <td className="py-3.5 text-slate-500 dark:text-slate-400 font-medium">
                                 {currentUserRow.year}
                               </td>
                             )}
@@ -565,7 +565,7 @@ const Leaderboard = () => {
                                 <span>{currentUserRow.streak}d</span>
                               </div>
                             </td>
-                            <td className="py-3.5 text-right pr-4 font-black text-white">
+                            <td className={`py-3.5 text-right pr-4 font-black ${theme.text}`}>
                               {currentUserRow.xp?.toLocaleString()} XP
                             </td>
                           </tr>
@@ -588,15 +588,15 @@ const Leaderboard = () => {
             className="space-y-8"
           >
             {badgesData.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-20">
-                <div className="w-10 h-10 border-4 border-slate-700 border-t-indigo-500 rounded-full animate-spin" />
-                <span className="text-slate-500 text-sm font-semibold animate-pulse mt-2">Loading prestige achievements...</span>
+              <div className="flex flex-col items-center justify-center py-20 text-slate-400">
+                <div className="w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+                <span className="text-slate-400 dark:text-slate-500 text-sm font-semibold animate-pulse mt-2">Loading prestige achievements...</span>
               </div>
             ) : (
-              <div className="bg-slate-900/40 border border-slate-800 p-6 rounded-3xl space-y-8">
+              <div className="bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800 p-6 rounded-3xl space-y-8 shadow-sm">
                 <div>
-                  <h3 className="font-extrabold text-white text-md">Your Engineering Badge Vault</h3>
-                  <p className="text-xs text-slate-450">Complete syllabus tasks, attendances, and quiz clearance to unlock prestigious markers.</p>
+                  <h3 className="font-extrabold text-slate-800 dark:text-white text-md">Your Engineering Badge Vault</h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-450 mt-0.5">Complete syllabus tasks, attendances, and quiz clearance to unlock prestigious markers.</p>
                 </div>
 
                 <div className="space-y-8">
@@ -604,12 +604,12 @@ const Leaderboard = () => {
                     if (category.badges.length === 0) return null;
                     return (
                       <div key={category.id} className="space-y-4">
-                        <div className="pb-2 border-b border-slate-800">
-                          <h4 className="text-sm font-black text-white flex items-center gap-2">
+                        <div className="pb-2 border-b border-slate-100 dark:border-slate-800">
+                          <h4 className="text-sm font-black text-slate-850 dark:text-white flex items-center gap-2">
                             <span className={`w-2.5 h-2.5 rounded-full bg-gradient-to-r ${category.color}`} />
                             {category.name}
                           </h4>
-                          <p className="text-[10px] text-slate-500 mt-0.5">{category.desc}</p>
+                          <p className="text-[10px] text-slate-450 dark:text-slate-500 mt-0.5">{category.desc}</p>
                         </div>
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
@@ -620,46 +620,46 @@ const Leaderboard = () => {
                             return (
                               <div
                                 key={badge.id}
-                                className={`p-4 rounded-2xl border flex flex-col justify-between relative transition-all duration-300 ${isUnlocked
-                                    ? 'border-indigo-500/25 bg-slate-900 shadow-inner'
-                                    : 'border-slate-800/80 bg-slate-950/10 opacity-55 hover:opacity-90'
+                                className={`p-4 rounded-2xl border flex flex-col justify-between relative transition-all duration-300 shadow-sm ${isUnlocked
+                                    ? `border-current/20 bg-white dark:bg-slate-900 ${theme.bg}`
+                                    : 'border-slate-200 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-950/10 opacity-60 hover:opacity-90'
                                   }`}
                               >
                                 <div className="flex items-start justify-between gap-3">
                                   <div className={`p-2.5 rounded-2xl bg-gradient-to-br shadow-md ${isUnlocked
                                       ? category.color + ' text-white'
-                                      : 'from-slate-800 to-slate-900 text-slate-500'
+                                      : 'from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-900 text-slate-400 dark:text-slate-500'
                                     }`}>
                                     <Icon size={16} />
                                   </div>
 
                                   <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider ${isUnlocked
-                                      ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                                      : 'bg-slate-900 border border-slate-800 text-slate-500'
+                                      ? 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/20'
+                                      : 'bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-450 dark:text-slate-500'
                                     }`}>
                                     {isUnlocked ? "Unlocked" : "Locked"}
                                   </span>
                                 </div>
 
                                 <div className="mt-4 space-y-1">
-                                  <h5 className="font-extrabold text-xs text-white truncate">
+                                  <h5 className="font-extrabold text-xs text-slate-800 dark:text-white truncate">
                                     {badge.name}
                                   </h5>
-                                  <p className="text-[10px] text-slate-450 leading-normal line-clamp-2">
+                                  <p className="text-[10px] text-slate-500 dark:text-slate-450 leading-normal line-clamp-2">
                                     {badge.description}
                                   </p>
                                 </div>
 
                                 {/* Progress slider (if locked) */}
                                 {!isUnlocked && badge.progress && (
-                                  <div className="mt-3 pt-2 border-t border-slate-850">
-                                    <div className="flex justify-between items-center text-[9px] font-bold text-slate-500">
+                                  <div className="mt-3 pt-2 border-t border-slate-100 dark:border-slate-850">
+                                    <div className="flex justify-between items-center text-[9px] font-bold text-slate-450 dark:text-slate-500">
                                       <span>Progress</span>
                                       <span>{badge.progress.current} / {badge.progress.target}</span>
                                     </div>
-                                    <div className="w-full h-1 bg-slate-900 rounded-full mt-1 overflow-hidden">
+                                    <div className="w-full h-1 bg-slate-200 dark:bg-slate-900 rounded-full mt-1 overflow-hidden">
                                       <div
-                                        className="h-full bg-indigo-650 rounded-full"
+                                        className={`h-full ${theme.accent} rounded-full`}
                                         style={{ width: `${Math.round((badge.progress.current / badge.progress.target) * 100)}%` }}
                                       />
                                     </div>
@@ -687,82 +687,82 @@ const Leaderboard = () => {
             className="space-y-8"
           >
             {!analyticsData ? (
-              <div className="flex flex-col items-center justify-center py-20">
-                <div className="w-10 h-10 border-4 border-slate-700 border-t-indigo-500 rounded-full animate-spin" />
-                <span className="text-slate-500 text-sm font-semibold animate-pulse mt-2">Aggregating quiz telemetry...</span>
+              <div className="flex flex-col items-center justify-center py-20 text-slate-450">
+                <div className="w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+                <span className="text-slate-400 dark:text-slate-500 text-sm font-semibold animate-pulse mt-2">Aggregating quiz telemetry...</span>
               </div>
             ) : analyticsData.total_quizzes === 0 ? (
-              <div className="bg-slate-900/40 border border-slate-850 rounded-3xl p-12 text-center text-slate-500 max-w-lg mx-auto space-y-2">
-                <BarChart2 size={48} className="mx-auto text-slate-850" />
-                <h3 className="text-white font-extrabold text-md">No Quiz Data</h3>
-                <p className="text-xs text-slate-400">Complete curriculum quizzes on your roadmap paths to initialize performance analytics here.</p>
+              <div className="bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-850 rounded-3xl p-12 text-center text-slate-500 max-w-lg mx-auto space-y-2 shadow-sm">
+                <BarChart2 size={48} className="mx-auto text-slate-300 dark:text-slate-805" />
+                <h3 className="text-slate-800 dark:text-white font-extrabold text-md">No Quiz Data</h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400">Complete curriculum quizzes on your roadmap paths to initialize performance analytics here.</p>
               </div>
             ) : (
               <div className="space-y-6">
                 {/* Stats Summary Ring Widgets */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   {/* Passing Rate Circle */}
-                  <div className="bg-slate-900/40 border border-slate-800 p-6 rounded-3xl text-center space-y-4 flex flex-col items-center justify-center shadow-lg">
-                    <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">Quiz Passing Rate</span>
+                  <div className="bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800 p-6 rounded-3xl text-center space-y-4 flex flex-col items-center justify-center shadow-sm">
+                    <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">Quiz Passing Rate</span>
                     <div className="relative w-24 h-24 flex items-center justify-center">
                       <svg className="w-full h-full transform -rotate-90">
-                        <circle cx="48" cy="48" r="40" stroke="#1e293b" strokeWidth="8" fill="transparent" />
+                        <circle cx="48" cy="48" r="40" stroke="#f1f5f9" strokeWidth="8" fill="transparent" className="dark:stroke-slate-800" />
                         <circle cx="48" cy="48" r="40" stroke="#6366f1" strokeWidth="8" fill="transparent"
                           strokeDasharray={2 * Math.PI * 40}
                           strokeDashoffset={2 * Math.PI * 40 * (1 - analyticsData.passing_rate / 100)}
                           strokeLinecap="round" />
                       </svg>
-                      <span className="absolute text-lg font-black text-white">{analyticsData.passing_rate}%</span>
+                      <span className="absolute text-lg font-black text-slate-800 dark:text-white">{analyticsData.passing_rate}%</span>
                     </div>
-                    <span className="text-[11px] text-slate-500 font-semibold">{analyticsData.passed_quizzes} out of {analyticsData.total_quizzes} cleared</span>
+                    <span className="text-[11px] text-slate-400 dark:text-slate-500 font-semibold">{analyticsData.passed_quizzes} out of {analyticsData.total_quizzes} cleared</span>
                   </div>
 
                   {/* Avg Score Indicator */}
-                  <div className="bg-slate-900/40 border border-slate-800 p-6 rounded-3xl text-center space-y-4 flex flex-col items-center justify-center shadow-lg">
-                    <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">Average Accuracy</span>
+                  <div className="bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800 p-6 rounded-3xl text-center space-y-4 flex flex-col items-center justify-center shadow-sm">
+                    <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">Average Accuracy</span>
                     <div className="relative w-24 h-24 flex items-center justify-center">
                       <svg className="w-full h-full transform -rotate-90">
-                        <circle cx="48" cy="48" r="40" stroke="#1e293b" strokeWidth="8" fill="transparent" />
+                        <circle cx="48" cy="48" r="40" stroke="#f1f5f9" strokeWidth="8" fill="transparent" className="dark:stroke-slate-800" />
                         <circle cx="48" cy="48" r="40" stroke="#ec4899" strokeWidth="8" fill="transparent"
                           strokeDasharray={2 * Math.PI * 40}
                           strokeDashoffset={2 * Math.PI * 40 * (1 - analyticsData.avg_score / 100)}
                           strokeLinecap="round" />
                       </svg>
-                      <span className="absolute text-lg font-black text-white">{analyticsData.avg_score}%</span>
+                      <span className="absolute text-lg font-black text-slate-800 dark:text-white">{analyticsData.avg_score}%</span>
                     </div>
-                    <span className="text-[11px] text-slate-500 font-semibold">Weighted accuracy score</span>
+                    <span className="text-[11px] text-slate-400 dark:text-slate-500 font-semibold">Weighted accuracy score</span>
                   </div>
 
                   {/* Quizzes Count Stats */}
-                  <div className="bg-slate-900/40 border border-slate-800 p-6 rounded-3xl text-center flex flex-col justify-between shadow-lg">
-                    <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-4">Quiz Attempts Summary</span>
+                  <div className="bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800 p-6 rounded-3xl text-center flex flex-col justify-between shadow-sm">
+                    <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-4">Quiz Attempts Summary</span>
                     <div className="space-y-4">
                       <div className="flex justify-between items-center text-xs">
-                        <span className="text-slate-450">Total Attempted</span>
-                        <strong className="text-white text-lg">{analyticsData.total_quizzes}</strong>
+                        <span className="text-slate-500 dark:text-slate-450">Total Attempted</span>
+                        <strong className="text-slate-800 dark:text-white text-lg">{analyticsData.total_quizzes}</strong>
                       </div>
                       <div className="flex justify-between items-center text-xs">
-                        <span className="text-slate-450">Quizzes Passed</span>
-                        <strong className="text-emerald-400 text-lg">{analyticsData.passed_quizzes}</strong>
+                        <span className="text-slate-500 dark:text-slate-450">Quizzes Passed</span>
+                        <strong className="text-emerald-600 dark:text-emerald-400 text-lg">{analyticsData.passed_quizzes}</strong>
                       </div>
                       <div className="flex justify-between items-center text-xs">
-                        <span className="text-slate-450">Attempts Failed</span>
-                        <strong className="text-rose-400 text-lg">{analyticsData.total_quizzes - analyticsData.passed_quizzes}</strong>
+                        <span className="text-slate-500 dark:text-slate-450">Attempts Failed</span>
+                        <strong className="text-rose-600 dark:text-rose-400 text-lg">{analyticsData.total_quizzes - analyticsData.passed_quizzes}</strong>
                       </div>
                     </div>
                   </div>
                 </div>
 
                 {/* Attempt History List */}
-                <div className="bg-slate-900/40 border border-slate-800 rounded-3xl p-6 space-y-4">
-                  <h3 className="font-extrabold text-white text-md flex items-center gap-2">
-                    <Activity className="text-indigo-400" size={16} /> Quiz Performance Log History
+                <div className="bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 space-y-4 shadow-sm">
+                  <h3 className="font-extrabold text-slate-800 dark:text-white text-md flex items-center gap-2">
+                    <Activity className={theme.text} size={16} /> Quiz Performance Log History
                   </h3>
 
-                  <div className="overflow-hidden border border-slate-805 rounded-2xl">
+                  <div className="overflow-hidden border border-slate-200 dark:border-slate-805 rounded-2xl bg-white dark:bg-slate-950/20 shadow-sm">
                     <table className="w-full text-left border-collapse text-xs">
                       <thead>
-                        <tr className="border-b border-slate-800 text-slate-500 font-bold uppercase text-[9px] tracking-wider bg-slate-950/40">
+                        <tr className="border-b border-slate-205 dark:border-slate-800 text-slate-550 dark:text-slate-500 font-bold uppercase text-[9px] tracking-wider bg-slate-50 dark:bg-slate-950/40">
                           <th className="py-3 pl-4">Attempt Index</th>
                           <th className="py-3">Date Completed</th>
                           <th className="py-3 text-center">Questions Scored</th>
@@ -770,20 +770,20 @@ const Leaderboard = () => {
                           <th className="py-3 text-right pr-4">Status</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-slate-850">
+                      <tbody className="divide-y divide-slate-100 dark:divide-slate-850">
                         {analyticsData.history.map((h, idx) => (
-                          <tr key={idx} className="hover:bg-slate-900/40 text-slate-350">
+                          <tr key={idx} className="hover:bg-slate-50 dark:hover:bg-slate-900/40 text-slate-600 dark:text-slate-350">
                             <td className="py-3.5 pl-4 font-bold">Attempt #{idx + 1}</td>
                             <td className="py-3.5">{h.date}</td>
                             <td className="py-3.5 text-center font-semibold">{h.score} / {h.total_questions}</td>
                             <td className="py-3.5 text-center font-bold">{Math.round((h.score / h.total_questions) * 100)}%</td>
                             <td className="py-3.5 text-right pr-4 font-bold">
                               {h.passed ? (
-                                <span className="inline-flex items-center gap-1 text-emerald-400 bg-emerald-500/5 px-2 py-0.5 rounded border border-emerald-500/10 text-[10px]">
+                                <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400 bg-emerald-500/5 px-2 py-0.5 rounded border border-emerald-500/10 text-[10px]">
                                   <CheckCircle size={10} /> Passed
                                 </span>
                               ) : (
-                                <span className="inline-flex items-center gap-1 text-rose-400 bg-rose-500/5 px-2 py-0.5 rounded border border-rose-500/10 text-[10px]">
+                                <span className="inline-flex items-center gap-1 text-rose-600 dark:text-rose-400 bg-rose-500/5 px-2 py-0.5 rounded border border-rose-500/10 text-[10px]">
                                   <XCircle size={10} /> Failed
                                 </span>
                               )}

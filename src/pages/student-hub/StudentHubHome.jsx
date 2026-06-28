@@ -185,6 +185,14 @@ const StudentHubHome = () => {
       icon: Calendar,
       badge: 'Calendar',
       path: '/student-hub/calendar'
+    },
+    {
+      id: 'wellness',
+      title: 'Learning Wellness Studio',
+      description: 'Track mood patterns, log Pomodoro focus timers, write reflection journals, and review cognitive fatigue diagnostics.',
+      icon: Activity,
+      badge: 'Wellness Core',
+      path: '/ai/emotions'
     }
   ];
 

@@ -34,6 +34,25 @@ import Analytics from './pages/Analytics';
 import CareerGuidance from './pages/CareerGuidance';
 import Leaderboard from './pages/Leaderboard';
 
+// Career Journey Module Pages
+import CareerDashboard from './pages/career/CareerDashboard';
+import CareerProfile from './pages/career/CareerProfile';
+import ExploreCareers from './pages/career/careers/ExploreCareers';
+import CareerDetail from './pages/career/careers/CareerDetail';
+import CareerRoadmap from './pages/career/CareerRoadmap';
+import SkillsList from './pages/career/skills/SkillsList';
+import SkillDetail from './pages/career/skills/SkillDetail';
+import ProjectStudio from './pages/career/projects/ProjectStudio';
+import ProjectDetail from './pages/career/projects/ProjectDetail';
+import CompaniesList from './pages/career/companies/CompaniesList';
+import CertificationsList from './pages/career/certifications/CertificationsList';
+import ResumeReview from './pages/career/resume/ResumeReview';
+import InterviewPractice from './pages/career/interview/InterviewPractice';
+import PlacementPrep from './pages/career/placement/PlacementPrep';
+import LearningHub from './pages/career/learning/LearningHub';
+import SalaryInsights from './pages/career/salary/SalaryInsights';
+import TechTrends from './pages/career/trends/TechTrends';
+
 // Student Portal AI Module Pages
 import AiMentorChat from './pages/ai/AiMentorChat';
 import EmotionAnalysis from './pages/ai/EmotionAnalysis';
@@ -122,7 +141,27 @@ function App() {
               <Route path="/roadmap" element={<Roadmap />} />
               <Route path="/quiz" element={<Quiz />} />
               <Route path="/analytics" element={<Analytics />} />
-              <Route path="/career" element={<CareerGuidance />} />
+              
+              {/* Career Journey Routes */}
+              <Route path="/career" element={<CareerDashboard />} />
+              <Route path="/career/profile" element={<CareerProfile />} />
+              <Route path="/career/explore" element={<ExploreCareers />} />
+              <Route path="/career/explore/:careerId" element={<CareerDetail />} />
+              <Route path="/career/roadmap" element={<CareerRoadmap />} />
+              <Route path="/career/skills" element={<SkillsList />} />
+              <Route path="/career/skills/:skillId" element={<SkillDetail />} />
+              <Route path="/career/projects" element={<ProjectStudio />} />
+              <Route path="/career/projects/:projectId" element={<ProjectDetail />} />
+              <Route path="/career/companies" element={<CompaniesList />} />
+              <Route path="/career/certifications" element={<CertificationsList />} />
+              <Route path="/career/resume" element={<ResumeReview />} />
+              <Route path="/career/interview" element={<InterviewPractice />} />
+              <Route path="/career/placement" element={<PlacementPrep />} />
+              <Route path="/career/learning" element={<LearningHub />} />
+              <Route path="/career/salary" element={<SalaryInsights />} />
+              <Route path="/career/trends" element={<TechTrends />} />
+              <Route path="/career/legacy-guidance" element={<CareerGuidance />} />
+
               <Route path="/leaderboard" element={<Leaderboard />} />
               <Route path="/profile" element={<Profile />} />
 

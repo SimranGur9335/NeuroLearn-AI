@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+// src/pages/ai/EmotionAnalysis.jsx
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   ResponsiveContainer, 
@@ -10,13 +11,10 @@ import {
   Tooltip, 
   Legend,
   BarChart,
-  Bar,
-  LineChart,
-  Line
+  Bar
 } from 'recharts';
 import { 
   Smile, 
-  Frown, 
   Brain, 
   Zap, 
   AlertCircle, 
@@ -32,417 +30,637 @@ import {
   Clock,
   BookOpen,
   Calendar,
-  History
+  History,
+  Trash2,
+  Edit2,
+  Check,
+  X,
+  Award,
+  ShieldAlert,
+  Heart,
+  ChevronRight,
+  User,
+  CheckSquare
 } from 'lucide-react';
 import { useStudent } from '../../context/StudentContext';
 import { apiFetch } from '../../services/api';
+import { THEME_COLOR_MAP } from '../../components/StudentHubTheme';
+import StudentHubHeader from '../../components/StudentHubHeader';
 
 const EmotionAnalysis = () => {
-  const { xp, setXp } = useStudent();
+  const { profile, xp, setXp } = useStudent();
+  const themeColor = profile?.theme_color || 'indigo';
+  const theme = THEME_COLOR_MAP[themeColor] || THEME_COLOR_MAP.indigo;
 
-  // --- Logger Inputs ---
-  const [happy, setHappy] = useState(60);
-  const [focused, setFocused] = useState(70);
-  const [frustrated, setFrustrated] = useState(20);
-  const [stressed, setStressed] = useState(15);
-  const [sleepHours, setSleepHours] = useState(7.5);
-  const [studyHours, setStudyHours] = useState(4.0);
-  const [selectedHabits, setSelectedHabits] = useState(["Spaced Repetition"]);
-  const [recommendations, setRecommendations] = useState([]);
+  // --- Core States ---
+  const [stats, setStats] = useState(null);
+  const [chartRange, setChartRange] = useState('weekly'); // daily, weekly, monthly, custom
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   
-  const [loading, setLoading] = useState(false);
-  const [successMsg, setSuccessMsg] = useState("");
-  const [historyLoading, setHistoryLoading] = useState(true);
+  const [reflections, setReflections] = useState([]);
+  const [checkins, setCheckins] = useState([]);
+  
+  const [loadingStats, setLoadingStats] = useState(true);
+  const [loadingReflections, setLoadingReflections] = useState(true);
+  const [loadingCheckins, setLoadingCheckins] = useState(true);
+  
+  // --- Check-in Form State ---
+  const [checkinForm, setCheckinForm] = useState({
+    mood: 'focused',
+    energy_level: 7,
+    focus_level: 7,
+    stress_level: 3,
+    sleep_hours: 8.0,
+    planned_study_hours: 4.0,
+    learning_goal: ''
+  });
+  const [submittingCheckin, setSubmittingCheckin] = useState(false);
+  const [checkinMessage, setCheckinMessage] = useState('');
 
-  // --- Habits checklist definitions ---
-  const HABITS_LIST = [
-    "Active Recall",
-    "Spaced Repetition",
-    "Feynman Technique",
-    "Mind Mapping",
-    "Pomodoro Method",
-    "Group Explanations"
-  ];
+  // --- Reflection Form State ---
+  const [reflectionText, setReflectionText] = useState('');
+  const [submittingReflection, setSubmittingReflection] = useState(false);
+  const [editingReflectionId, setEditingReflectionId] = useState(null);
+  const [editingText, setEditingText] = useState('');
 
-  const [moodHistory, setMoodHistory] = useState([
-    { day: "Mon", happy: 45, focused: 30, frustrated: 15, stressed: 10, sleep_hours: 7.0, study_hours: 3.0, learning_habits: ["Active Recall"], recommendations: [] },
-    { day: "Tue", happy: 48, focused: 35, frustrated: 10, stressed: 7, sleep_hours: 8.0, study_hours: 4.0, learning_habits: ["Spaced Repetition"], recommendations: [] },
-    { day: "Wed", happy: 35, focused: 45, frustrated: 12, stressed: 8, sleep_hours: 6.5, study_hours: 5.0, learning_habits: ["Feynman Technique"], recommendations: [] },
-    { day: "Thu", happy: 40, focused: 25, frustrated: 20, stressed: 15, sleep_hours: 5.5, study_hours: 6.0, learning_habits: ["Pomodoro Method"], recommendations: [] },
-    { day: "Fri", happy: 42, focused: 38, frustrated: 12, stressed: 8, sleep_hours: 7.5, study_hours: 4.5, learning_habits: ["Mind Mapping"], recommendations: [] },
-    { day: "Sat", happy: 45, focused: 40, frustrated: 10, stressed: 5, sleep_hours: 8.5, study_hours: 2.0, learning_habits: ["Active Recall"], recommendations: [] },
-    { day: "Today", happy: 60, focused: 70, frustrated: 20, stressed: 15, sleep_hours: 7.5, study_hours: 4.0, learning_habits: ["Spaced Repetition", "Active Recall"], recommendations: ["Aim for an honors grade", "Limit contiguous focus hours"] }
-  ]);
-
-  // --- Focus Timer States ---
-  const [secondsLeft, setSecondsLeft] = useState(1500); // 25 minutes
+  // --- Focus Session (Pomodoro) States ---
+  const [timerPreset, setTimerPreset] = useState(25); // minutes
+  const [secondsLeft, setSecondsLeft] = useState(25 * 60);
   const [timerRunning, setTimerRunning] = useState(false);
-  const [completedSessions, setCompletedSessions] = useState(0);
+  const [activeSessionId, setActiveSessionId] = useState(null);
+  const [timerPaused, setTimerPaused] = useState(false);
+  const timerIntervalRef = useRef(null);
 
-  // Load history from API
-  const loadWellnessStats = async () => {
+  // --- Load Data ---
+  const fetchStatistics = async () => {
     try {
-      const [moodRes, focusRes] = await Promise.all([
-        apiFetch('/api/v1/wellness/mood/history'),
-        apiFetch('/api/v1/focus/stats') // fallback or custom endpoints
-      ]);
-      
-      if (moodRes.ok) {
-        const moodData = await moodRes.json();
-        if (moodData && moodData.length > 0) {
-          setMoodHistory(moodData);
-          // Set recommendations from the latest log entry
-          const latestLog = moodData[moodData.length - 1];
-          if (latestLog.recommendations && latestLog.recommendations.length > 0) {
-            setRecommendations(latestLog.recommendations);
-          }
-        }
+      setLoadingStats(true);
+      let url = `/api/v1/wellness/statistics?range=${chartRange}`;
+      if (chartRange === 'custom') {
+        if (startDate) url += `&start_date=${startDate}`;
+        if (endDate) url += `&end_date=${endDate}`;
       }
       
-      // Try fetching focus stats if they exist
-      try {
-        const fStatsRes = await apiFetch('/api/v1/wellness/focus/stats');
-        if (fStatsRes.ok) {
-          const focusData = await fStatsRes.json();
-          setCompletedSessions(focusData.completed_sessions || 0);
-        }
-      } catch (fErr) {
-        if (focusRes && focusRes.ok) {
-          const focusData = await focusRes.json();
-          setCompletedSessions(focusData.completed_sessions || 0);
+      const res = await apiFetch(url);
+      if (res.ok) {
+        const data = await res.json();
+        setStats(data);
+      }
+    } catch (err) {
+      console.error("Failed to load statistics:", err);
+    } finally {
+      setLoadingStats(false);
+    }
+  };
+
+  const fetchReflections = async () => {
+    try {
+      setLoadingReflections(true);
+      const res = await apiFetch('/api/v1/wellness/reflection/history');
+      if (res.ok) {
+        const data = await res.json();
+        setReflections(data);
+      }
+    } catch (err) {
+      console.error("Failed to load reflections:", err);
+    } finally {
+      setLoadingReflections(false);
+    }
+  };
+
+  const fetchCheckins = async () => {
+    try {
+      setLoadingCheckins(true);
+      const res = await apiFetch('/api/v1/wellness/checkin/history');
+      if (res.ok) {
+        const data = await res.json();
+        setCheckins(data);
+        // Pre-fill form with today's log if it exists
+        const todayStr = new Date().toISOString().split('T')[0];
+        const todaysLog = data.find(c => c.log_date === todayStr);
+        if (todaysLog) {
+          setCheckinForm({
+            mood: todaysLog.mood,
+            energy_level: todaysLog.energy_level,
+            focus_level: todaysLog.focus_level,
+            stress_level: todaysLog.stress_level,
+            sleep_hours: todaysLog.sleep_hours,
+            planned_study_hours: todaysLog.planned_study_hours,
+            learning_goal: todaysLog.learning_goal || ''
+          });
         }
       }
     } catch (err) {
-      console.error("Failed to load wellness stats:", err);
+      console.error("Failed to load checkins:", err);
     } finally {
-      setHistoryLoading(false);
+      setLoadingCheckins(false);
     }
   };
 
   useEffect(() => {
-    loadWellnessStats();
+    fetchStatistics();
+  }, [chartRange, startDate, endDate]);
+
+  useEffect(() => {
+    fetchReflections();
+    fetchCheckins();
   }, []);
 
-  // Pomodoro Focus Timer ticker
-  useEffect(() => {
-    let interval = null;
-    if (timerRunning && secondsLeft > 0) {
-      interval = setInterval(() => {
-        setSecondsLeft(prev => prev - 1);
-      }, 1000);
-    } else if (secondsLeft === 0 && timerRunning) {
-      setTimerRunning(false);
-      setSecondsLeft(1500);
-      
-      const completeFocus = async () => {
-        try {
-          const res = await apiFetch('/api/v1/wellness/focus', { method: 'POST' });
-          if (res.ok) {
-            const data = await res.json();
-            setCompletedSessions(prev => prev + 1);
-            
-            // Auto increment self-reported study hours for the day by 25 mins
-            setStudyHours(prev => Math.round((prev + 0.42) * 100) / 100);
-            
-            if (data.xp_points !== undefined) {
-              setXp(data.xp_points);
-            } else {
-              setXp(prev => prev + 50);
-            }
-            alert("🎉 Awesome job! You completed a 25-minute Pomodoro session. Earned +50 XP and logged +0.42 study hours!");
-          }
-        } catch (err) {
-          console.error("Failed to sync focus session with database:", err);
-          setCompletedSessions(prev => prev + 1);
-          setStudyHours(prev => Math.round((prev + 0.42) * 100) / 100);
-          setXp(prev => prev + 50);
-          alert("🎉 Awesome job! You completed a 25-minute Pomodoro session. Earned +50 XP! (Saved locally)");
-        }
-      };
-      completeFocus();
-    }
-    return () => clearInterval(interval);
-  }, [timerRunning, secondsLeft]);
-
-  const toggleTimer = () => setTimerRunning(!timerRunning);
-  const resetTimer = () => {
-    setTimerRunning(false);
-    setSecondsLeft(1500);
-  };
-
-  const formatTime = (seconds) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  };
-
-  // Habit checkbox toggle handler
-  const handleHabitToggle = (habit) => {
-    setSelectedHabits(prev => 
-      prev.includes(habit) 
-        ? prev.filter(h => h !== habit) 
-        : [...prev, habit]
-    );
-  };
-
-  // Submit Logger Vector to Backend
-  const handleLogMood = async (e) => {
-    if (e) e.preventDefault();
-    setLoading(true);
-    setSuccessMsg("");
+  // --- Daily Check-in Handlers ---
+  const handleCheckinSubmit = async (e) => {
+    e.preventDefault();
+    setSubmittingCheckin(true);
+    setCheckinMessage('');
     try {
-      const res = await apiFetch('/api/v1/wellness/mood', {
+      const res = await apiFetch('/api/v1/wellness/checkin', {
         method: 'POST',
-        body: JSON.stringify({
-          happiness: happy,
-          focus: focused,
-          frustration: frustrated,
-          stress: stressed,
-          sleep_hours: sleepHours,
-          study_hours: studyHours,
-          learning_habits: selectedHabits
-        })
+        body: JSON.stringify(checkinForm)
       });
       if (res.ok) {
-        const data = await res.json();
-        setSuccessMsg("Cognitive wellness vector logged successfully!");
-        if (data.recommendations) {
-          setRecommendations(data.recommendations);
-        }
-        // Refresh logs history
-        loadWellnessStats();
+        setCheckinMessage('Daily learning metrics synchronized successfully!');
+        fetchCheckins();
+        fetchStatistics();
+        setTimeout(() => setCheckinMessage(''), 4500);
       } else {
-        throw new Error("Failed to save wellness log");
+        const errData = await res.json();
+        setCheckinMessage(`Error: ${errData.detail || 'Failed to submit check-in'}`);
+      }
+    } catch (err) {
+      setCheckinMessage('Failed to connect to servers. Check your connection.');
+    } finally {
+      setSubmittingCheckin(false);
+    }
+  };
+
+  // --- Reflection Handlers ---
+  const handleReflectionSubmit = async (e) => {
+    e.preventDefault();
+    if (!reflectionText.trim()) return;
+    setSubmittingReflection(true);
+    try {
+      const res = await apiFetch('/api/v1/wellness/reflection', {
+        method: 'POST',
+        body: JSON.stringify({ reflection_text: reflectionText })
+      });
+      if (res.ok) {
+        setReflectionText('');
+        fetchReflections();
+        fetchStatistics();
       }
     } catch (err) {
       console.error(err);
-      setSuccessMsg("Logged locally! API fallback recommendations loaded.");
-      
-      // Fallback Recommendations Heuristics
-      const localRecs = [];
-      if (sleepHours < 6) {
-        localRecs.push(`Sleep (${sleepHours}h) is low. Try to get 7.5+ hours tonight to support memory recovery.`);
-      } else {
-        localRecs.push("Sleep quantity is optimal! Maintain a consistent schedule for cognitive health.");
-      }
-      if (stressed > 60 || frustrated > 60) {
-        localRecs.push("High stress levels logged. Use Pomodoro timers to chunk learning and schedule a rest.");
-      } else {
-        localRecs.push("Stress is minimal. Perfect window to tackle challenging programming assignments.");
-      }
-      if (selectedHabits.length < 2) {
-        localRecs.push("Integrate active recall or spaced repetition into your logs to improve memory retention.");
-      } else {
-        localRecs.push("Great active learning habits logged today! Keep practicing spaced repetition.");
-      }
-      setRecommendations(localRecs);
     } finally {
-      setLoading(false);
-      setTimeout(() => setSuccessMsg(""), 4000);
+      setSubmittingReflection(false);
     }
   };
 
-  // UI Diagnosis Warning Level
-  const getStressAlert = () => {
-    if (stressed > 70) return { title: "Severe Academic Stress", color: "text-red-400 bg-red-500/10 border-red-500/20" };
-    if (stressed > 40) return { title: "Moderate Workload Strain", color: "text-amber-400 bg-amber-500/10 border-amber-500/20" };
-    return { title: "Stable Cognitive Load", color: "text-emerald-450 bg-emerald-500/10 border-emerald-500/20" };
+  const handleUpdateReflection = async (id) => {
+    if (!editingText.trim()) return;
+    try {
+      const res = await apiFetch(`/api/v1/wellness/reflection/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify({ reflection_text: editingText })
+      });
+      if (res.ok) {
+        setEditingReflectionId(null);
+        setEditingText('');
+        fetchReflections();
+      }
+    } catch (err) {
+      console.error(err);
+    }
   };
 
-  const stressStatus = getStressAlert();
+  const handleDeleteReflection = async (id) => {
+    if (!confirm("Are you sure you want to delete this reflection log?")) return;
+    try {
+      const res = await apiFetch(`/api/v1/wellness/reflection/${id}`, {
+        method: 'DELETE'
+      });
+      if (res.ok) {
+        fetchReflections();
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  // --- Pomodoro Focus Timer Logic ---
+  const startTimer = async () => {
+    try {
+      // If we were paused, resume the existing session in backend
+      if (timerPaused && activeSessionId) {
+        const res = await apiFetch(`/api/v1/wellness/focus/${activeSessionId}/resume`, { method: 'POST' });
+        if (res.ok) {
+          setTimerRunning(true);
+          setTimerPaused(false);
+          runLocalCountdown();
+        }
+      } else {
+        // Start a fresh session
+        const res = await apiFetch('/api/v1/wellness/focus/start', {
+          method: 'POST',
+          body: JSON.stringify({ preset_minutes: timerPreset })
+        });
+        if (res.ok) {
+          const sessionData = await res.json();
+          setActiveSessionId(sessionData.session_id);
+          setSecondsLeft(timerPreset * 60);
+          setTimerRunning(true);
+          setTimerPaused(false);
+          runLocalCountdown();
+        }
+      }
+    } catch (err) {
+      console.error("Failed to start focus session:", err);
+      // Fallback local mode
+      setTimerRunning(true);
+      setTimerPaused(false);
+      runLocalCountdown();
+    }
+  };
+
+  const runLocalCountdown = () => {
+    if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+    timerIntervalRef.current = setInterval(() => {
+      setSecondsLeft((prev) => {
+        if (prev <= 1) {
+          clearInterval(timerIntervalRef.current);
+          handleSessionComplete(true);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  };
+
+  const pauseTimer = async () => {
+    if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+    setTimerRunning(false);
+    setTimerPaused(true);
+    
+    if (activeSessionId) {
+      try {
+        await apiFetch(`/api/v1/wellness/focus/${activeSessionId}/pause`, { method: 'POST' });
+      } catch (err) {
+        console.error("Failed to sync pause status:", err);
+      }
+    }
+  };
+
+  const resetTimer = () => {
+    if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+    setTimerRunning(false);
+    setTimerPaused(false);
+    setSecondsLeft(timerPreset * 60);
+    setActiveSessionId(null);
+  };
+
+  const handleSessionComplete = async (completedNormally = false) => {
+    if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+    const durationMin = Math.ceil(((timerPreset * 60) - secondsLeft) / 60);
+    const finalStatus = completedNormally ? 'completed' : 'interrupted';
+    
+    setTimerRunning(false);
+    setTimerPaused(false);
+    setSecondsLeft(timerPreset * 60);
+
+    if (activeSessionId) {
+      try {
+        const res = await apiFetch(`/api/v1/wellness/focus/${activeSessionId}/complete`, {
+          method: 'POST',
+          body: JSON.stringify({
+            duration_minutes: durationMin,
+            status: finalStatus
+          })
+        });
+        if (res.ok) {
+          const resData = await res.json();
+          if (completedNormally) {
+            setXp((prev) => prev + (resData.xp_earned || 50));
+            alert(`🎉 Outstanding! Focus session completed successfully. You've earned +50 XP and logged your study hours!`);
+          } else {
+            alert(`⚠️ Focus session finished early. Logged ${durationMin} focus minutes.`);
+          }
+          fetchStatistics();
+        }
+      } catch (err) {
+        console.error("Failed to complete focus session in backend:", err);
+        if (completedNormally) {
+          setXp((prev) => prev + 50);
+          alert(`🎉 Outstanding! Focus session completed. Earned +50 XP! (Saved locally)`);
+        }
+      }
+    } else {
+      if (completedNormally) {
+        setXp((prev) => prev + 50);
+        alert(`🎉 Outstanding! Focus session completed. Earned +50 XP! (Saved locally)`);
+      }
+    }
+    setActiveSessionId(null);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+    };
+  }, []);
+
+  // Preset Selection
+  const handlePresetSelect = (mins) => {
+    if (timerRunning) return;
+    setTimerPreset(mins);
+    setSecondsLeft(mins * 60);
+  };
+
+  // Timer Text formatting
+  const formatTime = (secs) => {
+    const m = Math.floor(secs / 60);
+    const s = secs % 60;
+    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  };
+
+  // Heuristic Diagnostics & Recommendations
+  const sleepTarget = stats?.average_sleep || 0.0;
+  const stressVal = checkinForm.stress_level;
+  const sleepVal = checkinForm.sleep_hours;
+  const focusVal = checkinForm.focus_level;
+
+  const burnoutRisk = stressVal > 7 || (stats?.average_focus < 4 && stats?.completed_sessions < stats?.interrupted_sessions)
+    ? 'High Burnout Warning'
+    : stressVal > 4
+    ? 'Moderate Academic Fatigue'
+    : 'Optimal Focus State';
+
+  const riskBadgeColor = burnoutRisk.includes('High')
+    ? 'bg-red-500/10 text-red-500 dark:text-red-400 border-red-500/20'
+    : burnoutRisk.includes('Moderate')
+    ? 'bg-amber-500/10 text-amber-550 dark:text-amber-400 border-amber-500/20'
+    : 'bg-emerald-500/10 text-emerald-500 dark:text-emerald-400 border-emerald-500/20';
+
+  const sleepStatus = sleepVal >= 7.0 ? 'Optimal Rest Duration' : 'Rest Deficit Detected';
+  const sleepStatusColor = sleepVal >= 7.0 ? 'text-emerald-500 dark:text-emerald-400' : 'text-amber-550 dark:text-amber-400';
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 15 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4 }}
-      className="space-y-6 text-slate-300"
-    >
-      {/* Page Header */}
-      <div className="bg-gradient-to-r from-slate-900 via-indigo-950/20 to-slate-900 border border-slate-800 p-6 rounded-3xl relative overflow-hidden shadow-xl text-white">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 relative z-10">
-          <div>
-            <span className="text-xs text-indigo-400 font-bold uppercase tracking-wider bg-indigo-500/5 px-3 py-1 rounded-full border border-indigo-500/10">
-              Cognitive Wellness Terminal
+    <div className="space-y-6 pb-12">
+      {/* Platform Header */}
+      <StudentHubHeader 
+        title="Learning Wellness Studio" 
+        description="Track sleep hygiene, monitor cognitive stress levels, practice deep Pomodoro sessions, and correlate wellness metrics with academic consistency."
+        showBackButton={true}
+      />
+
+      {/* Hero Section */}
+      <div className={`relative overflow-hidden rounded-3xl bg-gradient-to-r ${theme.gradient} p-8 text-white shadow-xl`}>
+        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+          <div className="space-y-3">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-extrabold bg-white/10 backdrop-blur-md border border-white/10 uppercase tracking-wider">
+              <Heart className="w-3.5 h-3.5 fill-white" />
+              SaaS Wellness Core (Phase 1 Ready)
             </span>
-            <h1 className="text-2xl md:text-3xl font-black mt-3 flex items-center gap-2">
-              <Brain className="text-indigo-400" size={28} />
-              Learning Wellness Dashboard
-            </h1>
-            <p className="text-slate-400 text-xs mt-1.5 max-w-xl leading-relaxed">
-              Track daily stress levels, schedule Pomodoro focus timers, correlate sleep quality against study habits, and review personalized AI health diagnostics.
+            <h2 className="text-3xl font-black tracking-tight">
+              Maintain Academic Equilibrium
+            </h2>
+            <p className="text-white/80 text-sm max-w-2xl leading-relaxed">
+              Consistently tracking logs allows the system to identify cognitive patterns. Integrate study goals, check in daily, and verify how focus sessions impact your assignment and quiz performances.
             </p>
+            <div className="flex flex-wrap gap-4 pt-2 text-xs font-semibold">
+              <span className="bg-white/15 px-3.5 py-1.5 rounded-xl border border-white/10 flex items-center gap-1.5">
+                <Flame className="w-4 h-4" />
+                Current Streak: {stats?.current_streak || 0} Days
+              </span>
+              <span className="bg-white/15 px-3.5 py-1.5 rounded-xl border border-white/10 flex items-center gap-1.5">
+                <CheckCircle className="w-4 h-4" />
+                Today's Check-in: {checkins.some(c => c.log_date === new Date().toISOString().split('T')[0]) ? 'Completed ✓' : 'Pending'}
+              </span>
+              <span className="bg-white/15 px-3.5 py-1.5 rounded-xl border border-white/10 flex items-center gap-1.5">
+                <Brain className="w-4 h-4" />
+                Focus Score: {stats?.focus_score ? stats.focus_score.toFixed(1) : '0.0'}/100
+              </span>
+            </div>
           </div>
-          <div className="shrink-0 flex items-center justify-center p-3 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md">
-            <Activity className="text-indigo-400 animate-pulse" size={44} />
+          <div className="shrink-0 flex items-center justify-center bg-white/10 backdrop-blur-md border border-white/10 rounded-2xl p-4 shadow-inner">
+            <Brain className="w-16 h-16 text-white animate-pulse" />
           </div>
+        </div>
+        {/* Glow Effects */}
+        <div className="absolute right-0 top-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none" />
+      </div>
+
+      {/* KPI Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        {/* Focus Score */}
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm flex flex-col justify-between">
+          <div className="flex justify-between items-center">
+            <span className="text-slate-500 dark:text-slate-450 uppercase text-[10px] font-black tracking-wider">Focus Performance</span>
+            <Brain className={`${theme.text} w-5 h-5`} />
+          </div>
+          <div className="my-3">
+            <span className="text-3xl font-black text-slate-900 dark:text-white">
+              {stats?.focus_score ? stats.focus_score.toFixed(1) : '0.0'}
+            </span>
+            <span className="text-xs text-slate-500 block mt-1">Weighted metric index</span>
+          </div>
+          <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-1.5 mt-2">
+            <div 
+              className={`h-1.5 rounded-full ${theme.accent}`} 
+              style={{ width: `${Math.min(stats?.focus_score || 0, 100)}%` }}
+            />
+          </div>
+        </div>
+
+        {/* Weekly Study Hours */}
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm flex flex-col justify-between">
+          <div className="flex justify-between items-center">
+            <span className="text-slate-500 dark:text-slate-450 uppercase text-[10px] font-black tracking-wider">Weekly study hours</span>
+            <Clock className={`${theme.text} w-5 h-5`} />
+          </div>
+          <div className="my-3">
+            <span className="text-3xl font-black text-slate-900 dark:text-white">
+              {stats?.weekly_study_hours ? stats.weekly_study_hours.toFixed(1) : '0.0'}h
+            </span>
+            <span className="text-xs text-slate-500 block mt-1">Completed timer runs</span>
+          </div>
+          <span className="text-[10px] text-slate-400 font-medium">Goal: 4.0h/day (Preferences)</span>
+        </div>
+
+        {/* Completed Focus Sessions */}
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm flex flex-col justify-between">
+          <div className="flex justify-between items-center">
+            <span className="text-slate-500 dark:text-slate-450 uppercase text-[10px] font-black tracking-wider">Focus Sessions count</span>
+            <Flame className={`${theme.text} w-5 h-5`} />
+          </div>
+          <div className="my-3">
+            <span className="text-3xl font-black text-slate-900 dark:text-white">
+              {stats?.completed_sessions || 0}
+            </span>
+            <span className="text-xs text-slate-500 block mt-1">Completed / {stats?.focus_sessions_count || 0} sessions</span>
+          </div>
+          <span className="text-[10px] text-slate-400 font-medium">
+            Interrupted: {stats?.interrupted_sessions || 0} sessions
+          </span>
+        </div>
+
+        {/* Current Streak */}
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm flex flex-col justify-between">
+          <div className="flex justify-between items-center">
+            <span className="text-slate-500 dark:text-slate-450 uppercase text-[10px] font-black tracking-wider">Streak Calendar</span>
+            <Award className={`${theme.text} w-5 h-5`} />
+          </div>
+          <div className="my-3">
+            <span className="text-3xl font-black text-slate-900 dark:text-white">
+              {stats?.current_streak || 0} Days
+            </span>
+            <span className="text-xs text-slate-500 block mt-1">Longest Streak: {stats?.longest_streak || 0} Days</span>
+          </div>
+          <span className="text-[10px] text-slate-400 font-medium">Reset boundary is 24 hours</span>
         </div>
       </div>
 
+      {/* Main Grid: Check-in, Timer, Reflections */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
-        {/* Left Side: Logger Sliders & Timer */}
+        {/* Left Side: Logger Form & Focus timer */}
         <div className="lg:col-span-1 space-y-6">
-          {/* Pomodoro Focus Timer */}
-          <div className="bg-slate-900/60 backdrop-blur-md border border-slate-800 p-6 rounded-3xl text-center">
-            <h3 className="font-extrabold text-white text-sm mb-4 flex items-center justify-center gap-2">
-              <Clock className="text-indigo-400" size={16} />
-              Focus Mode Timer (Pomodoro)
-            </h3>
-            
-            <div className="my-6">
-              <div className="text-4xl md:text-5xl font-black tracking-tight text-white font-mono">
-                {formatTime(secondsLeft)}
-              </div>
-              <p className="text-[10px] text-slate-400 mt-2 font-bold uppercase tracking-wide">
-                {timerRunning ? "Focus state active... remain seated" : "Ready to engage focus"}
-              </p>
+          
+          {/* Daily Learning Check-in */}
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm space-y-4">
+            <div>
+              <h3 className="font-extrabold text-slate-900 dark:text-white text-sm flex items-center gap-2">
+                <CheckSquare className="w-5 h-5 text-indigo-500" />
+                Daily Learning Check-in
+              </h3>
+              <p className="text-xs text-slate-550 dark:text-slate-400 mt-1">Sync your daily cognitive load and sleep duration metrics.</p>
             </div>
 
-            <div className="flex justify-center gap-3">
-              <button
-                onClick={toggleTimer}
-                className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer text-white ${
-                  timerRunning ? "bg-amber-600 hover:bg-amber-500" : "bg-indigo-650 hover:bg-indigo-500"
-                }`}
-              >
-                {timerRunning ? <Pause size={14} /> : <Play size={14} />}
-                {timerRunning ? "Pause" : "Start Focus"}
-              </button>
-              <button
-                onClick={resetTimer}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-slate-950 hover:bg-slate-900 border border-slate-850 text-slate-400 transition-colors cursor-pointer"
-              >
-                <RotateCcw size={14} />
-                Reset
-              </button>
-            </div>
-
-            <div className="mt-6 pt-4 border-t border-slate-800/60 flex items-center justify-between text-[11px] text-slate-400 font-semibold">
-              <span>Completed Sessions: {completedSessions}</span>
-              <span className="text-indigo-400 font-bold">+50 XP / focus session</span>
-            </div>
-          </div>
-
-          {/* Interactive Sliders Form */}
-          <div className="bg-slate-900/60 backdrop-blur-md border border-slate-800 p-6 rounded-3xl space-y-4">
-            <h3 className="font-extrabold text-white text-sm flex items-center gap-2">
-              <Activity className="text-indigo-400" size={16} />
-              Log Daily Wellness Metrics
-            </h3>
-            <p className="text-[10px] text-slate-450">Correlate habits, study, and mood metrics for precise diagnostics.</p>
-
-            <form onSubmit={handleLogMood} className="space-y-4 text-xs">
-              {/* Mood group */}
-              <div className="grid grid-cols-2 gap-3.5 pt-2">
-                <div className="space-y-1">
-                  <div className="flex justify-between text-[10px] text-slate-400 font-semibold">
-                    <span>HAPPINESS: {happy}%</span>
-                  </div>
-                  <input
-                    type="range" min="0" max="100" value={happy}
-                    onChange={(e) => setHappy(parseInt(e.target.value))}
-                    className="w-full h-1.5 bg-slate-950 rounded-lg appearance-none cursor-pointer accent-emerald-500"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <div className="flex justify-between text-[10px] text-slate-400 font-semibold">
-                    <span>FOCUS: {focused}%</span>
-                  </div>
-                  <input
-                    type="range" min="0" max="100" value={focused}
-                    onChange={(e) => setFocused(parseInt(e.target.value))}
-                    className="w-full h-1.5 bg-slate-950 rounded-lg appearance-none cursor-pointer accent-indigo-500"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <div className="flex justify-between text-[10px] text-slate-400 font-semibold">
-                    <span>FRUSTRATION: {frustrated}%</span>
-                  </div>
-                  <input
-                    type="range" min="0" max="100" value={frustrated}
-                    onChange={(e) => setFrustrated(parseInt(e.target.value))}
-                    className="w-full h-1.5 bg-slate-950 rounded-lg appearance-none cursor-pointer accent-amber-500"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <div className="flex justify-between text-[10px] text-slate-400 font-semibold">
-                    <span>STRESS: {stressed}%</span>
-                  </div>
-                  <input
-                    type="range" min="0" max="100" value={stressed}
-                    onChange={(e) => setStressed(parseInt(e.target.value))}
-                    className="w-full h-1.5 bg-slate-950 rounded-lg appearance-none cursor-pointer accent-red-500"
-                  />
-                </div>
-              </div>
-
-              {/* Sleep & Study group */}
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <label className="text-[10px] text-slate-400 uppercase font-bold tracking-wider block">Sleep duration</label>
-                  <input 
-                    type="number" step="0.5" min="0" max="24"
-                    value={sleepHours}
-                    onChange={(e) => setSleepHours(parseFloat(e.target.value) || 8.0)}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                    required
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-[10px] text-slate-400 uppercase font-bold tracking-wider block">Study hours today</label>
-                  <input 
-                    type="number" step="0.5" min="0" max="24"
-                    value={studyHours}
-                    onChange={(e) => setStudyHours(parseFloat(e.target.value) || 0.0)}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                    required
-                  />
-                </div>
-              </div>
-
-              {/* Learning Habits Grid */}
+            <form onSubmit={handleCheckinSubmit} className="space-y-4 text-xs">
+              {/* Mood emojis grid */}
               <div className="space-y-2">
-                <label className="text-[10px] text-slate-400 uppercase font-bold tracking-wider block">Active Learning Habits Practiced</label>
-                <div className="grid grid-cols-2 gap-2 text-[10px]">
-                  {HABITS_LIST.map((habit) => {
-                    const isSelected = selectedHabits.includes(habit);
+                <label className="text-[10px] text-slate-500 uppercase font-black tracking-wider block">Mood Assessment</label>
+                <div className="grid grid-cols-5 gap-2">
+                  {[
+                    { id: 'happy', emoji: '😊', label: 'Happy' },
+                    { id: 'focused', emoji: '🧠', label: 'Focused' },
+                    { id: 'stressed', emoji: '😰', label: 'Stressed' },
+                    { id: 'tired', emoji: '😴', label: 'Tired' },
+                    { id: 'bored', emoji: '🥱', label: 'Bored' }
+                  ].map((m) => {
+                    const isSelected = checkinForm.mood === m.id;
                     return (
                       <button
-                        key={habit}
+                        key={m.id}
                         type="button"
-                        onClick={() => handleHabitToggle(habit)}
-                        className={`p-2 rounded-xl text-left border transition-all truncate flex items-center gap-1.5 ${
+                        onClick={() => setCheckinForm(prev => ({ ...prev, mood: m.id }))}
+                        className={`py-2.5 rounded-xl border flex flex-col items-center justify-center gap-1 transition-all ${
                           isSelected 
-                            ? "bg-indigo-500/10 border-indigo-500/30 text-indigo-400" 
-                            : "bg-slate-950 border-slate-850 text-slate-450 hover:border-slate-800"
+                            ? 'bg-indigo-550/10 border-indigo-500 text-indigo-650 dark:text-indigo-400' 
+                            : 'bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-850 hover:border-slate-400 text-slate-500'
                         }`}
                       >
-                        <CheckCircle size={10} className={isSelected ? "text-indigo-400" : "text-transparent"} />
-                        {habit}
+                        <span className="text-lg">{m.emoji}</span>
+                        <span className="text-[9px] font-bold">{m.label}</span>
                       </button>
                     );
                   })}
                 </div>
               </div>
 
+              {/* Sliders: Energy, Focus, Stress */}
+              <div className="space-y-3 pt-2">
+                {/* Focus Level */}
+                <div className="space-y-1">
+                  <div className="flex justify-between text-[10px] text-slate-500 font-bold uppercase">
+                    <span>Focus Level</span>
+                    <span className="font-extrabold text-slate-800 dark:text-slate-200">{checkinForm.focus_level}/10</span>
+                  </div>
+                  <input
+                    type="range" min="1" max="10" 
+                    value={checkinForm.focus_level}
+                    onChange={(e) => setCheckinForm(prev => ({ ...prev, focus_level: parseInt(e.target.value) }))}
+                    className="w-full h-1.5 bg-slate-100 dark:bg-slate-950 rounded-lg appearance-none cursor-pointer accent-indigo-500"
+                  />
+                </div>
+
+                {/* Energy Level */}
+                <div className="space-y-1">
+                  <div className="flex justify-between text-[10px] text-slate-500 font-bold uppercase">
+                    <span>Energy Level</span>
+                    <span className="font-extrabold text-slate-800 dark:text-slate-200">{checkinForm.energy_level}/10</span>
+                  </div>
+                  <input
+                    type="range" min="1" max="10" 
+                    value={checkinForm.energy_level}
+                    onChange={(e) => setCheckinForm(prev => ({ ...prev, energy_level: parseInt(e.target.value) }))}
+                    className="w-full h-1.5 bg-slate-100 dark:bg-slate-950 rounded-lg appearance-none cursor-pointer accent-emerald-500"
+                  />
+                </div>
+
+                {/* Stress Level */}
+                <div className="space-y-1">
+                  <div className="flex justify-between text-[10px] text-slate-500 font-bold uppercase">
+                    <span>Stress Level</span>
+                    <span className="font-extrabold text-slate-800 dark:text-slate-200">{checkinForm.stress_level}/10</span>
+                  </div>
+                  <input
+                    type="range" min="1" max="10" 
+                    value={checkinForm.stress_level}
+                    onChange={(e) => setCheckinForm(prev => ({ ...prev, stress_level: parseInt(e.target.value) }))}
+                    className="w-full h-1.5 bg-slate-100 dark:bg-slate-950 rounded-lg appearance-none cursor-pointer accent-red-500"
+                  />
+                </div>
+              </div>
+
+              {/* Number Inputs: Sleep, Planned study hours */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] text-slate-500 uppercase font-black block">Sleep Hours</label>
+                  <input
+                    type="number" step="0.5" min="0" max="24"
+                    value={checkinForm.sleep_hours}
+                    onChange={(e) => setCheckinForm(prev => ({ ...prev, sleep_hours: parseFloat(e.target.value) || 8.0 }))}
+                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 rounded-xl px-3.5 py-2.5 text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                    required
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] text-slate-500 uppercase font-black block">Planned Study</label>
+                  <input
+                    type="number" step="0.5" min="0" max="24"
+                    value={checkinForm.planned_study_hours}
+                    onChange={(e) => setCheckinForm(prev => ({ ...prev, planned_study_hours: parseFloat(e.target.value) || 0.0 }))}
+                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 rounded-xl px-3.5 py-2.5 text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                    required
+                  />
+                </div>
+              </div>
+
+              {/* Learning goal */}
+              <div className="space-y-1">
+                <label className="text-[10px] text-slate-500 uppercase font-black block">Today's Learning Goal</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Complete React Routing chapter"
+                  value={checkinForm.learning_goal}
+                  onChange={(e) => setCheckinForm(prev => ({ ...prev, learning_goal: e.target.value }))}
+                  className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 rounded-xl px-3.5 py-2.5 text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                />
+              </div>
+
               <button
                 type="submit"
-                disabled={loading}
-                className="w-full bg-indigo-650 hover:opacity-90 text-white font-extrabold text-xs py-2.5 rounded-xl transition-all shadow-md mt-2 flex items-center justify-center gap-2 cursor-pointer"
+                disabled={submittingCheckin}
+                className="w-full bg-indigo-650 hover:bg-indigo-500 text-white font-extrabold text-xs py-3 rounded-xl transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
               >
-                {loading ? (
+                {submittingCheckin ? (
                   <>
-                    <div className="animate-spin inline-block w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full"></div>
-                    Syncing cognitive metrics...
+                    <div className="animate-spin inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full"></div>
+                    Syncing metrics...
                   </>
                 ) : (
                   <>
-                    <Zap size={14} />
+                    <Zap size={14} className="fill-white" />
                     Sync Wellness Vector
                   </>
                 )}
@@ -450,207 +668,407 @@ const EmotionAnalysis = () => {
             </form>
 
             <AnimatePresence>
-              {successMsg && (
+              {checkinMessage && (
                 <motion.div
                   initial={{ opacity: 0, y: 5 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0 }}
-                  className="flex items-center gap-1.5 text-[10px] text-emerald-400 font-extrabold justify-center mt-2"
+                  className={`p-3 rounded-xl text-center text-[10px] font-extrabold ${
+                    checkinMessage.includes('Error') 
+                      ? 'bg-red-500/10 text-red-650 dark:text-red-400 border border-red-500/20' 
+                      : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-450 border border-emerald-500/20'
+                  }`}
                 >
-                  <CheckCircle size={12} className="text-emerald-400" />
-                  {successMsg}
+                  {checkinMessage}
                 </motion.div>
               )}
             </AnimatePresence>
           </div>
-        </div>
 
-        {/* Right Side: Charts & Recommendations */}
-        <div className="lg:col-span-2 space-y-6">
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {/* Cognitive Warning indicator */}
-            <div className="bg-slate-900/60 border border-slate-800 p-5 rounded-3xl flex flex-col justify-between min-h-[130px] hover:border-indigo-500/25 transition-all">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] text-slate-450 uppercase font-bold tracking-wider">Cognitive Status</span>
-                <Brain className="text-indigo-400" size={16} />
-              </div>
-              <div className="py-2">
-                <span className={`text-xs font-black px-2.5 py-1 rounded-full border ${stressStatus.color}`}>
-                  {stressStatus.title}
+          {/* Pomodoro Focus Studio */}
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm text-center space-y-4">
+            <h3 className="font-extrabold text-slate-900 dark:text-white text-sm flex items-center justify-center gap-2">
+              <Clock className="text-indigo-500" size={18} />
+              Focus Studio
+            </h3>
+
+            {/* Presets grid */}
+            <div className="grid grid-cols-4 gap-2 text-xs">
+              {[25, 45, 60, 90].map((preset) => (
+                <button
+                  key={preset}
+                  onClick={() => handlePresetSelect(preset)}
+                  disabled={timerRunning}
+                  className={`py-2 rounded-xl font-bold border transition-colors ${
+                    timerPreset === preset
+                      ? 'bg-indigo-550/10 border-indigo-500 text-indigo-650 dark:text-indigo-400'
+                      : 'bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-850 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500'
+                  }`}
+                >
+                  {preset}m
+                </button>
+              ))}
+            </div>
+
+            {/* Countdown clock visual */}
+            <div className="relative py-6 flex flex-col items-center justify-center">
+              <div className="w-40 h-40 rounded-full border-4 border-slate-100 dark:border-slate-850 flex flex-col items-center justify-center relative shadow-inner">
+                {/* Glow ring */}
+                {timerRunning && (
+                  <div className="absolute inset-0 rounded-full border-4 border-indigo-500 border-t-transparent animate-spin" />
+                )}
+                <span className="text-3xl font-black text-slate-900 dark:text-white font-mono">
+                  {formatTime(secondsLeft)}
+                </span>
+                <span className="text-[9px] text-slate-500 uppercase font-black tracking-widest mt-1">
+                  {timerRunning ? 'Session active' : timerPaused ? 'Paused' : 'Ready'}
                 </span>
               </div>
-              <span className="text-[9px] text-slate-500 font-semibold uppercase">Based on logged stress values</span>
             </div>
 
-            {/* Sleep indicator */}
-            <div className="bg-slate-900/60 border border-slate-800 p-5 rounded-3xl flex flex-col justify-between min-h-[130px] hover:border-indigo-500/25 transition-all">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] text-slate-450 uppercase font-bold tracking-wider">Last logged Sleep</span>
-                <Moon className="text-indigo-400" size={16} />
-              </div>
-              <div className="py-1">
-                <span className="text-2xl font-black text-white">{sleepHours} Hours</span>
-                <p className="text-[9px] text-slate-400 mt-0.5">Average target: 7-8 hours</p>
-              </div>
-              <span className="text-[9px] text-slate-500 font-semibold uppercase">{sleepHours < 6 ? 'Deficit Warning' : 'Optimal'}</span>
-            </div>
+            {/* Controls */}
+            <div className="flex justify-center gap-2">
+              {!timerRunning ? (
+                <button
+                  onClick={startTimer}
+                  className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl text-xs font-bold bg-indigo-650 hover:bg-indigo-500 text-white transition-colors cursor-pointer"
+                >
+                  <Play size={14} className="fill-white" />
+                  {timerPaused ? 'Resume' : 'Start Focus'}
+                </button>
+              ) : (
+                <button
+                  onClick={pauseTimer}
+                  className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl text-xs font-bold bg-amber-600 hover:bg-amber-500 text-white transition-colors cursor-pointer"
+                >
+                  <Pause size={14} className="fill-white" />
+                  Pause
+                </button>
+              )}
 
-            {/* Study indicator */}
-            <div className="bg-slate-900/60 border border-slate-800 p-5 rounded-3xl flex flex-col justify-between min-h-[130px] hover:border-indigo-500/25 transition-all">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] text-slate-450 uppercase font-bold tracking-wider">Today's study time</span>
-                <Flame className="text-indigo-400" size={16} />
-              </div>
-              <div className="py-1">
-                <span className="text-2xl font-black text-white">{studyHours} Hours</span>
-                <p className="text-[9px] text-slate-400 mt-0.5">Self-reported + Pomodoro runs</p>
-              </div>
-              <span className="text-[9px] text-slate-500 font-semibold uppercase">Logged Today</span>
+              {(timerRunning || timerPaused) && (
+                <button
+                  onClick={() => handleSessionComplete(false)}
+                  className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-bold bg-red-600 hover:bg-red-500 text-white transition-colors cursor-pointer"
+                >
+                  <X size={14} />
+                  Stop
+                </button>
+              )}
+
+              <button
+                onClick={resetTimer}
+                disabled={timerRunning}
+                className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-bold bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 text-slate-550 dark:text-slate-400 hover:bg-slate-200 transition-colors cursor-pointer disabled:opacity-50"
+              >
+                <RotateCcw size={14} />
+                Reset
+              </button>
             </div>
+            
+            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider border-t border-slate-150 dark:border-slate-850/50 pt-3">
+              +50 XP awarded upon successful completion
+            </p>
           </div>
+        </div>
 
-          {/* Analytics Tabs with Dual Charts */}
-          <div className="bg-slate-900/60 border border-slate-800 p-6 rounded-3xl">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="font-extrabold text-white text-xs md:text-sm flex items-center gap-1.5">
-                <TrendingUp className="text-indigo-400" size={16} />
-                Cognitive Analytics stack
+        {/* Right Side: Charts & Reflections */}
+        <div className="lg:col-span-2 space-y-6">
+          
+          {/* Charts Segment */}
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+              <h3 className="font-extrabold text-slate-900 dark:text-white text-sm flex items-center gap-2">
+                <TrendingUp className="text-indigo-500" size={18} />
+                Cognitive Analytics Stack
               </h3>
-            </div>
-            
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-              {/* Stacked Mood Area Chart */}
-              <div className="space-y-2">
-                <span className="text-[10px] font-bold text-slate-450 uppercase block tracking-wider">Affective Mind State Logs</span>
-                <div className="h-56">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={moodHistory}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" opacity={0.5} />
-                      <XAxis dataKey="day" stroke="#64748b" fontSize={9} />
-                      <YAxis stroke="#64748b" fontSize={9} />
-                      <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', borderRadius: '12px' }} itemStyle={{ fontSize: '10px' }} />
-                      <Area type="monotone" dataKey="happy" stackId="1" stroke="#10b981" fill="#10b981" fillOpacity={0.1} name="Happiness" />
-                      <Area type="monotone" dataKey="focused" stackId="1" stroke="#6366f1" fill="#6366f1" fillOpacity={0.15} name="Focus" />
-                      <Area type="monotone" dataKey="frustrated" stackId="1" stroke="#f59e0b" fill="#f59e0b" fillOpacity={0.1} name="Frustration" />
-                      <Area type="monotone" dataKey="stressed" stackId="1" stroke="#ef4444" fill="#ef4444" fillOpacity={0.1} name="Stress" />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-
-              {/* Correlation Sleep vs Study Hours Chart */}
-              <div className="space-y-2">
-                <span className="text-[10px] font-bold text-slate-450 uppercase block tracking-wider">Sleep Hours vs Study Hours correlation</span>
-                <div className="h-56">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={moodHistory}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" opacity={0.5} />
-                      <XAxis dataKey="day" stroke="#64748b" fontSize={9} />
-                      <YAxis stroke="#64748b" fontSize={9} />
-                      <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', borderRadius: '12px' }} itemStyle={{ fontSize: '10px' }} />
-                      <Legend verticalAlign="top" height={28} iconSize={8} wrapperStyle={{ fontSize: '9px' }} />
-                      <Bar dataKey="sleep_hours" fill="#4F46E5" radius={[4, 4, 0, 0]} name="Sleep (Hrs)" />
-                      <Bar dataKey="study_hours" fill="#7C3AED" radius={[4, 4, 0, 0]} name="Study (Hrs)" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* AI recommendations log diagnostics */}
-          <div className="bg-slate-900/60 border border-slate-800 p-6 rounded-3xl space-y-4">
-            <h4 className="font-extrabold text-white text-xs flex items-center gap-1.5">
-              <Sparkles className="text-indigo-400" size={16} />
-              AI Cognitive Diagnostics & Preventions
-            </h4>
-            
-            {recommendations.length === 0 ? (
-              <div className="p-4 bg-slate-950 border border-slate-850 rounded-2xl flex items-center gap-2.5 text-xs text-slate-450">
-                <Sparkles className="text-indigo-400 animate-pulse shrink-0" size={16} />
-                <span>Log your mood metrics to compile personalized AI burnout recommendations.</span>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5 text-xs text-slate-450">
-                {recommendations.map((recStr, idx) => (
-                  <div key={idx} className="p-3.5 bg-slate-950 border border-slate-850 rounded-2xl flex gap-3 align-start">
-                    <CheckCircle className="text-indigo-400 shrink-0 mt-0.5" size={16} />
-                    <div>
-                      <h5 className="font-extrabold text-white text-[10px] uppercase tracking-wider">Advisor Checkpoint #{idx + 1}</h5>
-                      <p className="mt-1 text-[10px] leading-relaxed text-slate-400">{recStr}</p>
-                    </div>
-                  </div>
+              
+              {/* Range Selector */}
+              <div className="flex flex-wrap items-center gap-2 text-xs">
+                {['daily', 'weekly', 'monthly', 'custom'].map((r) => (
+                  <button
+                    key={r}
+                    onClick={() => setChartRange(r)}
+                    className={`px-3 py-1.5 rounded-lg border font-bold capitalize transition-colors ${
+                      chartRange === r
+                        ? 'bg-indigo-550/10 border-indigo-500 text-indigo-650 dark:text-indigo-400'
+                        : 'bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-850 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500'
+                    }`}
+                  >
+                    {r}
+                  </button>
                 ))}
               </div>
-            )}
-          </div>
-
-          {/* Table history log archive */}
-          <div className="bg-slate-900/60 border border-slate-800 p-6 rounded-3xl space-y-4">
-            <div>
-              <h3 className="font-extrabold text-white text-xs md:text-sm flex items-center gap-1.5">
-                <History className="text-indigo-400" size={16} />
-                Chronological Wellness Archive
-              </h3>
-              <p className="text-[9px] text-slate-450 mt-0.5">Logs audit index of student affect and study habits logs</p>
             </div>
 
-            {historyLoading ? (
-              <div className="text-center py-6 text-slate-500 text-xs">
-                <div className="animate-spin inline-block w-4 h-4 border-2 border-indigo-500 border-t-transparent rounded-full mb-1"></div>
-                <p>Retrieving logs...</p>
+            {/* Custom Range Inputs */}
+            {chartRange === 'custom' && (
+              <div className="grid grid-cols-2 gap-4 mb-6 text-xs p-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 rounded-2xl">
+                <div className="space-y-1">
+                  <span className="text-[10px] text-slate-550 font-bold uppercase block">Start Date</span>
+                  <input
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg px-2.5 py-1.5 focus:outline-none"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <span className="text-[10px] text-slate-550 font-bold uppercase block">End Date</span>
+                  <input
+                    type="date"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg px-2.5 py-1.5 focus:outline-none"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Chart visualizations */}
+            {loadingStats ? (
+              <div className="flex flex-col items-center justify-center h-64 space-y-3">
+                <div className="w-6 h-6 border-2 border-slate-350 dark:border-slate-700 border-t-indigo-500 rounded-full animate-spin" />
+                <span className="text-[10px] text-slate-450">Compiling chart data...</span>
+              </div>
+            ) : !stats || !stats.chart_data || stats.chart_data.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-64 text-center text-slate-500">
+                <Calendar size={32} className="text-slate-350 dark:text-slate-700 mb-2" />
+                <span className="text-xs font-bold">No wellness logs tracked inside this date range.</span>
+                <span className="text-[10px] text-slate-400 mt-1">Submit check-ins to view graphs.</span>
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full border-collapse text-left text-[11px] text-slate-400">
-                  <thead>
-                    <tr className="border-b border-slate-800 text-[9px] text-slate-450 uppercase font-bold tracking-wider">
-                      <th className="pb-2.5 pl-1">Day/Date</th>
-                      <th className="pb-2.5">Mood Metrics (H/F/Fr/St)</th>
-                      <th className="pb-2.5">Sleep/Study Hours</th>
-                      <th className="pb-2.5">Active Habits Practiced</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-800/50">
-                    {moodHistory.map((run, idx) => (
-                      <tr key={idx} className="hover:bg-slate-950/40 text-slate-350 transition-colors">
-                        <td className="py-3 pl-1 text-[10px] text-slate-500">
-                          <span className="font-bold text-slate-400 block">{run.day}</span>
-                          <span className="text-[9px]">{run.date || 'Baseline'}</span>
-                        </td>
-                        <td className="py-3">
-                          <div className="flex gap-2 text-[10px]">
-                            <span className="text-emerald-450">H:{run.happy}%</span>
-                            <span className="text-indigo-400">F:{run.focused}%</span>
-                            <span className="text-amber-500">Fr:{run.frustrated}%</span>
-                            <span className="text-red-400">St:{run.stressed}%</span>
-                          </div>
-                        </td>
-                        <td className="py-3 font-semibold text-white">
-                          Sleep: {run.sleep_hours}h • Study: {run.study_hours}h
-                        </td>
-                        <td className="py-3">
-                          <div className="flex flex-wrap gap-1 max-w-[220px]">
-                            {run.learning_habits && run.learning_habits.map((h) => (
-                              <span key={h} className="text-[8px] font-bold px-1.5 py-0.5 rounded bg-indigo-500/5 border border-indigo-500/10 text-indigo-300">
-                                {h}
-                              </span>
-                            ))}
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                {/* Chart 1: Focus & Sleep */}
+                <div className="space-y-2">
+                  <span className="text-[10px] font-black text-slate-500 dark:text-slate-450 uppercase block tracking-wider">Affective Focus vs Sleep hours</span>
+                  <div className="h-56">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={stats.chart_data}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" className="dark:stroke-slate-850" opacity={0.6} />
+                        <XAxis dataKey="day" stroke="#64748b" fontSize={9} />
+                        <YAxis stroke="#64748b" fontSize={9} />
+                        <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', borderRadius: '12px' }} itemStyle={{ fontSize: '10px' }} />
+                        <Area type="monotone" dataKey="focus" stroke="#6366f1" fill="#6366f1" fillOpacity={0.1} name="Focus Log (1-10)" />
+                        <Area type="monotone" dataKey="sleep" stroke="#10b981" fill="#10b981" fillOpacity={0.1} name="Sleep Hours" />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+
+                {/* Chart 2: Study Hours & Focus sessions */}
+                <div className="space-y-2">
+                  <span className="text-[10px] font-black text-slate-500 dark:text-slate-450 uppercase block tracking-wider">Completed study duration & timers</span>
+                  <div className="h-56">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={stats.chart_data}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" className="dark:stroke-slate-850" opacity={0.6} />
+                        <XAxis dataKey="day" stroke="#64748b" fontSize={9} />
+                        <YAxis stroke="#64748b" fontSize={9} />
+                        <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', borderRadius: '12px' }} itemStyle={{ fontSize: '10px' }} />
+                        <Legend verticalAlign="top" height={28} iconSize={8} wrapperStyle={{ fontSize: '9px' }} />
+                        <Bar dataKey="study" fill="#8b5cf6" radius={[4, 4, 0, 0]} name="Study Hours" />
+                        <Bar dataKey="sessions" fill="#6366f1" radius={[4, 4, 0, 0]} name="Completed Timers" />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
               </div>
             )}
           </div>
-          
+
+          {/* Heuristic Insights & Warnings */}
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm space-y-4">
+            <h4 className="font-extrabold text-slate-900 dark:text-white text-xs flex items-center gap-1.5">
+              <Sparkles className="text-indigo-500" size={16} />
+              SaaS Wellness Diagnostics & Static Guidelines
+            </h4>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Burnout Risk Card */}
+              <div className="p-4 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 rounded-2xl flex flex-col justify-between">
+                <span className="text-[10px] text-slate-500 font-extrabold uppercase tracking-wider block mb-1">Burnout Risk</span>
+                <span className={`inline-flex self-start px-2 py-0.5 rounded text-[10px] font-bold border ${riskBadgeColor}`}>
+                  {burnoutRisk}
+                </span>
+                <span className="text-[9px] text-slate-400 mt-2">Calculated from stress levels</span>
+              </div>
+
+              {/* Sleep Hygiene Card */}
+              <div className="p-4 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 rounded-2xl flex flex-col justify-between">
+                <span className="text-[10px] text-slate-500 font-extrabold uppercase tracking-wider block mb-1">Sleep Hygiene</span>
+                <span className={`text-[10px] font-extrabold ${sleepStatusColor}`}>
+                  {sleepStatus}
+                </span>
+                <span className="text-[9px] text-slate-400 mt-2">Target sleep duration: 7.5+ h</span>
+              </div>
+
+              {/* Learning Consistency Card */}
+              <div className="p-4 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 rounded-2xl flex flex-col justify-between">
+                <span className="text-[10px] text-slate-500 font-extrabold uppercase tracking-wider block mb-1">Consistency</span>
+                <span className="text-xs font-black text-slate-800 dark:text-white">
+                  {stats?.learning_consistency ? stats.learning_consistency.toFixed(1) : '0.0'}%
+                </span>
+                <span className="text-[9px] text-slate-400 mt-2">14-day activity index</span>
+              </div>
+            </div>
+
+            {/* Static Guidelines / Recommendations */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs text-slate-550 dark:text-slate-400">
+              <div className="p-4 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 rounded-2xl flex gap-3">
+                <ShieldAlert className="text-indigo-500 shrink-0 w-5 h-5" />
+                <div>
+                  <h5 className="font-extrabold text-slate-900 dark:text-white text-[10px] uppercase tracking-wider">Guideline: Rest Cycle</h5>
+                  <p className="mt-1 text-[10px] leading-relaxed">
+                    {sleepVal < 6.5 
+                      ? "Sleep is below target. Memory retention suffers during deficit. Allocate 7.5+ hours tonight."
+                      : "Sleep duration is optimal. Maintaining a structured sleep routine stabilizes cognitive performance."}
+                  </p>
+                </div>
+              </div>
+
+              <div className="p-4 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 rounded-2xl flex gap-3">
+                <Brain className="text-indigo-500 shrink-0 w-5 h-5" />
+                <div>
+                  <h5 className="font-extrabold text-slate-900 dark:text-white text-[10px] uppercase tracking-wider">Guideline: Cognitive Load</h5>
+                  <p className="mt-1 text-[10px] leading-relaxed">
+                    {stressVal > 6 
+                      ? "Elevated workload pressure detected. Divide your study goals into 25-minute Pomodoro segments."
+                      : "Balanced stress levels. Perfect window to tackle complex coding homework or study for quizzes."}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Reflection Journal */}
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm space-y-6">
+            <div>
+              <h3 className="font-extrabold text-slate-900 dark:text-white text-sm flex items-center gap-2">
+                <BookOpen className="text-indigo-500" size={18} />
+                Reflection Journal
+              </h3>
+              <p className="text-xs text-slate-550 dark:text-slate-400 mt-1">Reflect on your weekly progress, difficulties encountered, and achievements.</p>
+            </div>
+
+            <form onSubmit={handleReflectionSubmit} className="space-y-3">
+              <textarea
+                rows="3"
+                placeholder="Log your weekly reflection here... What did you learn? What obstacles did you encounter?"
+                value={reflectionText}
+                onChange={(e) => setReflectionText(e.target.value)}
+                className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 rounded-2xl p-4 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                required
+              />
+              <button
+                type="submit"
+                disabled={submittingReflection || !reflectionText.trim()}
+                className="bg-indigo-650 hover:bg-indigo-500 text-white font-extrabold text-xs px-5 py-2.5 rounded-xl transition-all shadow-md cursor-pointer disabled:opacity-50 flex items-center gap-2"
+              >
+                {submittingReflection ? (
+                  <>
+                    <div className="animate-spin inline-block w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full" />
+                    Saving...
+                  </>
+                ) : (
+                  "Save Reflection Log"
+                )}
+              </button>
+            </form>
+
+            {/* Reflection history timeline */}
+            <div className="space-y-4 pt-2 border-t border-slate-100 dark:border-slate-850">
+              <h4 className="text-[10px] text-slate-500 uppercase font-black tracking-wider flex items-center gap-1">
+                <History size={12} />
+                Reflection Journal Archive
+              </h4>
+
+              {loadingReflections ? (
+                <div className="text-center py-6 text-slate-500 text-xs">
+                  <div className="animate-spin inline-block w-4 h-4 border-2 border-indigo-500 border-t-transparent rounded-full mb-1" />
+                  <p className="text-[10px]">Retrieving reflection logs...</p>
+                </div>
+              ) : reflections.length === 0 ? (
+                <div className="text-center py-6 text-slate-500 text-xs border border-dashed border-slate-200 dark:border-slate-850 rounded-2xl bg-slate-50/50 dark:bg-slate-950/20">
+                  <p className="font-bold text-slate-400">No reflections logged yet.</p>
+                  <p className="text-[9px] text-slate-400 mt-1">Start writing reflections to track academic milestones.</p>
+                </div>
+              ) : (
+                <div className="space-y-3 max-h-72 overflow-y-auto pr-1">
+                  {reflections.map((ref) => (
+                    <div 
+                      key={ref.reflection_id}
+                      className="p-4 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 rounded-2xl text-xs space-y-2 hover:border-slate-350 dark:hover:border-slate-800 transition-colors"
+                    >
+                      <div className="flex justify-between items-center text-[10px] text-slate-500 font-semibold">
+                        <span className="flex items-center gap-1 text-indigo-550 dark:text-indigo-400 font-extrabold uppercase">
+                          <Calendar size={10} />
+                          {ref.ref_date}
+                        </span>
+                        
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => {
+                              setEditingReflectionId(ref.reflection_id);
+                              setEditingText(ref.reflection_text);
+                            }}
+                            className="text-slate-450 hover:text-indigo-550 dark:hover:text-indigo-450 p-1"
+                            title="Edit"
+                          >
+                            <Edit2 size={12} />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteReflection(ref.reflection_id)}
+                            className="text-slate-450 hover:text-red-500 p-1"
+                            title="Delete"
+                          >
+                            <Trash2 size={12} />
+                          </button>
+                        </div>
+                      </div>
+
+                      {editingReflectionId === ref.reflection_id ? (
+                        <div className="space-y-2 pt-1">
+                          <textarea
+                            value={editingText}
+                            onChange={(e) => setEditingText(e.target.value)}
+                            className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3 text-xs focus:outline-none"
+                            rows="2"
+                          />
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => handleUpdateReflection(ref.reflection_id)}
+                              className="px-3 py-1 bg-indigo-650 text-white rounded-lg font-bold text-[10px] hover:bg-indigo-500 transition-colors"
+                            >
+                              Save
+                            </button>
+                            <button
+                              onClick={() => {
+                                setEditingReflectionId(null);
+                                setEditingText('');
+                              }}
+                              className="px-3 py-1 bg-slate-200 dark:bg-slate-800 text-slate-650 dark:text-slate-405 rounded-lg font-bold text-[10px] hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <p className="text-slate-700 dark:text-slate-300 leading-relaxed break-words whitespace-pre-wrap">
+                          {ref.reflection_text}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
         </div>
 
       </div>
-    </motion.div>
+    </div>
   );
 };
 

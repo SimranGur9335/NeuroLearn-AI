@@ -609,7 +609,7 @@ const SubjectManagement = () => {
                                                             setAssessmentComponents(newComps);
                                                         }}
                                                         placeholder="e.g., Mid Sem, Quiz 1..."
-                                                        className="w-full bg-slate-50 text-white dark:bg-slate-800 border border-slate-700 dark:border-slate-850 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500 text-slate-800 dark:text-slate-250 font-medium"
+                                                        className="w-full bg-slate-50  dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1.5 text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 "
                                                     />
                                                 </td>
 

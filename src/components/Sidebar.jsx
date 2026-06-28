@@ -15,7 +15,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Sparkles,
-  LogOut
+  LogOut,
+  User
 } from 'lucide-react';
 import { useStudent } from '../context/StudentContext';
 import { useAuth } from '../context/AuthContext';
@@ -63,7 +64,8 @@ const Sidebar = () => {
     { name: 'Interactive Roadmap', path: '/roadmap', icon: Map },
     { name: 'Quiz Arena', path: '/quiz', icon: GraduationCap },
     { name: 'Analytics', path: '/analytics', icon: TrendingUp },
-    { name: 'Career Guidance', path: '/career', icon: Compass },
+    { name: 'Career Journey', path: '/career', icon: Compass },
+    { name: 'Career Profile', path: '/career/profile', icon: User },
     { name: 'Leaderboard & Badges', path: '/leaderboard', icon: Trophy },
     { name: 'AI Mentor Chat', path: '/ai/chat', icon: MessageSquareCode },
     { name: 'Learning Wellness', path: '/ai/emotions', icon: Smile }
