@@ -26,10 +26,13 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useStudent } from '../context/StudentContext';
+import { THEME_COLOR_MAP } from '../components/StudentHubTheme';
 
 const Profile = () => {
   const { user, updateProfile, changePassword, updateAvatar, logout } = useAuth();
-  const { setProfile } = useStudent();
+  const { profile, setProfile } = useStudent();
+  const themeColor = profile?.theme_color || 'indigo';
+  const theme = THEME_COLOR_MAP[themeColor] || THEME_COLOR_MAP.indigo;
   const [activeTab, setActiveTab] = useState("details"); // 'details' | 'academic' | 'skills' | 'credentials' | 'security'
 
   // Loading States
@@ -322,20 +325,20 @@ const Profile = () => {
       initial={{ opacity: 0, y: 15 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4 }}
-      className="space-y-6 max-w-4xl mx-auto text-slate-300"
+      className="space-y-6 max-w-4xl mx-auto text-slate-700 dark:text-slate-300"
     >
       {/* Page Title */}
       <div>
-        <p className="text-xs text-indigo-500 font-bold uppercase tracking-wider">User Administration</p>
-        <h2 className="text-2xl font-black text-slate-800 dark:text-white">Profile Workspace</h2>
-        <p className="text-slate-500 text-xs mt-1">Redesign your academic credentials, customize your identity, build certifications, and verify placement status.</p>
+        <p className="text-xs text-indigo-600 dark:text-indigo-550 font-bold uppercase tracking-wider">User Administration</p>
+        <h2 className="text-2xl font-black text-slate-900 dark:text-white">Profile Workspace</h2>
+        <p className="text-slate-500 dark:text-slate-400 text-xs mt-1">Redesign your academic credentials, customize your identity, build certifications, and verify placement status.</p>
       </div>
 
       {/* Profile Setup status progress */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-center bg-gradient-to-r from-indigo-900 via-indigo-950/40 to-slate-900 border border-slate-800 p-6 rounded-3xl relative overflow-hidden shadow-xl text-white">
+      <div className={`grid grid-cols-1 md:grid-cols-3 gap-6 items-center bg-gradient-to-r ${theme.gradient} border ${theme.border} p-6 rounded-3xl relative overflow-hidden shadow-xl text-white`}>
         <div className="md:col-span-2 flex items-center gap-5">
           {/* Avatar Rendering Section */}
-          <div className="relative group shrink-0 w-20 h-20 rounded-full bg-slate-950 border-2 border-indigo-500/30 overflow-hidden flex items-center justify-center text-4xl shadow-md select-none">
+          <div className="relative group shrink-0 w-20 h-20 rounded-full bg-slate-950 border-2 border-white/20 overflow-hidden flex items-center justify-center text-4xl shadow-md select-none">
             {isImageAvatar(user?.avatar) ? (
               <img src={user.avatar} alt="Profile" className="w-full h-full object-cover" />
             ) : (
@@ -355,22 +358,22 @@ const Profile = () => {
           </div>
 
           <div className="space-y-1">
-            <span className="text-[10px] uppercase font-bold text-indigo-400 bg-indigo-500/5 border border-indigo-500/10 px-2 py-0.5 rounded">
+            <span className="text-[10px] uppercase font-bold text-white bg-white/10 border border-white/20 px-2 py-0.5 rounded">
               {user?.role === 'student' ? 'Student Registry' : 'Faculty Member'}
             </span>
             <h3 className="font-extrabold text-lg text-white">{formName || "Full Name"}</h3>
-            <p className="text-xs text-slate-400 font-mono">{user?.email}</p>
+            <p className="text-xs text-slate-300 font-mono">{user?.email}</p>
           </div>
         </div>
 
         {/* Completion Telemetry Card */}
-        <div className="bg-slate-950/60 p-4 border border-indigo-500/15 rounded-2xl flex justify-between items-center text-xs">
+        <div className="bg-black/20 p-4 border border-white/10 rounded-2xl flex justify-between items-center text-xs">
           <div>
-            <h4 className="font-bold text-[10px] text-slate-400 uppercase tracking-wider">Completion Index</h4>
-            <div className="w-28 bg-slate-800 h-1.5 rounded-full mt-2 overflow-hidden">
-              <div className="bg-indigo-500 h-full transition-all duration-500" style={{ width: `${completionPercent}%` }} />
+            <h4 className="font-bold text-[10px] text-slate-200 uppercase tracking-wider">Completion Index</h4>
+            <div className="w-28 bg-white/10 h-1.5 rounded-full mt-2 overflow-hidden">
+              <div className={`h-full ${theme.accent} transition-all duration-500`} style={{ width: `${completionPercent}%` }} />
             </div>
-            <span className="text-[9px] text-slate-500 mt-1 block">Log all elements to unlock T1 guidance.</span>
+            <span className="text-[9px] text-slate-300 mt-1 block">Log all elements to unlock T1 guidance.</span>
           </div>
           <div className="text-right">
             <span className="text-3xl font-black text-white">{completionPercent}%</span>
@@ -402,10 +405,8 @@ const Profile = () => {
             <span>{errorMsg}</span>
           </motion.div>
         )}
-      </AnimatePresence>
-
-      {/* Tabs list navigation */}
-      <div className="flex flex-wrap bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-850 p-1.5 rounded-2xl shadow-sm gap-2">
+      </AnimatePresence>      {/* Tabs list navigation */}
+      <div className="flex flex-wrap bg-white dark:bg-slate-955 border border-slate-200 dark:border-slate-850 p-1.5 rounded-2xl shadow-sm gap-2">
         {[
           { id: "details", label: "Personal Details" },
           { id: "academic", label: "Academic Profile" },
@@ -416,10 +417,10 @@ const Profile = () => {
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer min-w-[120px] ${
+            className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer min-w-[120px] border ${
               activeTab === tab.id
-                ? 'bg-indigo-650 text-white shadow'
-                : 'text-slate-500 hover:text-slate-700 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-900/40 bg-transparent'
+                ? `${theme.bg} ${theme.text} ${theme.border} shadow-sm`
+                : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-900/40 bg-transparent'
             }`}
           >
             {tab.label}
@@ -630,7 +631,7 @@ const Profile = () => {
                   <button
                     type="button"
                     onClick={handleAddSkill}
-                    className="bg-indigo-650 hover:bg-indigo-500 text-white font-extrabold px-5 rounded-xl text-xs transition-colors flex items-center gap-1 cursor-pointer shrink-0"
+                    className={`px-5 rounded-xl text-xs transition-all flex items-center gap-1 cursor-pointer shrink-0 text-white font-extrabold ${theme.accent} hover:opacity-90`}
                   >
                     <Plus size={14} /> Add
                   </button>
@@ -737,7 +738,7 @@ const Profile = () => {
                   <button
                     type="button"
                     onClick={handleAddCertificate}
-                    className="bg-indigo-650 hover:bg-indigo-500 text-white font-extrabold py-2 rounded-xl text-xs transition-colors cursor-pointer"
+                    className={`text-white font-extrabold py-2 rounded-xl text-xs transition-all cursor-pointer ${theme.accent} hover:opacity-90`}
                   >
                     Add Certificate
                   </button>
@@ -810,7 +811,7 @@ const Profile = () => {
                   <button
                     type="button"
                     onClick={handleAddAchievement}
-                    className="bg-indigo-650 hover:bg-indigo-500 text-white font-extrabold py-2 rounded-xl text-xs transition-colors cursor-pointer"
+                    className={`text-white font-extrabold py-2 rounded-xl text-xs transition-all cursor-pointer ${theme.accent} hover:opacity-90`}
                   >
                     Add Honor
                   </button>
@@ -909,7 +910,7 @@ const Profile = () => {
                 <button
                   type="button"
                   onClick={handlePasswordChangeSubmit}
-                  className="px-5 py-2.5 bg-indigo-650 hover:bg-indigo-500 text-white font-extrabold rounded-xl transition-all shadow-md cursor-pointer text-xs flex items-center gap-1.5"
+                  className={`px-5 py-2.5 ${theme.accent} hover:opacity-90 text-white font-extrabold rounded-xl transition-all shadow-md cursor-pointer text-xs flex items-center gap-1.5`}
                 >
                   <Sparkles size={14} /> Update Credentials
                 </button>
@@ -924,7 +925,7 @@ const Profile = () => {
                 type="button"
                 onClick={handleSaveProfile}
                 disabled={saveLoading}
-                className="px-6 py-3 bg-indigo-650 hover:opacity-90 disabled:opacity-50 text-white font-extrabold rounded-xl transition-all shadow-md cursor-pointer text-xs flex items-center justify-center gap-2"
+                className={`px-6 py-3 ${theme.accent} hover:opacity-90 disabled:opacity-50 text-white font-extrabold rounded-xl transition-all shadow-md cursor-pointer text-xs flex items-center justify-center gap-2`}
               >
                 {saveLoading ? (
                   <>

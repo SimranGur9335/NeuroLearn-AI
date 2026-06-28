@@ -51,11 +51,14 @@ window.fetch = async function (url, options = {}) {
         options.headers['Authorization'] = `Bearer ${token}`;
       }
     }
-    
+
     try {
       const response = await originalFetch(targetUrl, options);
-      if (response.status === 401) {
-        window.dispatchEvent(new Event('auth-unauthorized'));
+      if (
+        response.status === 401 &&
+        !targetUrl.includes("/api/v1/auth/logout")
+      ) {
+        window.dispatchEvent(new Event("auth-unauthorized"));
       }
       return response;
     } catch (err) {
@@ -79,12 +82,12 @@ export const AuthProvider = ({ children }) => {
     const initializeAuth = async () => {
       const savedRefreshToken = localStorage.getItem("neurolearn_refresh_token");
       const savedRole = localStorage.getItem("neurolearn_role");
-      
+
       if (savedRefreshToken && savedRole) {
         try {
           // Attempt token refresh to verify session
           const data = await authService.refreshToken(savedRefreshToken);
-          
+
           setUser(data.user);
           setRoleState(data.user.role);
           setAccessToken(data.accessToken);
@@ -107,7 +110,19 @@ export const AuthProvider = ({ children }) => {
     };
 
     const handleUnauthorized = () => {
-      logout();
+      // Don't call backend logout again.
+      setUser(null);
+      setRoleState(null);
+      setAccessToken(null);
+      setRefreshToken(null);
+      setIsAuthenticated(false);
+
+      localStorage.removeItem("neurolearn_access_token");
+      localStorage.removeItem("neurolearn_refresh_token");
+      localStorage.removeItem("neurolearn_role");
+
+      sessionStorage.removeItem("neurolearn_access_token");
+      sessionStorage.removeItem("neurolearn_refresh_token");
     };
 
     window.addEventListener('auth-unauthorized', handleUnauthorized);
@@ -126,7 +141,7 @@ export const AuthProvider = ({ children }) => {
     setLoading(true);
     try {
       const data = await authService.login(email, password, roleSelection, institutionId, domain);
-      
+
       setUser(data.user);
       setRoleState(data.user.role);
       setAccessToken(data.accessToken);
@@ -142,7 +157,7 @@ export const AuthProvider = ({ children }) => {
         sessionStorage.setItem("neurolearn_access_token", data.accessToken);
         sessionStorage.setItem("neurolearn_refresh_token", data.refreshToken);
       }
-      
+
       return data.user;
     } catch (err) {
       setIsAuthenticated(false);
@@ -181,12 +196,12 @@ export const AuthProvider = ({ children }) => {
     setAccessToken(null);
     setRefreshToken(null);
     setIsAuthenticated(false);
-    
+
     // Clear storage keys
     localStorage.removeItem("neurolearn_access_token");
     localStorage.removeItem("neurolearn_refresh_token");
     localStorage.removeItem("neurolearn_role");
-    
+
     sessionStorage.removeItem("neurolearn_access_token");
     sessionStorage.removeItem("neurolearn_refresh_token");
   };

@@ -21,6 +21,8 @@ import {
   User
 } from 'lucide-react';
 import { useStudent } from '../context/StudentContext';
+import { useBranding } from '../context/BrandingContext';
+import defaultLogo from '../assets/image.png';
 
 const Header = () => {
   const {
@@ -33,6 +35,8 @@ const Header = () => {
     setSearchTerm,
     profile
   } = useStudent();
+
+  const { branding } = useBranding();
 
   const [showNotifications, setShowNotifications] = useState(false);
   const [showHeartsModal, setShowHeartsModal] = useState(false);
@@ -275,7 +279,7 @@ const Header = () => {
     if (path.includes('analytics')) return 'Personal Performance Dashboard';
     if (path.includes('career')) return 'Career Tracks & Certifications';
     if (path.includes('leaderboard')) return 'Campus Leaderboard';
-    return profile.college || 'COEP Technological University';
+    return branding.institutionName || 'COEP Technological University';
   };
 
   const menuItems = [
@@ -301,9 +305,23 @@ const Header = () => {
           <Menu size={18} />
         </button>
         <div>
-          <h2 className="text-base md:text-lg font-bold text-slate-800 dark:text-white tracking-tight">
-            {getPageTitle()}
-          </h2>
+          {getPageTitle() === (branding.institutionName || 'COEP Technological University') ? (
+            <div className="flex items-center gap-2">
+              <img
+                src={branding.logoUrl || defaultLogo}
+                onError={(e) => { e.target.src = defaultLogo; }}
+                alt="Logo"
+                className="w-6 h-6 object-contain rounded-md bg-white p-0.5 shrink-0 shadow-sm"
+              />
+              <h2 className="text-base md:text-lg font-bold text-slate-800 dark:text-white tracking-tight">
+                {branding.institutionName || 'COEP Technological University'}
+              </h2>
+            </div>
+          ) : (
+            <h2 className="text-base md:text-lg font-bold text-slate-800 dark:text-white tracking-tight">
+              {getPageTitle()}
+            </h2>
+          )}
         </div>
       </div>
 
@@ -349,8 +367,14 @@ const Header = () => {
           </>
         ) : (
           <>
-            <div className="hidden lg:flex items-center gap-1.5 bg-slate-50 dark:bg-brand-card text-slate-500 dark:text-brand-muted px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-brand-border text-[10px] font-mono font-medium">
-              <span>{profile.college}</span>
+            <div className="hidden lg:flex items-center gap-2 bg-slate-50 dark:bg-brand-card text-slate-700 dark:text-slate-200 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-brand-border text-[10px] font-medium shadow-sm">
+              <img
+                src={branding.logoUrl || defaultLogo}
+                onError={(e) => { e.target.src = defaultLogo; }}
+                alt="Logo"
+                className="w-4 h-4 object-contain rounded-md bg-white p-0.5 shrink-0"
+              />
+              <span>{branding.institutionName}</span>
             </div>
             <div className="hidden sm:flex items-center gap-1.5 bg-slate-50 dark:bg-brand-card text-slate-650 dark:text-brand-muted px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-brand-border text-[10px] font-mono">
               <span className="w-1.5 h-1.5 rounded-full bg-brand-secondary animate-ping" />

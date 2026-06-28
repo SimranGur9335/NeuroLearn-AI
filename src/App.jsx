@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
+import { BrandingProvider } from './context/BrandingContext';
 import { StudentProvider } from './context/StudentContext';
 import PlatformLayout from './components/PlatformLayout';
 import FacultyLayout from './components/TeacherLayout';
@@ -16,6 +17,7 @@ import PlatformSettings from './pages/platform-admin/Settings';
 // Public & Selection Pages
 import LandingPage from './pages/LandingPage';
 import RoleSelection from './pages/RoleSelection';
+import SelectInstitution from './pages/SelectInstitution';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import ChangePassword from './pages/ChangePassword';
@@ -87,7 +89,8 @@ import AdminSettings from './pages/admin/AdminSettings';
 function App() {
   return (
     <AuthProvider>
-      <StudentProvider>
+      <BrandingProvider>
+        <StudentProvider>
         <Router>
           <Routes>
             {/* Public Landing Page */}
@@ -95,7 +98,7 @@ function App() {
 
             {/* Public Authentication Screens */}
             <Route path="/login" element={<Login />} />
-            <Route path="/select-institution" element={<Login />} />
+            <Route path="/select-institution" element={<SelectInstitution />} />
             <Route path="/register" element={<Register />} />
             <Route path="/apply-institution" element={<ApplyInstitution />} />
             <Route path="/change-password" element={
@@ -221,6 +224,7 @@ function App() {
           </Routes>
         </Router>
       </StudentProvider>
+      </BrandingProvider>
     </AuthProvider>
 
 

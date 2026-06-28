@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { apiFetch } from '../services/api';
+import neuroLogo from '../assets/logo.jpeg';
 
 const THEME_MAP = {
   violet: {
@@ -29,26 +30,26 @@ const THEME_MAP = {
     bg: 'bg-slate-50 border-slate-200 text-slate-700'
   },
   rose: {
-    accent: 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-extrabold',
-    text: 'text-indigo-600',
-    ring: 'focus-within:ring-2 focus-within:ring-indigo-600/20 focus-within:border-indigo-600',
-    shadow: 'shadow-md shadow-indigo-600/5',
+    accent: 'bg-gradient-to-r from-rose-600 to-pink-600 hover:from-rose-700 hover:to-pink-700 text-white font-extrabold',
+    text: 'text-rose-600',
+    ring: 'focus-within:ring-2 focus-within:ring-rose-600/20 focus-within:border-rose-600',
+    shadow: 'shadow-md shadow-rose-600/5',
     border: 'border-slate-200',
-    glow: 'from-indigo-600 to-purple-600',
+    glow: 'from-rose-600 to-pink-600',
     bg: 'bg-slate-50 border-slate-200 text-slate-700'
   },
   amber: {
-    accent: 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-extrabold',
-    text: 'text-indigo-600',
-    ring: 'focus-within:ring-2 focus-within:ring-indigo-600/20 focus-within:border-indigo-600',
-    shadow: 'shadow-md shadow-indigo-600/5',
+    accent: 'bg-gradient-to-r from-amber-600 to-yellow-600 hover:from-amber-700 hover:to-yellow-700 text-white font-extrabold',
+    text: 'text-amber-655',
+    ring: 'focus-within:ring-2 focus-within:ring-amber-500/20 focus-within:border-amber-500',
+    shadow: 'shadow-md shadow-amber-600/5',
     border: 'border-slate-200',
-    glow: 'from-indigo-600 to-purple-600',
+    glow: 'from-amber-600 to-yellow-600',
     bg: 'bg-slate-50 border-slate-200 text-slate-700'
   },
   indigo: {
     accent: 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-extrabold',
-    text: 'text-indigo-600',
+    text: 'text-indigo-605',
     ring: 'focus-within:ring-2 focus-within:ring-indigo-600/20 focus-within:border-indigo-600',
     shadow: 'shadow-md shadow-indigo-600/5',
     border: 'border-slate-200',
@@ -71,24 +72,31 @@ const Login = () => {
 
   // Institution states
   const [institutions, setInstitutions] = useState([]);
-  const [selectedInstitutionId, setSelectedInstitutionId] = useState(1);
+  const [selectedInstitutionId, setSelectedInstitutionId] = useState(null);
 
-  // Apply location state if present
+  // Read selected institution from localStorage on load
   useEffect(() => {
-    if (location.state) {
-      if (location.state.role) {
-        setRole(location.state.role);
-      }
-      if (location.state.institutionId) {
-        setSelectedInstitutionId(location.state.institutionId);
-      }
+    const storedId = localStorage.getItem('selected_institution_id');
+    if (storedId) {
+      setSelectedInstitutionId(parseInt(storedId));
+    } else if (location.state && location.state.institutionId) {
+      setSelectedInstitutionId(location.state.institutionId);
+      localStorage.setItem('selected_institution_id', location.state.institutionId.toString());
+    } else {
+      // Redirect to Select Institution page if none has been selected yet
+      navigate('/select-institution');
     }
-  }, [location.state]);
+
+    if (location.state && location.state.role) {
+      setRole(location.state.role);
+    }
+  }, [location.state, navigate]);
 
   // Validation / Error / Loading states
   const [errorMsg, setErrorMsg] = useState("");
   const [loading, setLoading] = useState(false);
 
+  // Fetch active institutions
   useEffect(() => {
     const fetchInstitutions = async () => {
       try {
@@ -96,11 +104,6 @@ const Login = () => {
         if (response.ok) {
           const data = await response.json();
           setInstitutions(data);
-          if (data.length > 0) {
-            // Default to COEP (id=1) if present, or the first one
-            const hasCoep = data.some(inst => inst.institution_id === 1);
-            setSelectedInstitutionId(hasCoep ? 1 : data[0].institution_id);
-          }
         }
       } catch (err) {
         console.error("Failed to load institutions:", err);
@@ -109,7 +112,19 @@ const Login = () => {
     fetchInstitutions();
   }, []);
 
+  // Redirect if institutions loaded but current selection isn't active/found in registry
+  useEffect(() => {
+    if (institutions.length > 0 && selectedInstitutionId !== null) {
+      const exists = institutions.some(inst => inst.institution_id === selectedInstitutionId);
+      if (!exists) {
+        navigate('/select-institution');
+      }
+    }
+  }, [institutions, selectedInstitutionId, navigate]);
+
   const selectedInstitution = institutions.find(inst => inst.institution_id === selectedInstitutionId);
+  
+  // Theme color styling comes from selected institution (or falls back to indigo)
   const theme = THEME_MAP[selectedInstitution?.theme_color] || THEME_MAP.indigo;
 
   const roles = [
@@ -118,21 +133,33 @@ const Login = () => {
     { id: 'admin', title: 'Admin', icon: Settings },
   ];
 
-  const handleQuickFill = (roleType) => {
+  const handleRoleTabClick = (roleType) => {
     setRole(roleType);
-    if (roleType === 'super_admin') {
-      setEmail('owner@neurolearn.ai');
-    } else {
-      setEmail(`${roleType}@neurolearn.ai`);
-    }
-    setPassword("Password123");
     setErrorMsg("");
-    setSelectedInstitutionId(1); // Demo accounts are registered under COEP (id = 1)
+    
+    // Only auto-fill demo credentials if we are on COEP (id=1)
+    if (selectedInstitutionId === 1) {
+      if (roleType === 'super_admin') {
+        setEmail('owner@neurolearn.ai');
+      } else {
+        setEmail(`${roleType}@neurolearn.ai`);
+      }
+      setPassword("Password123");
+    } else {
+      // Clear inputs for other institutions to let users type their own credentials
+      setEmail("");
+      setPassword("");
+    }
   };
 
   const handleLoginSubmit = async (e) => {
     e.preventDefault();
     setErrorMsg("");
+
+    if (!selectedInstitutionId) {
+      setErrorMsg("Please select an institution first.");
+      return;
+    }
 
     // Validation checks
     if (!email.trim() || !password.trim()) {
@@ -155,6 +182,7 @@ const Login = () => {
         selectedInstitution?.domain_name || 'neurolearn.ai',
         rememberMe
       );
+      
       // Route based on role or force password change status
       if (user.mustChangePassword) {
         navigate('/change-password');
@@ -171,6 +199,20 @@ const Login = () => {
     }
   };
 
+  // State to handle local image errors elegantly for the logo
+  const initialLogo = (selectedInstitution?.logo_url && selectedInstitution?.logo_url !== '/assets/logo.png') 
+    ? selectedInstitution.logo_url 
+    : neuroLogo;
+  const [logoSrc, setLogoSrc] = useState(initialLogo);
+
+  // Update logo source whenever selectedInstitution changes
+  useEffect(() => {
+    setLogoSrc((selectedInstitution?.logo_url && selectedInstitution?.logo_url !== '/assets/logo.png') 
+      ? selectedInstitution.logo_url 
+      : neuroLogo
+    );
+  }, [selectedInstitution]);
+
   return (
     <div className="bg-white text-slate-800 min-h-screen flex items-center justify-center relative font-sans p-4 overflow-y-auto">
       
@@ -183,25 +225,35 @@ const Login = () => {
         transition={{ duration: 0.3 }}
         className="max-w-md w-full bg-slate-50/50 border border-slate-200/80 p-8 rounded-3xl shadow-premium-lg relative z-10 space-y-6 backdrop-blur-md"
       >
-        {/* Header */}
-        <div className="text-center space-y-2">
+        {/* Selected Institution Header */}
+        <div className="text-center space-y-3">
           <div className="flex items-center justify-center gap-2.5">
-            {selectedInstitution?.logo_url ? (
-              <img src={selectedInstitution.logo_url} alt="Logo" className="w-8 h-8 object-contain rounded-lg" />
-            ) : (
-              <div className="bg-gradient-to-r from-indigo-600 to-purple-600 p-2 rounded-xl text-white">
-                <Sparkles size={16} />
-              </div>
-            )}
+            <img 
+              src={logoSrc} 
+              onError={() => setLogoSrc(neuroLogo)}
+              alt="Institution Logo" 
+              className="w-10 h-10 object-contain rounded-xl bg-white p-1 border border-slate-200" 
+            />
             <span className="font-extrabold text-xl text-slate-900 tracking-tight">
-              {selectedInstitution?.short_name || 'NeuroLearn'}<span className="text-indigo-650 font-medium">.AI</span>
+              {selectedInstitution?.short_name || 'NeuroLearn'}<span className="text-indigo-600 font-medium">.AI</span>
             </span>
           </div>
-          <h2 className="text-lg font-extrabold text-slate-850">
-            {selectedInstitution?.institution_name || 'Welcome Back'}
-          </h2>
+          
+          <div className="space-y-1">
+            <h2 className="text-md font-extrabold text-slate-850 tracking-tight px-2">
+              {selectedInstitution?.institution_name || 'Loading Institution...'}
+            </h2>
+            <button
+              onClick={() => navigate('/select-institution')}
+              type="button"
+              className="text-[10px] text-indigo-600 hover:text-indigo-750 hover:underline font-extrabold cursor-pointer transition-colors"
+            >
+              Change Institution
+            </button>
+          </div>
+          
           <p className="text-slate-500 text-xs leading-relaxed max-w-[280px] mx-auto">
-            {selectedInstitution ? `${selectedInstitution.short_name} LMS Login Portal` : 'Enter credentials to load your personalized curriculum.'}
+            {selectedInstitution ? `${selectedInstitution.short_name} LMS Login Portal` : 'Authorizing login configuration...'}
           </p>
         </div>
 
@@ -214,7 +266,7 @@ const Login = () => {
               <button
                 key={r.id}
                 type="button"
-                onClick={() => handleQuickFill(r.id)}
+                onClick={() => handleRoleTabClick(r.id)}
                 className={`py-2 px-1.5 rounded-xl text-xs font-semibold transition-all flex flex-col items-center gap-1 cursor-pointer ${isSelected
                   ? `bg-white text-slate-900 shadow-sm border border-slate-200`
                   : 'text-slate-500 hover:text-slate-800'
@@ -242,25 +294,6 @@ const Login = () => {
         {/* Form */}
         <form onSubmit={handleLoginSubmit} className="space-y-4">
           
-          {/* Institution Selector */}
-          <div className="space-y-1">
-            <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider pl-1">Select Institution</label>
-            <div className={`relative flex items-center bg-white border border-slate-200 focus-within:ring-2 ${theme.ring} rounded-2xl px-3 py-2 transition-all`}>
-              <select
-                value={selectedInstitutionId}
-                onChange={(e) => setSelectedInstitutionId(parseInt(e.target.value))}
-                className="bg-transparent border-none text-xs text-slate-800 focus:outline-none w-full cursor-pointer py-1 font-semibold"
-                required
-              >
-                {institutions.map((inst) => (
-                  <option key={inst.institution_id} value={inst.institution_id} className="bg-white text-slate-800">
-                    {inst.institution_name} ({inst.short_name})
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
           {/* Email input */}
           <div className="space-y-1">
             <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider pl-1">Email Address</label>
@@ -284,7 +317,7 @@ const Login = () => {
               <button
                 type="button"
                 onClick={() => alert("Faculty Demo Mode: Click quick fill button to reset input parameters.")}
-                className="text-[10px] text-indigo-600 hover:underline cursor-pointer font-bold"
+                className="text-[10px] text-indigo-650 hover:underline cursor-pointer font-bold"
               >
                 Forgot Password?
               </button>
@@ -296,7 +329,7 @@ const Login = () => {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="bg-transparent border-none text-xs text-slate-850 placeholder-slate-400 focus:outline-none w-full font-mono font-medium"
+                className="bg-transparent border-none text-xs text-slate-855 placeholder-slate-400 focus:outline-none w-full font-mono font-medium"
                 required
               />
               <button
@@ -314,9 +347,9 @@ const Login = () => {
             <button
               type="button"
               onClick={() => setRememberMe(!rememberMe)}
-              className="flex items-center gap-2 text-xs text-slate-500 hover:text-slate-800 select-none cursor-pointer font-semibold"
+              className="flex items-center gap-2 text-xs text-slate-505 hover:text-slate-800 select-none cursor-pointer font-semibold"
             >
-              {rememberMe ? <CheckSquare size={14} className="text-indigo-600" /> : <Square size={14} className="text-slate-400" />}
+              {rememberMe ? <CheckSquare size={14} className="text-indigo-650" /> : <Square size={14} className="text-slate-400" />}
               <span>Remember Me</span>
             </button>
           </div>

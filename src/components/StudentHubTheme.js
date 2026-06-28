@@ -1,16 +1,16 @@
 export const THEME_COLOR_MAP = {
   violet: {
-    text: 'text-indigo-650',
+    text: 'text-indigo-600',
     bg: 'bg-indigo-50',
     border: 'border-slate-200 hover:border-indigo-500/30',
     hoverBorder: 'hover:border-indigo-500/30',
-    gradient: 'from-slate-50 to-white',
+    gradient: 'from-violet-700 via-purple-600 to-indigo-600',
     accent: 'bg-indigo-600',
     accentText: 'text-indigo-700',
     glow: 'shadow-sm'
   },
   rose: {
-    text: 'text-indigo-650',
+    text: 'text-indigo-600',
     bg: 'bg-indigo-50',
     border: 'border-slate-200 hover:border-indigo-500/30',
     hoverBorder: 'hover:border-indigo-500/30',
@@ -20,41 +20,41 @@ export const THEME_COLOR_MAP = {
     glow: 'shadow-sm'
   },
   emerald: {
-    text: 'text-indigo-650',
+    text: 'text-indigo-600',
     bg: 'bg-indigo-50',
     border: 'border-slate-200 hover:border-indigo-500/30',
     hoverBorder: 'hover:border-indigo-500/30',
-    gradient: 'from-slate-50 to-white',
+    gradient: 'from-emerald-700 via-teal-600 to-cyan-600',
     accent: 'bg-indigo-600',
     accentText: 'text-indigo-700',
     glow: 'shadow-sm'
   },
   amber: {
-    text: 'text-indigo-650',
+    text: 'text-indigo-600',
     bg: 'bg-indigo-50',
     border: 'border-slate-200 hover:border-indigo-500/30',
     hoverBorder: 'hover:border-indigo-500/30',
-    gradient: 'from-slate-50 to-white',
+    gradient: 'from-orange-600 via-amber-500 to-yellow-500',
     accent: 'bg-indigo-600',
     accentText: 'text-indigo-700',
     glow: 'shadow-sm'
   },
   blue: {
-    text: 'text-indigo-650',
+    text: 'text-indigo-600',
     bg: 'bg-indigo-50',
     border: 'border-slate-200 hover:border-indigo-500/30',
     hoverBorder: 'hover:border-indigo-500/30',
-    gradient: 'from-slate-50 to-white',
+    gradient: 'from-blue-700 via-indigo-600 to-cyan-500',
     accent: 'bg-indigo-600',
     accentText: 'text-indigo-700',
     glow: 'shadow-sm'
   },
   indigo: {
-    text: 'text-indigo-650',
+    text: 'text-indigo-600',
     bg: 'bg-indigo-50',
     border: 'border-slate-200 hover:border-indigo-500/30',
     hoverBorder: 'hover:border-indigo-500/30',
-    gradient: 'from-slate-50 to-white',
+    gradient: 'from-indigo-700 via-purple-600 to-blue-600',
     accent: 'bg-indigo-600',
     accentText: 'text-indigo-700',
     glow: 'shadow-sm'

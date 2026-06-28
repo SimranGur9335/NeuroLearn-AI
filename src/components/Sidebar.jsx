@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { useStudent } from '../context/StudentContext';
 import { useAuth } from '../context/AuthContext';
+import { useBranding } from '../context/BrandingContext';
 import image from "../assets/image.png";
 
 const THEME_ACCENT_MAP = {
@@ -52,6 +53,7 @@ const Sidebar = () => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const { profile } = useStudent();
   const { logout } = useAuth();
+  const { branding } = useBranding();
   const navigate = useNavigate();
 
   const menuItems = [
@@ -67,8 +69,8 @@ const Sidebar = () => {
     { name: 'Learning Wellness', path: '/ai/emotions', icon: Smile }
   ];
 
-  const theme = THEME_ACCENT_MAP[profile.theme_color] || THEME_ACCENT_MAP.indigo;
-  const logoText = profile.college ? (profile.college.split(' ')[0] || 'NeuroLearn') : 'NeuroLearn';
+  const theme = THEME_ACCENT_MAP[branding.themeColor] || THEME_ACCENT_MAP.indigo;
+  const logoText = branding.institutionName ? (branding.institutionName.split(' ')[0] || 'NeuroLearn') : 'NeuroLearn';
 
   return (
     <motion.aside
@@ -86,13 +88,12 @@ const Sidebar = () => {
               exit={{ opacity: 0, x: -10 }}
               className="flex items-center gap-2"
             >
-              {profile.logo_url ? (
-                <img src={image} alt="Logo" className="w-7 h-7 object-contain rounded-lg bg-slate-100 dark:bg-brand-dark p-0.5 shrink-0" />
-              ) : (
-                <div className={`${theme.accent} p-1.5 rounded-lg text-white shrink-0`}>
-                  <Sparkles size={16} />
-                </div>
-              )}
+              <img 
+                src={branding.logoUrl || image} 
+                onError={(e) => { e.target.src = image; }}
+                alt="Logo" 
+                className="w-7 h-7 object-contain rounded-lg bg-slate-100 dark:bg-brand-dark p-0.5 shrink-0" 
+              />
               <span className="font-extrabold text-sm tracking-tight text-slate-800 dark:text-white">
                 {logoText} <span className="text-slate-400 font-medium">AI</span>
               </span>
@@ -101,13 +102,12 @@ const Sidebar = () => {
         </AnimatePresence>
 
         {isCollapsed && (
-          profile.logo_url ? (
-            <img src={image} alt="Logo" className="w-7 h-7 object-contain rounded-lg mx-auto bg-slate-100 dark:bg-brand-dark p-0.5" />
-          ) : (
-            <div className={`${theme.accent} p-1.5 rounded-lg text-white mx-auto`}>
-              <Sparkles size={16} />
-            </div>
-          )
+          <img 
+            src={branding.logoUrl || image} 
+            onError={(e) => { e.target.src = image; }}
+            alt="Logo" 
+            className="w-7 h-7 object-contain rounded-lg mx-auto bg-slate-100 dark:bg-brand-dark p-0.5" 
+          />
         )}
       </div>
 

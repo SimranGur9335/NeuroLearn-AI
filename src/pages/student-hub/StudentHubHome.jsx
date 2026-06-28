@@ -13,13 +13,68 @@ import {
   GraduationCap,
   Brain,
   BookMarked,
-  Code
+  Code,
+  FileText,
+  ClipboardCheck,
+  CalendarCheck,
+  Award
 } from 'lucide-react';
 import { apiFetch } from '../../services/api';
 import { useStudent } from '../../context/StudentContext';
 import { THEME_COLOR_MAP } from '../../components/StudentHubTheme';
 import StudentHubCard from '../../components/StudentHubCard';
 import SummaryMetricCard from '../../components/SummaryMetricCard';
+
+const getActivityIcon = (type) => {
+  const t = (type || '').toLowerCase();
+  switch (t) {
+    case 'assignment':
+      return FileText;
+    case 'quiz':
+      return ClipboardCheck;
+    case 'attendance':
+      return CalendarCheck;
+    case 'achievement':
+    case 'grade':
+      return Trophy;
+    case 'course':
+      return BookOpen;
+    case 'certificate':
+      return Award;
+    case 'announcement':
+      return Bell;
+    default:
+      return Activity;
+  }
+};
+
+const formatRelativeTime = (timestamp) => {
+  if (!timestamp) return '';
+  const date = new Date(timestamp);
+  const now = new Date();
+  const diffMs = now - date;
+  const diffSec = Math.floor(diffMs / 1000);
+  const diffMin = Math.floor(diffSec / 60);
+  const diffHr = Math.floor(diffMin / 60);
+  const diffDays = Math.floor(diffHr / 24);
+
+  if (diffSec < 60) {
+    return 'Just now';
+  } else if (diffMin < 60) {
+    return `${diffMin}m ago`;
+  } else if (diffHr < 24) {
+    return `${diffHr}h ago`;
+  } else if (diffDays === 1) {
+    return 'Yesterday';
+  } else if (diffDays < 7) {
+    return `${diffDays}d ago`;
+  } else {
+    return date.toLocaleDateString(undefined, {
+      month: 'short',
+      day: 'numeric'
+    });
+  }
+};
 
 const StudentHubHome = () => {
   const navigate = useNavigate();
@@ -173,8 +228,8 @@ const StudentHubHome = () => {
               Welcome to your centralized student control deck. Access your course information, upload pending assignments, and review grades synced from the faculty records.
             </p>
           </div>
-          <div className="shrink-0 flex items-center justify-center p-3 rounded-2xl bg-white/5 border border-white/10">
-            <GraduationCap size={44} className={theme.text} />
+          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-white/10 border border-white/20 shadow-md">
+            <GraduationCap className={theme.text} size={36} strokeWidth={2.2} />
           </div>
         </div>
       </div>
@@ -209,7 +264,7 @@ const StudentHubHome = () => {
 
       {/* Main Grid */}
       <div className="space-y-4">
-        <h2 className="text-lg font-extrabold text-white">Operations Dashboard</h2>
+        <h2 className="text-lg font-extrabold text-slate-900 dark:text-white">Operations Dashboard</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {cards.map((card) => (
             <StudentHubCard
@@ -224,44 +279,59 @@ const StudentHubHome = () => {
         </div>
       </div>
 
-      {/* Recent Activity Timeline */}
-      <div className="bg-slate-900/60 border border-slate-800 rounded-3xl p-6 space-y-6">
-        <div className="flex items-center gap-2">
-          <Activity className={theme.text} size={20} />
-          <h2 className="text-lg font-extrabold text-white">Academic Activity Stream</h2>
+      {/* Academic Activity Feed */}
+      <div className="space-y-4">
+        <div>
+          <div className="flex items-center gap-2">
+            <Activity className={theme.text} size={20} />
+            <h2 className="text-lg font-extrabold text-slate-900 dark:text-white">Academic Activity Feed</h2>
+          </div>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+            Track your latest academic progress and achievements.
+          </p>
         </div>
 
         {data.activities.length === 0 ? (
-          <div className="text-center py-6 text-slate-500 text-sm">
-            No recent academic activity found. Everything is quiet!
+          <div className="flex flex-col items-center justify-center text-center p-8 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/30">
+            <span className="text-4xl mb-3" role="img" aria-label="books">📚</span>
+            <h3 className="text-sm font-extrabold text-slate-950 dark:text-white">
+              No academic activity yet.
+            </h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-sm">
+              Complete assignments, quizzes and lectures to build your learning timeline.
+            </p>
           </div>
         ) : (
-          <div className="relative border-l-2 border-slate-800 ml-4 pl-6 space-y-6">
-            {data.activities.map((act, idx) => (
-              <div key={idx} className="relative group">
-                {/* Dot */}
-                <div className={`absolute -left-[31px] top-1.5 w-3.5 h-3.5 rounded-full bg-slate-900 border-2 ${theme.border} group-hover:scale-125 transition-transform duration-200`} />
-
-                <div className="space-y-1">
-                  <div className="flex items-center justify-between gap-4">
-                    <h4 className="text-sm font-extrabold text-white group-hover:text-slate-300 transition-colors">
-                      {act.title}
-                    </h4>
-                    <span className="text-xs text-slate-500 font-medium">
-                      {new Date(act.timestamp).toLocaleDateString(undefined, {
-                        month: 'short',
-                        day: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit'
-                      })}
-                    </span>
+          <div className="grid grid-cols-1 gap-4">
+            {data.activities.map((act, idx) => {
+              const Icon = getActivityIcon(act.type);
+              return (
+                <div
+                  key={idx}
+                  className="group relative flex items-center justify-between p-5 rounded-2xl bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700 hover:border-indigo-500/30 hover:shadow-md transition-all duration-300"
+                >
+                  <div className="flex items-center gap-4 min-w-0">
+                    <div className={`p-3 rounded-xl ${theme.bg} ${theme.text} group-hover:scale-110 transition-transform duration-300 flex-shrink-0`}>
+                      <Icon size={20} />
+                    </div>
+                    <div className="min-w-0">
+                      <h4 className="text-sm font-extrabold text-slate-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors truncate">
+                        {act.title}
+                      </h4>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-1">
+                        {act.description}
+                      </p>
+                    </div>
                   </div>
-                  <p className="text-xs text-slate-400">
-                    {act.description}
-                  </p>
+                  <div className="flex items-center gap-3 flex-shrink-0 ml-4">
+                    <span className="text-xs text-slate-400 dark:text-slate-500 font-medium">
+                      {formatRelativeTime(act.timestamp)}
+                    </span>
+                    <ArrowRight size={16} className="text-slate-400 dark:text-slate-500 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transform group-hover:translate-x-1 transition-all duration-300" />
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

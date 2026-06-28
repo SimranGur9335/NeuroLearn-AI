@@ -19,6 +19,8 @@ import {
   Star,
   Brain
 } from 'lucide-react';
+import logo from "../assets/logo.jpeg";
+
 
 const LandingPage = () => {
   const navigate = useNavigate();
@@ -74,13 +76,19 @@ const LandingPage = () => {
 
   return (
     <div className="bg-white text-slate-800 min-h-screen overflow-x-hidden relative font-sans">
-      
+
       {/* Top Navigation */}
       <nav className="relative max-w-7xl mx-auto px-4 md:px-8 py-4 flex items-center justify-between border-b border-slate-100 z-10 bg-white">
         <div className="flex items-center gap-2">
-          <div className="bg-gradient-to-r from-indigo-600 to-purple-600 p-2 rounded-xl text-white">
-            <Sparkles size={20} />
+
+          <div className="h-10 w-10 flex items-center justify-center">
+            <img
+              src={logo}
+              alt="NeuroLearn AI"
+              className="h-10 w-10 object-contain"
+            />
           </div>
+
           <span className="font-extrabold text-2xl text-slate-900 tracking-tight">
             NeuroLearn<span className="text-indigo-600 font-medium">.AI</span>
           </span>
@@ -91,7 +99,7 @@ const LandingPage = () => {
           <a href="#testimonials" className="hover:text-indigo-600 transition-colors">Success Stories</a>
         </div>
         <button
-          onClick={() => navigate('/login')}
+          onClick={() => navigate('/select-institution')}
           className="bg-indigo-600 hover:bg-indigo-700 hover:shadow-lg hover:shadow-indigo-600/10 text-white font-bold px-5 py-2.5 rounded-xl border border-indigo-600/30 transition-all text-sm cursor-pointer"
         >
           Sign In
@@ -101,7 +109,7 @@ const LandingPage = () => {
       {/* Hero Section */}
       <section className="relative max-w-7xl mx-auto px-4 md:px-8 pt-16 pb-20 z-10">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
-          
+
           {/* Left Text */}
           <motion.div
             initial={{ opacity: 0, y: 30 }}
@@ -185,7 +193,7 @@ const LandingPage = () => {
             <div className="bg-white p-5 rounded-2xl border border-slate-200/60 space-y-4">
               <span className="text-[10px] uppercase font-bold text-slate-400 block pl-0.5">Syllabus Path Roadmap</span>
               <div className="space-y-3 relative">
-                
+
                 {/* Node 1: Completed */}
                 <div className="flex items-center justify-between p-2.5 bg-slate-50 border border-slate-100 rounded-xl">
                   <div className="flex items-center gap-3">
@@ -318,8 +326,8 @@ const LandingPage = () => {
       {/* Call to Action Banner */}
       <section className="max-w-7xl mx-auto px-4 md:px-8 pb-20 relative">
         <div className="bg-gradient-to-r from-indigo-650 via-indigo-600 to-purple-600 rounded-3xl p-8 md:p-12 text-center shadow-xl relative overflow-hidden text-white">
-          <h2 className="text-3xl md:text-5xl font-black">Ready to Level Up Your Campus Outcomes?</h2>
-          <p className="text-indigo-100 mt-4 text-sm md:text-base max-w-lg mx-auto leading-relaxed font-medium">
+          <h2 className="text-3xl md:text-4xl font-extrabold text-slate-900">Ready to Level Up Your Campus Outcomes?</h2>
+          <p className="text-slate-500 mt-4 text-sm md:text-base leading-relaxed">
             Join thousands of engineering students and faculty today to build structured learning outcomes professors can rely on.
           </p>
           <button

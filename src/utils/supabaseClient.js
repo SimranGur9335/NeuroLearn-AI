@@ -40,3 +40,38 @@ export const uploadToSupabase = async (file, folderPath) => {
 
   return publicUrlData.publicUrl;
 };
+
+/**
+ * Uploads a logo file to the 'institution-branding' bucket in Supabase storage.
+ * If VITE_SUPABASE_ANON_KEY is not defined, it simulates the upload.
+ *
+ * @param {File} file - The logo file to upload
+ * @param {string} folderPath - The storage path (institution_<id>/logo.png)
+ * @returns {Promise<string>} The public URL of the uploaded logo
+ */
+export const uploadLogoToSupabase = async (file, folderPath) => {
+  if (!import.meta.env.VITE_SUPABASE_ANON_KEY) {
+    console.warn("VITE_SUPABASE_ANON_KEY is not set. Simulating file upload to Supabase storage...");
+    await new Promise((resolve) => setTimeout(resolve, 800)); // Simulate network latency
+    return `${supabaseUrl}/storage/v1/object/public/institution-branding/${folderPath}`;
+  }
+
+  // Upload or overwrite the logo
+  const { data, error } = await supabase.storage
+    .from('institution-branding')
+    .upload(folderPath, file, {
+      cacheControl: '3600',
+      upsert: true
+    });
+
+  if (error) {
+    console.error("Supabase Storage error:", error);
+    throw error;
+  }
+
+  const { data: publicUrlData } = supabase.storage
+    .from('institution-branding')
+    .getPublicUrl(folderPath);
+
+  return publicUrlData.publicUrl;
+};

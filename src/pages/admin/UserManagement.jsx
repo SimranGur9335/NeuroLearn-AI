@@ -91,6 +91,7 @@ const UserManagement = () => {
     setFormName("");
     setFormRoll("");
     setFormBranch("CS");
+    setFormFacultyId("");
     setFormEmail("");
     setFormPhone("");
     setFormDesignation("Assistant Professor");
@@ -152,6 +153,7 @@ const UserManagement = () => {
             faculty_id: formFacultyId.trim(),
             full_name: formName.trim(),
             department: formBranch,
+            designation: formDesignation,
             phone: formPhone.trim()
           })
         });
@@ -285,14 +287,14 @@ const UserManagement = () => {
       {/* Page Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <p className="text-xs text-indigo-400 font-bold uppercase tracking-wider">Tenant LMS Control</p>
-          <h2 className="text-3xl font-black text-white font-sans">User Directory Management</h2>
-          <p className="text-slate-400 text-xs mt-1">Configure student and faculty profiles, generate secure credentials, and audit tenant accounts.</p>
+          <p className="text-xs text-indigo-600 font-bold uppercase tracking-wider">Tenant LMS Control</p>
+<h2 className="text-3xl font-black text-slate-900 dark:text-slate-900 font-sans">
+  User Directory Management
+</h2>          <p className="text-slate-400 text-xs mt-1">Configure student and faculty profiles, generate secure credentials, and audit tenant accounts.</p>
         </div>
         <button
           onClick={handleOpenAdd}
-          className="flex items-center gap-1.5 px-5 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-black shadow-md cursor-pointer self-start md:self-auto transition-colors"
-        >
+className="flex items-center gap-1.5 px-5 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold shadow-md transition-colors"        >
           <Plus size={16} />
           <span>Add New {activeTab === "students" ? "Student" : "Faculty"}</span>
         </button>
@@ -305,19 +307,19 @@ const UserManagement = () => {
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
-            className="bg-indigo-950/40 border border-indigo-500/20 p-5 rounded-3xl space-y-4 shadow-xl shadow-indigo-950/20"
+            className="bg-indigo-50 border border-indigo-200  p-5 rounded-3xl space-y-4 shadow-xl shadow-indigo-950/20"
           >
-            <div className="flex items-center gap-2 text-indigo-400 text-xs font-black uppercase tracking-wider">
+            <div className="flex items-center gap-2 text-indigo-600 text-xs font-black uppercase tracking-wider">
               <Sparkles size={14} />
               <span>User Account Created Successfully</span>
             </div>
             <p className="text-slate-350 text-[11px]">
               Provide these default credentials to the newly registered user. They will be forced to change their password on first login.
             </p>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-950/80 p-4 rounded-2xl border border-slate-850">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-white/80 p-4 rounded-2xl border border-slate-850">
               <div>
                 <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Generated Email Address</label>
-                <div className="flex justify-between items-center bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 mt-1">
+                <div className="flex justify-between items-center bg-white border border-slate-800 rounded-xl px-3 py-2 mt-1">
                   <span className="text-xs text-white font-mono">{createdCredentials.email}</span>
                   <button onClick={() => copyToClipboard(createdCredentials.email)} className="text-slate-400 hover:text-white cursor-pointer">
                     <Copy size={13} />
@@ -326,9 +328,9 @@ const UserManagement = () => {
               </div>
               <div>
                 <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Temporary Password (Phone)</label>
-                <div className="flex justify-between items-center bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 mt-1">
+                <div className="flex justify-between items-center bg-white border border-slate-800 rounded-xl px-3 py-2 mt-1">
                   <span className="text-xs text-white font-mono">{createdCredentials.temporary_password}</span>
-                  <button onClick={() => copyToClipboard(createdCredentials.temporary_password)} className="text-slate-400 hover:text-white cursor-pointer">
+                  <button onClick={() => copyToClipboard(createdCredentials.temporary_password)} className="text-slate-400 hover:text-slate-900 cursor-pointer">
                     <Copy size={13} />
                   </button>
                 </div>
@@ -337,7 +339,7 @@ const UserManagement = () => {
             <div className="flex justify-end">
               <button
                 onClick={() => setCreatedCredentials(null)}
-                className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-4 py-2 rounded-xl text-xs cursor-pointer"
+                className="bg-indigo-600 hover:bg-indigo-500 text-slate-900 font-bold px-4 py-2 rounded-xl text-xs cursor-pointer"
               >
                 Dismiss
               </button>
@@ -347,14 +349,13 @@ const UserManagement = () => {
       </AnimatePresence>
 
       {/* Tabs & Search Bar */}
-      <div className="flex flex-col md:flex-row items-center justify-between gap-4 bg-slate-900/40 border border-slate-850 px-5 py-3 rounded-2xl backdrop-blur-md">
-        {/* Toggle buttons */}
+<div className="flex flex-col md:flex-row items-center justify-between gap-4 bg-white border border-slate-200 px-5 py-3 rounded-2xl shadow-sm">        {/* Toggle buttons */}
         <div className="flex gap-2">
           <button
             onClick={() => { setActiveTab("students"); setSearchTerm(""); setCurrentPage(1); setCreatedCredentials(null); }}
             className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${activeTab === "students"
-                ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20'
-                : 'bg-slate-950/40 border border-slate-850 text-slate-400 hover:text-white'
+                ? 'bg-indigo-600 text-slate-900 shadow-lg shadow-indigo-600/20'
+                : 'bg-white border border-slate-300 text-slate-600 hover:bg-slate-50 hover:text-slate-900'
               }`}
           >
             Students Directory
@@ -362,8 +363,8 @@ const UserManagement = () => {
           <button
             onClick={() => { setActiveTab("faculty"); setSearchTerm(""); setCurrentPage(1); setCreatedCredentials(null); }}
             className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${activeTab === "faculty"
-                ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20'
-                : 'bg-slate-950/40 border border-slate-850 text-slate-400 hover:text-white'
+                ? 'bg-indigo-600 text-slate-900 shadow-lg shadow-indigo-600/20'
+                : 'bg-white border border-slate-300 text-slate-600 hover:bg-slate-50 hover:text-slate-900'
               }`}
           >
             Faculty Registry
@@ -371,25 +372,23 @@ const UserManagement = () => {
         </div>
 
         {/* Search Input */}
-        <div className="flex items-center gap-2 bg-slate-950/60 border border-slate-850 px-3 py-2 rounded-xl w-full md:w-80 focus-within:ring-2 focus-within:ring-indigo-500/50 transition-all">
-          <Search size={16} className="text-slate-500" />
+<div className="flex items-center gap-2 bg-white border border-slate-300 px-3 py-2 rounded-xl w-full md:w-80 focus-within:ring-2 focus-within:ring-indigo-500">          <Search size={16} className="text-slate-500" />
           <input
             type="text"
             placeholder={activeTab === "students" ? "Search student name, roll..." : "Search faculty name, email..."}
             value={searchTerm}
             onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
-            className="bg-transparent border-none text-slate-200 placeholder-slate-550 focus:outline-none w-full text-xs"
-          />
+className="bg-transparent border-none text-slate-700 placeholder:text-slate-400 focus:outline-none w-full text-sm"          />
         </div>
       </div>
 
       {/* User Table Grid */}
-      <div className="bg-slate-900/40 border border-slate-850 rounded-3xl overflow-hidden backdrop-blur-md">
+      <div className="bg-white border border-slate-200 rounded-3xl overflow-hidden shadow-lg">
         <div className="overflow-x-auto">
           {activeTab === "students" ? (
             <table className="w-full text-left border-collapse text-xs">
               <thead>
-                <tr className="border-b border-slate-850 text-slate-400 font-black uppercase text-[9px] tracking-wider bg-slate-950/40">
+                <tr className="border-b border-slate-700 bg-slate-100 text-slate-700 font-bold uppercase text-[10px] tracking-wider">
                   <th className="py-4 pl-5">Student Name</th>
                   <th className="py-4">Roll No</th>
                   <th className="py-4">Department</th>
@@ -406,32 +405,29 @@ const UserManagement = () => {
                   </tr>
                 ) : (
                   paginatedList.map(student => (
-                    <tr key={student.student_id} className="border-b border-slate-900/50 hover:bg-slate-900/20 transition-colors">
-                      <td className="py-3.5 pl-5 font-bold text-white">{student.full_name}</td>
-                      <td className="py-3.5 text-slate-300 font-mono">{student.roll_no}</td>
-                      <td className="py-3.5 text-indigo-400 font-semibold">{student.department}</td>
-                      <td className="py-3.5 text-center text-slate-300 font-bold">{student.semester}</td>
-                      <td className="py-3.5 text-center text-slate-300 font-bold">{student.division}</td>
-                      <td className="py-3.5 text-center text-slate-300 font-bold">{student.email}</td>
+                    <tr key={student.student_id} className="border-b border-slate-200 hover:bg-slate-50 transition-colors">
+                      <td className="py-3.5 pl-5 font-bold text-slate-900">{student.full_name}</td>
+                      <td className="py-3.5 text-slate-600 font-mono">{student.roll_no}</td>
+                      <td className="py-3.5 text-indigo-600 font-semibold">{student.department}</td>
+                      <td className="py-3.5 text-center text-slate-600 font-bold">{student.semester}</td>
+                      <td className="py-3.5 text-center text-slate-600 font-bold">{student.division}</td>
+                      <td className="py-3.5 text-center text-slate-600 font-bold">{student.email}</td>
                       <td className="py-3.5 text-right pr-5 space-x-1.5 whitespace-nowrap">
                         <button
                           onClick={() => navigate(`/admin/students/${student.student_id}`)}
-                          className="p-1.5 border border-slate-800 hover:bg-slate-950/60 rounded-lg text-blue-400 transition-all cursor-pointer inline-flex items-center"
-                          title="View Student profile"
+className="p-2 bg-slate-100 border border-slate-200 rounded-lg text-blue-600 hover:bg-blue-50 transition"                          title="View Student profile"
                         >
                           <Eye size={13} />
                         </button>
                         <button
                           onClick={() => handleOpenEdit(student)}
-                          className="p-1.5 border border-slate-800 hover:bg-slate-950/60 rounded-lg text-slate-400 hover:text-white transition-all cursor-pointer inline-flex"
-                          title="Edit Info"
+className="p-2 bg-slate-100 border border-slate-200 rounded-lg text-slate-600 hover:bg-amber-50 hover:text-amber-600 transition"                          title="Edit Info"
                         >
                           <Edit size={13} />
                         </button>
                         <button
                           onClick={() => handleDelete(student.student_id)}
-                          className="p-1.5 border border-slate-800 hover:bg-red-500/10 hover:text-red-400 rounded-lg text-red-500 transition-all cursor-pointer inline-flex"
-                          title="Delete Record"
+className="p-2 bg-slate-100 border border-slate-200 rounded-lg text-red-600 hover:bg-red-50 transition"                          title="Delete Record"
                         >
                           <Trash2 size={13} />
                         </button>
@@ -444,7 +440,7 @@ const UserManagement = () => {
           ) : (
             <table className="w-full text-left border-collapse text-xs">
               <thead>
-                <tr className="border-b border-slate-850 text-slate-400 font-black uppercase text-[9px] tracking-wider bg-slate-950/40">
+                <tr className="border-b border-slate-700 bg-slate-100 text-slate-700 font-bold uppercase text-[10px] tracking-wider">
                   <th className="py-4 pl-5"> Faculty</th>
                   <th className="py-4">Department</th>
                   <th className="py-4">Designation Title</th>
@@ -460,23 +456,23 @@ const UserManagement = () => {
                   </tr>
                 ) : (
                   paginatedList.map(faculty => (
-                    <tr key={faculty.faculty_id} className="border-b border-slate-900/50 hover:bg-slate-900/20 transition-colors">
-                      <td className="py-3.5 pl-5 font-bold text-white">{faculty.full_name}</td>
-                      <td className="py-3.5 text-indigo-400 font-semibold">{faculty.department}</td>
-                      <td className="py-3.5 text-white">{faculty.designation || "Assistant Professor"} </td>
-                      <td className="py-3.5 text-white font-bold">{faculty.email}</td>
-                      <td className="py-3.5 text-center text-slate-300 font-bold">{faculty.faculty_code}</td>
+                    <tr key={faculty.faculty_id} className="border-b border-slate-800 hover:bg-slate-50 transition-colors transition-all duration-200">
+                      <td className="py-3.5 pl-5 font-bold text-slate-900">{faculty.full_name}</td>
+                      <td className="py-3.5 text-indigo-600 font-semibold">{faculty.department}</td>
+                      <td className="py-3.5 text-slate-900">{faculty.designation || "Assistant Professor"} </td>
+                      <td className="py-3.5 text-slate-900 font-bold">{faculty.email}</td>
+                      <td className="py-3.5 text-center text-slate-600 font-bold">{faculty.faculty_code}</td>
                       <td className="py-3.5 text-right pr-5 space-x-1.5 whitespace-nowrap">
                         <button
                           onClick={() => navigate(`/admin/faculty/${faculty.faculty_id}`)}
-                          className="p-1.5 border border-slate-800 hover:bg-slate-950/60 inline-flex items-center rounded-lg text-blue-400"
+                          className="p-1.5  bg-slate-100 border border-slate-200 hover:bg-slate-100  inline-flex items-center rounded-lg text-blue-600"
                           title="View analytics"
                         >
                           <Eye size={13} />
                         </button>
                         <button
                           onClick={() => handleOpenEdit(faculty)}
-                          className="p-1.5 border border-slate-800 hover:bg-slate-955/60 rounded-lg text-slate-400 hover:text-white transition-all cursor-pointer inline-flex"
+                          className="p-1.5  bg-slate-100 border border-slate-200 hover:bg-slate-100  rounded-lg text-slate-400 hover:text-slate-900 transition-all cursor-pointer inline-flex"
                           title="Edit Info"
                         >
                           <Edit size={13} />
@@ -499,7 +495,7 @@ const UserManagement = () => {
 
         {/* Pagination Controls */}
         {totalPages > 1 && (
-          <div className="flex items-center justify-between border-t border-slate-850 px-6 py-4 bg-slate-950/30 text-xs font-semibold text-slate-400">
+          <div className="flex items-center justify-between border-t border-slate-850 px-6 py-4 bg-white border-t border-slate-200 text-xs font-semibold text-slate-400">
             <span>
               Showing Page {currentPage} of {totalPages}
             </span>
@@ -508,7 +504,7 @@ const UserManagement = () => {
                 disabled={currentPage === 1}
                 type="button"
                 onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                className="px-3.5 py-2 rounded-xl border border-slate-800 bg-slate-950 disabled:opacity-40 hover:bg-slate-900 transition-all cursor-pointer disabled:cursor-not-allowed text-white"
+                className="px-3.5 py-2 rounded-xl border border-slate-800 bg-white disabled:opacity-40 hover:bg-white transition-all cursor-pointer disabled:cursor-not-allowed text-white"
               >
                 Previous
               </button>
@@ -516,7 +512,7 @@ const UserManagement = () => {
                 disabled={currentPage === totalPages}
                 type="button"
                 onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                className="px-3.5 py-2 rounded-xl border border-slate-800 bg-slate-950 disabled:opacity-40 hover:bg-slate-900 transition-all cursor-pointer disabled:cursor-not-allowed text-white"
+                className="px-3.5 py-2 rounded-xl border border-slate-800 bg-white disabled:opacity-40 hover:bg-white transition-all cursor-pointer disabled:cursor-not-allowed text-white"
               >
                 Next
               </button>
@@ -531,13 +527,13 @@ const UserManagement = () => {
         <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <form
             onSubmit={handleSaveAdd}
-            className="bg-slate-900 border border-slate-850 p-6 rounded-3xl max-w-sm w-full shadow-2xl space-y-4"
+            className="bg-white border border-slate-850 p-6 rounded-3xl max-w-sm w-full shadow-2xl space-y-4"
           >
             <div className="flex justify-between items-center pb-2 border-b border-slate-850">
               <h3 className="font-extrabold text-sm text-white">
                 Add New {activeTab === "students" ? "Student Account" : "Faculty Account"}
               </h3>
-              <button onClick={() => setShowAddModal(false)} className="text-slate-400 hover:text-white cursor-pointer"><X size={18} /></button>
+              <button onClick={() => setShowAddModal(false)} className="text-slate-400 hover:text-slate-900 cursor-pointer"><X size={18} /></button>
             </div>
 
             <div className="space-y-3.5 text-xs">
@@ -575,7 +571,7 @@ const UserManagement = () => {
                       className="w-full bg-slate-950/60 border border-slate-850 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-white cursor-pointer"
                     >
                       {getDeptList().map(d => (
-                        <option key={d} value={d} className="bg-slate-900">{d}</option>
+                        <option key={d} value={d} className="bg-white">{d}</option>
                       ))}
                     </select>
                   </div>
@@ -603,7 +599,7 @@ const UserManagement = () => {
                       className="w-full bg-slate-950/60 border border-slate-850 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-white cursor-pointer"
                     >
                       {getDeptList().map(d => (
-                        <option key={d} value={d} className="bg-slate-900">{d}</option>
+                        <option key={d} value={d} className="bg-white">{d}</option>
                       ))}
                     </select>
                   </div>
@@ -652,7 +648,7 @@ const UserManagement = () => {
         <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <form
             onSubmit={handleSaveEdit}
-            className="bg-slate-900 border border-slate-850 p-6 rounded-3xl max-w-sm w-full shadow-2xl space-y-4"
+            className="bg-white border border-slate-850 p-6 rounded-3xl max-w-sm w-full shadow-2xl space-y-4"
           >
             <div className="flex justify-between items-center pb-2 border-b border-slate-850">
               <h3 className="font-extrabold text-sm text-white">
@@ -692,7 +688,7 @@ const UserManagement = () => {
                       className="w-full bg-slate-950/60 border border-slate-850 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-white cursor-pointer"
                     >
                       {getDeptList().map(d => (
-                        <option key={d} value={d} className="bg-slate-900">{d}</option>
+                        <option key={d} value={d} className="bg-white">{d}</option>
                       ))}
                     </select>
                   </div>
@@ -714,10 +710,10 @@ const UserManagement = () => {
                     <select
                       value={formDesignation}
                       onChange={(e) => setFormDesignation(e.target.value)}
-                      className="w-full bg-slate-950/60 border border-slate-850 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-white cursor-pointer"
+                      className="w-full bg-slate-950/60 border border-slate-850 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 cursor-pointer"
                     >
                       {["Assistant Professor", "Associate Professor", "Professor"].map(d => (
-                        <option key={d} value={d} className="bg-slate-900">{d}</option>
+                        <option key={d} value={d} className="bg-white">{d}</option>
                       ))}
                     </select>
                   </div>
@@ -726,10 +722,10 @@ const UserManagement = () => {
                     <select
                       value={formBranch}
                       onChange={(e) => setFormBranch(e.target.value)}
-                      className="w-full bg-slate-950/60 border border-slate-850 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-white cursor-pointer"
+                      className="w-full bg-slate-950/60 border border-slate-850 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 cursor-pointer"
                     >
                       {getDeptList().map(d => (
-                        <option key={d} value={d} className="bg-slate-900">{d}</option>
+                        <option key={d} value={d} className="bg-white">{d}</option>
                       ))}
                     </select>
                   </div>
@@ -747,7 +743,7 @@ const UserManagement = () => {
               </button>
               <button
                 type="submit"
-                className="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl transition-all cursor-pointer"
+                className="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-slate-900 font-bold rounded-xl transition-all cursor-pointer"
               >
                 Save Updates
               </button>

@@ -153,7 +153,7 @@ const CollegeNotes = () => {
       </div>
 
       {/* Search & Tabs Controls */}
-      <div className="bg-slate-900/60 border border-slate-800 rounded-3xl p-6 space-y-6">
+      <div className="bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {/* Search bar */}
           <div className="md:col-span-2 relative">
@@ -163,7 +163,7 @@ const CollegeNotes = () => {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search by topic, syllabus code, or description..."
-              className="w-full pl-11 pr-4 py-3 bg-slate-950 border border-slate-800 rounded-2xl text-white placeholder-slate-500 focus:outline-none focus:border-slate-700 transition-colors text-sm"
+              className="w-full pl-11 pr-4 py-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl text-slate-900 dark:text-white placeholder-slate-500 focus:outline-none focus:border-slate-400 dark:focus:border-slate-700 transition-colors text-sm"
             />
           </div>
 
@@ -172,7 +172,7 @@ const CollegeNotes = () => {
             <select
               value={selectedSubject}
               onChange={(e) => setSelectedSubject(e.target.value)}
-              className="w-full px-4 py-3 bg-slate-950 border border-slate-800 rounded-2xl text-white focus:outline-none focus:border-slate-700 transition-colors text-sm appearance-none cursor-pointer"
+              className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl text-slate-900 dark:text-white focus:outline-none focus:border-slate-400 dark:focus:border-slate-700 transition-colors text-sm appearance-none cursor-pointer"
             >
               <option value="All">All Subjects</option>
               {availableSubjects.map((sub) => (
@@ -187,7 +187,7 @@ const CollegeNotes = () => {
 
         {/* Semester Tab Switcher */}
         <div className="space-y-2">
-          <label className="text-xs font-bold uppercase tracking-wider text-slate-400">Select Semester</label>
+          <label className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Select Semester</label>
           <div className="flex flex-wrap gap-2">
             {['All', '1', '2', '3', '4', '5', '6', '7', '8'].map((sem) => (
               <button
@@ -196,7 +196,7 @@ const CollegeNotes = () => {
                 className={`px-4 py-2 rounded-xl text-xs font-bold border transition-all duration-300 ${
                   selectedSemester === sem
                     ? `${theme.bg} ${theme.text} border-indigo-500/50 scale-105 shadow-md`
-                    : 'bg-slate-950/60 border-slate-800 text-slate-400 hover:border-slate-700 hover:text-white'
+                    : 'bg-slate-50 dark:bg-slate-950/60 border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 hover:border-slate-300 dark:hover:border-slate-700 hover:text-slate-800 dark:hover:text-white'
                 }`}
               >
                 {sem === 'All' ? 'All Semesters' : `Semester ${sem}`}
@@ -209,18 +209,18 @@ const CollegeNotes = () => {
       {/* Notes Grid */}
       {loading ? (
         <div className="flex flex-col items-center justify-center py-20 space-y-4">
-          <div className="w-10 h-10 border-4 border-slate-700 border-t-indigo-500 rounded-full animate-spin" />
+          <div className="w-10 h-10 border-4 border-slate-200 dark:border-slate-700 border-t-indigo-500 rounded-full animate-spin" />
           <span className="text-slate-500 text-sm font-semibold animate-pulse">Loading note resources...</span>
         </div>
       ) : error ? (
-        <div className="bg-red-500/10 border border-red-500/30 p-6 rounded-2xl text-center text-red-400 max-w-lg mx-auto">
+        <div className="bg-red-500/10 border border-red-500/30 p-6 rounded-2xl text-center text-red-650 dark:text-red-400 max-w-lg mx-auto">
           {error}
         </div>
       ) : filteredNotes.length === 0 ? (
-        <div className="bg-slate-900/40 border border-slate-800/80 rounded-3xl p-12 text-center text-slate-500 max-w-lg mx-auto space-y-2">
-          <FileText size={48} className="mx-auto text-slate-700" />
-          <h3 className="text-white font-extrabold text-lg">No Notes Found</h3>
-          <p className="text-sm text-slate-400">
+        <div className="bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800/80 rounded-3xl p-12 text-center text-slate-500 max-w-lg mx-auto space-y-2">
+          <FileText size={48} className="mx-auto text-slate-400 dark:text-slate-700" />
+          <h3 className="text-slate-900 dark:text-white font-extrabold text-lg">No Notes Found</h3>
+          <p className="text-sm text-slate-550 dark:text-slate-400">
             No note logs match your filters. Try checking a different semester or adjusting your search queries.
           </p>
         </div>
@@ -232,7 +232,7 @@ const CollegeNotes = () => {
               layout
               initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
-              className="bg-slate-900/60 border border-slate-800 hover:border-slate-700/80 rounded-2xl p-6 flex flex-col justify-between transition-colors shadow-lg hover:shadow-xl group"
+              className="bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 hover:border-indigo-500/30 hover:shadow-md rounded-2xl p-6 flex flex-col justify-between transition-all duration-300 shadow-sm group"
             >
               <div className="space-y-4">
                 {/* Badges row */}
@@ -240,28 +240,28 @@ const CollegeNotes = () => {
                   <span className={`text-[10px] uppercase font-black px-2.5 py-0.5 rounded-full ${theme.bg} ${theme.text} border ${theme.border}`}>
                     Sem {note.semester}
                   </span>
-                  <span className="text-[10px] text-slate-500 font-bold bg-slate-950 px-2 py-0.5 rounded-md border border-slate-800">
+                  <span className="text-[10px] text-slate-500 dark:text-slate-400 font-bold bg-slate-50 dark:bg-slate-950 px-2 py-0.5 rounded-md border border-slate-200 dark:border-slate-800">
                     {note.subject_code}
                   </span>
                 </div>
 
                 <div className="space-y-2">
-                  <h3 className="text-md font-bold text-white group-hover:text-indigo-400 transition-colors">
+                  <h3 className="text-md font-extrabold text-slate-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
                     {note.title}
                   </h3>
-                  <p className="text-slate-400 text-xs leading-relaxed line-clamp-3">
+                  <p className="text-slate-650 dark:text-slate-400 text-xs leading-relaxed line-clamp-3">
                     {note.description}
                   </p>
                 </div>
               </div>
 
               {/* Bottom detail and Actions */}
-              <div className="mt-6 pt-4 border-t border-slate-800/60 space-y-4">
-                <div className="flex items-center justify-between text-[11px] text-slate-500 font-medium">
+              <div className="mt-6 pt-4 border-t border-slate-100 dark:border-slate-800/60 space-y-4">
+                <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400 font-medium">
                   <span className="flex items-center gap-1">
                     <Clock size={12} /> {formatBytes(note.file_size)}
                   </span>
-                  <span className="flex items-center gap-1 bg-indigo-500/5 px-2 py-0.5 rounded-full text-indigo-400 border border-indigo-500/10">
+                  <span className="flex items-center gap-1 bg-indigo-500/5 px-2 py-0.5 rounded-full text-indigo-600 dark:text-indigo-400 border border-indigo-500/10">
                     <Sparkles size={12} /> {note.download_count} downloads
                   </span>
                 </div>
@@ -269,7 +269,7 @@ const CollegeNotes = () => {
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     onClick={() => setViewingNote(note)}
-                    className="flex items-center justify-center gap-1.5 px-3 py-2 bg-slate-950 hover:bg-slate-900 border border-slate-800 text-slate-350 hover:text-white rounded-xl text-xs font-bold transition-all"
+                    className="flex items-center justify-center gap-1.5 px-3 py-2 bg-slate-50 dark:bg-slate-950 hover:bg-slate-100 dark:hover:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white rounded-xl text-xs font-bold transition-all"
                   >
                     <Eye size={14} /> Preview
                   </button>
@@ -294,16 +294,16 @@ const CollegeNotes = () => {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-slate-950 border border-slate-800 rounded-3xl w-full max-w-5xl h-[85vh] flex flex-col overflow-hidden shadow-2xl"
+              className="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-5xl h-[85vh] flex flex-col overflow-hidden shadow-2xl"
             >
               {/* Modal Header */}
-              <div className="flex items-center justify-between px-6 py-4 border-b border-slate-850">
+              <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-800">
                 <div className="flex items-center gap-3">
                   <div className={`p-2 rounded-xl ${theme.bg} ${theme.text}`}>
                     <FileText size={20} />
                   </div>
                   <div>
-                    <h3 className="text-white font-bold text-sm leading-none">{viewingNote.title}</h3>
+                    <h3 className="text-slate-900 dark:text-white font-bold text-sm leading-none">{viewingNote.title}</h3>
                     <span className="text-[10px] text-slate-500 font-bold mt-1 inline-block">
                       {viewingNote.subject_code} - {viewingNote.subject_name}
                     </span>
@@ -311,26 +311,26 @@ const CollegeNotes = () => {
                 </div>
                 <button
                   onClick={() => setViewingNote(null)}
-                  className="p-1.5 bg-slate-900 border border-slate-800 rounded-lg text-slate-400 hover:text-white transition-colors"
+                  className="p-1.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"
                 >
                   <X size={16} />
                 </button>
               </div>
 
               {/* PDF Loader Container */}
-              <div className="flex-1 bg-slate-900 p-2 relative">
+              <div className="flex-1 bg-slate-100 dark:bg-slate-900 p-2 relative">
                 {/* Embed PDF inside object/iframe */}
                 <iframe
                   src={`${viewingNote.file_url}#toolbar=0`}
-                  className="w-full h-full rounded-2xl border-0 bg-slate-950"
+                  className="w-full h-full rounded-2xl border border-slate-200 dark:border-0 bg-slate-50 dark:bg-slate-950"
                   title={viewingNote.title}
                 />
               </div>
 
               {/* Modal Footer */}
-              <div className="px-6 py-4 border-t border-slate-850 flex items-center justify-between bg-slate-950">
-                <span className="text-xs text-slate-500 font-semibold">
-                  Source Document Link: <a href={viewingNote.file_url} target="_blank" rel="noreferrer" className="text-indigo-400 hover:underline">{viewingNote.file_name}</a>
+              <div className="px-6 py-4 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between bg-white dark:bg-slate-950">
+                <span className="text-xs text-slate-550 dark:text-slate-500 font-semibold">
+                  Source Document Link: <a href={viewingNote.file_url} target="_blank" rel="noreferrer" className="text-indigo-650 dark:text-indigo-400 hover:underline">{viewingNote.file_name}</a>
                 </span>
                 <button
                   onClick={() => {

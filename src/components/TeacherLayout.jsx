@@ -22,6 +22,8 @@ import {
 import Header from './Header';
 import { useStudent } from '../context/StudentContext';
 import { useAuth } from '../context/AuthContext';
+import { useBranding } from '../context/BrandingContext';
+import defaultLogo from '../assets/image.png';
 const GRADIENT_THEMES = {
   violet: {
     gradient: "from-slate-50 to-white",
@@ -53,6 +55,7 @@ const FacultyLayout = () => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const { profile } = useStudent();
   const { logout } = useAuth();
+  const { branding } = useBranding();
   const navigate = useNavigate();
 
   const menuItems = [
@@ -73,8 +76,8 @@ const FacultyLayout = () => {
     logout();
   };
 
-  const currentTheme = GRADIENT_THEMES[profile.theme_color] || GRADIENT_THEMES.indigo;
-  const logoText = profile.college ? (profile.college.split(' ')[0] || 'NeuroLearn') : 'NeuroLearn';
+  const currentTheme = GRADIENT_THEMES[branding.themeColor] || GRADIENT_THEMES.indigo;
+  const logoText = branding.institutionName ? (branding.institutionName.split(' ')[0] || 'NeuroLearn') : 'NeuroLearn';
 
   return (
     <div className="flex h-screen overflow-hidden bg-slate-50 text-slate-800">
@@ -94,13 +97,12 @@ const FacultyLayout = () => {
                 exit={{ opacity: 0, x: -10 }}
                 className="flex items-center gap-2"
               >
-                {profile.logo_url ? (
-                  <img src={profile.logo_url} alt="Logo" className="w-7 h-7 object-contain rounded-lg bg-slate-100 p-0.5 shrink-0" />
-                ) : (
-                  <div className={`p-1.5 rounded-lg text-white ${currentTheme.toggle}`}>
-                    <Sparkles size={16} />
-                  </div>
-                )}
+                <img 
+                  src={branding.logoUrl || defaultLogo} 
+                  onError={(e) => { e.target.src = defaultLogo; }}
+                  alt="Logo" 
+                  className="w-7 h-7 object-contain rounded-lg bg-slate-100 p-0.5 shrink-0" 
+                />
                 <span className="font-extrabold text-sm tracking-tight text-slate-800">
                   {logoText} <span className="text-slate-400 font-medium">Faculty</span>
                 </span>
@@ -109,13 +111,12 @@ const FacultyLayout = () => {
           </AnimatePresence>
 
           {isCollapsed && (
-            profile.logo_url ? (
-              <img src={profile.logo_url} alt="Logo" className="w-7 h-7 object-contain rounded-lg mx-auto bg-slate-100 p-0.5" />
-            ) : (
-              <div className={`p-1.5 rounded-lg text-white mx-auto ${currentTheme.toggle}`}>
-                <Sparkles size={16} />
-              </div>
-            )
+            <img 
+              src={branding.logoUrl || defaultLogo} 
+              onError={(e) => { e.target.src = defaultLogo; }}
+              alt="Logo" 
+              className="w-7 h-7 object-contain rounded-lg mx-auto bg-slate-100 p-0.5" 
+            />
           )}
         </div>
 

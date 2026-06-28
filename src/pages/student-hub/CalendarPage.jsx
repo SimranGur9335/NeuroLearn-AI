@@ -124,24 +124,24 @@ const CalendarPage = () => {
 
       {loading ? (
         <div className="flex flex-col items-center justify-center min-h-[30vh] space-y-4">
-          <div className="w-8 h-8 border-4 border-slate-700 border-t-indigo-500 rounded-full animate-spin" />
-          <span className="text-slate-400 text-xs animate-pulse">Synchronizing academic calendar...</span>
+          <div className="w-8 h-8 border-4 border-slate-200 dark:border-slate-700 border-t-indigo-500 rounded-full animate-spin" />
+          <span className="text-slate-500 dark:text-slate-400 text-xs animate-pulse">Synchronizing academic calendar...</span>
         </div>
       ) : error ? (
-        <div className="bg-red-500/10 border border-red-500/30 p-4 rounded-xl text-red-400 text-sm">
+        <div className="bg-red-500/10 border border-red-500/30 p-4 rounded-xl text-red-650 dark:text-red-400 text-sm">
           {error}
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           
           {/* Calendar visual grid card */}
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 lg:col-span-2 space-y-6">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 lg:col-span-2 space-y-6">
             
             {/* Calendar Controls */}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Calendar size={18} className={theme.text} />
-                <h3 className="font-extrabold text-base text-white">
+                <h3 className="font-extrabold text-base text-slate-900 dark:text-white">
                   {monthNames[currentMonth]} {currentYear}
                 </h3>
               </div>
@@ -149,13 +149,13 @@ const CalendarPage = () => {
               <div className="flex items-center gap-2">
                 <button 
                   onClick={handlePrevMonth}
-                  className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors cursor-pointer"
+                  className="p-1.5 rounded-lg bg-slate-105 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer"
                 >
                   <ChevronLeft size={16} />
                 </button>
                 <button 
                   onClick={handleNextMonth}
-                  className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors cursor-pointer"
+                  className="p-1.5 rounded-lg bg-slate-105 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer"
                 >
                   <ChevronRight size={16} />
                 </button>
@@ -165,7 +165,7 @@ const CalendarPage = () => {
             {/* Grid days layout */}
             <div className="space-y-2">
               {/* Day initials */}
-              <div className="grid grid-cols-7 gap-1 text-center font-bold text-[10px] text-slate-500 uppercase tracking-widest pb-2 border-b border-slate-800/60">
+              <div className="grid grid-cols-7 gap-1 text-center font-bold text-[10px] text-slate-500 uppercase tracking-widest pb-2 border-b border-slate-200 dark:border-slate-800/60">
                 <span>Sun</span>
                 <span>Mon</span>
                 <span>Tue</span>
@@ -193,8 +193,8 @@ const CalendarPage = () => {
                         isToday 
                           ? `${theme.accent} text-white border-transparent` 
                           : hasEvents
-                          ? `bg-slate-850 hover:bg-slate-800 border-slate-800 hover:border-slate-700 text-slate-200`
-                          : `bg-slate-900/40 hover:bg-slate-850 border-slate-850 hover:border-slate-800 text-slate-400`
+                          ? `bg-slate-50 dark:bg-slate-850 hover:bg-slate-100 dark:hover:bg-slate-800 border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 text-slate-700 dark:text-slate-200`
+                          : `bg-white dark:bg-slate-900/40 hover:bg-slate-50 dark:hover:bg-slate-850 border-slate-200 dark:border-slate-850 hover:border-slate-300 dark:hover:border-slate-800 text-slate-500 dark:text-slate-400`
                       }`}
                     >
                       <span className="text-xs font-bold self-start">{cell.dayNum}</span>
@@ -211,10 +211,10 @@ const CalendarPage = () => {
 
             {/* Selected Day events details drawer */}
             {selectedDayString && (
-              <div className="p-4 bg-slate-850 rounded-2xl border border-slate-800 space-y-4">
+              <div className="p-4 bg-slate-50 dark:bg-slate-850 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-4">
                 <div className="flex items-center justify-between">
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">Events for: {selectedDayString}</h4>
-                  <button onClick={() => { setSelectedDateEvents([]); setSelectedDayString(null); }} className="text-[10px] text-slate-500 hover:text-slate-300">Clear</button>
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Events for: {selectedDayString}</h4>
+                  <button onClick={() => { setSelectedDateEvents([]); setSelectedDayString(null); }} className="text-[10px] text-slate-500 dark:text-slate-500 hover:text-slate-800 dark:hover:text-slate-300">Clear</button>
                 </div>
 
                 {selectedDateEvents.length === 0 ? (
@@ -222,9 +222,9 @@ const CalendarPage = () => {
                 ) : (
                   <div className="space-y-3">
                     {selectedDateEvents.map((evt, idx) => (
-                      <div key={idx} className="space-y-1 p-2 bg-slate-900/60 rounded-lg border border-slate-800/80">
+                      <div key={idx} className="space-y-1 p-2 bg-white dark:bg-slate-900/60 rounded-lg border border-slate-200 dark:border-slate-800/80">
                         <div className="flex items-center justify-between">
-                          <span className="text-xs font-extrabold text-white">{evt.title}</span>
+                          <span className="text-xs font-extrabold text-slate-900 dark:text-white">{evt.title}</span>
                           <span className={`text-[9px] font-bold uppercase px-1.5 py-0.2 rounded ${
                             evt.event_type === 'Exam' ? 'bg-red-500/10 text-red-400 border border-red-500/20' :
                             evt.event_type === 'Holiday' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' :
@@ -233,7 +233,7 @@ const CalendarPage = () => {
                             {evt.event_type}
                           </span>
                         </div>
-                        <p className="text-[11px] text-slate-400">{evt.description}</p>
+                        <p className="text-[11px] text-slate-650 dark:text-slate-400">{evt.description}</p>
                       </div>
                     ))}
                   </div>
@@ -243,8 +243,8 @@ const CalendarPage = () => {
           </div>
 
           {/* Upcoming Events sidebar list */}
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-6 flex flex-col">
-            <h3 className="font-extrabold text-sm text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 space-y-6 flex flex-col">
+            <h3 className="font-extrabold text-sm text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
               <AlertCircle size={16} className={theme.text} />
               Upcoming Milestones
             </h3>
@@ -260,10 +260,10 @@ const CalendarPage = () => {
                   return (
                     <div 
                       key={evt.calendar_id}
-                      className="p-3.5 bg-slate-850 hover:bg-slate-800 border border-slate-850 hover:border-slate-800 rounded-xl transition-colors space-y-2.5"
+                      className="p-3.5 bg-slate-50 dark:bg-slate-850 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-850 hover:border-slate-300 dark:hover:border-slate-800 rounded-xl transition-colors space-y-2.5"
                     >
                       <div className="flex items-start justify-between gap-2">
-                        <span className="text-xs font-extrabold text-white leading-tight">{evt.title}</span>
+                        <span className="text-xs font-extrabold text-slate-900 dark:text-white leading-tight">{evt.title}</span>
                         <span className={`text-[9px] font-bold uppercase px-1.5 py-0.2 rounded shrink-0 ${
                           evt.event_type === 'Exam' ? 'bg-red-500/10 text-red-400 border border-red-500/20' :
                           evt.event_type === 'Holiday' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' :
@@ -273,9 +273,9 @@ const CalendarPage = () => {
                         </span>
                       </div>
                       
-                      <p className="text-[11px] text-slate-400 leading-normal">{evt.description}</p>
+                      <p className="text-[11px] text-slate-650 dark:text-slate-400 leading-normal">{evt.description}</p>
                       
-                      <div className="pt-2 border-t border-slate-800/60 flex items-center justify-between text-[10px] text-slate-500 font-semibold">
+                      <div className="pt-2 border-t border-slate-200 dark:border-slate-800/60 flex items-center justify-between text-[10px] text-slate-500 font-semibold">
                         <span className="flex items-center gap-1">
                           <Clock size={11} />
                           {evDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}

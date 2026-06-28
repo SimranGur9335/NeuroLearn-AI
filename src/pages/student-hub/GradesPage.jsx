@@ -48,11 +48,11 @@ const GradesPage = () => {
 
       {loading ? (
         <div className="flex flex-col items-center justify-center min-h-[30vh] space-y-4">
-          <div className="w-8 h-8 border-4 border-slate-700 border-t-indigo-500 rounded-full animate-spin" />
-          <span className="text-slate-400 text-xs animate-pulse">Fetching academic grades...</span>
+          <div className="w-8 h-8 border-4 border-slate-200 dark:border-slate-700 border-t-indigo-500 rounded-full animate-spin" />
+          <span className="text-slate-500 dark:text-slate-400 text-xs animate-pulse">Fetching academic grades...</span>
         </div>
       ) : error ? (
-        <div className="bg-red-500/10 border border-red-500/30 p-4 rounded-xl text-red-400 text-sm">
+        <div className="bg-red-500/10 border border-red-500/30 p-4 rounded-xl text-red-650 dark:text-red-400 text-sm">
           {error}
         </div>
       ) : (
@@ -78,26 +78,26 @@ const GradesPage = () => {
               icon={TrendingUp} 
             />
           </div>
-
+ 
           {/* Grades Table */}
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 overflow-hidden">
-            <h3 className="font-extrabold text-sm text-slate-400 uppercase tracking-wider mb-4">Subject Marks Sheets</h3>
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 overflow-hidden">
+            <h3 className="font-extrabold text-sm text-slate-550 dark:text-slate-400 uppercase tracking-wider mb-4">Subject Marks Sheets</h3>
             
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
-                  <tr className="border-b border-slate-850 text-slate-500 uppercase tracking-wider font-bold">
+                  <tr className="border-b border-slate-200 dark:border-slate-850 text-slate-500 dark:text-slate-400 uppercase tracking-wider font-bold">
                     <th className="py-3 px-4">Subject Details</th>
                     <th className="py-3 px-4">Credits</th>
                     <th className="py-3 px-4 text-center">Assignments</th>
                     <th className="py-3 px-4 text-center">Quizzes</th>
                     <th className="py-3 px-4 text-center">Internals</th>
                     <th className="py-3 px-4 text-center">Practicals</th>
-                    <th className="py-3 px-4 text-center font-extrabold text-white">Total Marks</th>
+                    <th className="py-3 px-4 text-center font-extrabold text-slate-900 dark:text-white">Total Marks</th>
                     <th className="py-3 px-4 text-center">Grade</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-850/50">
+                <tbody className="divide-y divide-slate-200 dark:divide-slate-850/50">
                   {data.subject_grades.length === 0 ? (
                     <tr>
                       <td colSpan="8" className="py-8 text-center text-slate-500 font-bold">
@@ -106,26 +106,26 @@ const GradesPage = () => {
                     </tr>
                   ) : (
                     data.subject_grades.map((sub, idx) => (
-                      <tr key={idx} className="hover:bg-slate-850/30 transition-colors">
+                      <tr key={idx} className="hover:bg-slate-50 dark:hover:bg-slate-850/30 transition-colors">
                         <td className="py-4 px-4">
-                          <span className="font-extrabold text-white block text-sm">{sub.subject_name}</span>
+                          <span className="font-extrabold text-slate-900 dark:text-white block text-sm">{sub.subject_name}</span>
                           <span className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">{sub.subject_code}</span>
                         </td>
-                        <td className="py-4 px-4 text-slate-400 font-bold">{sub.credits}</td>
-                        <td className="py-4 px-4 text-center text-slate-300">{sub.assignment_marks}</td>
-                        <td className="py-4 px-4 text-center text-slate-300">{sub.quiz_marks}</td>
-                        <td className="py-4 px-4 text-center text-slate-300">{sub.internal_marks}</td>
-                        <td className="py-4 px-4 text-center text-slate-300">{sub.practical_marks}</td>
+                        <td className="py-4 px-4 text-slate-650 dark:text-slate-400 font-bold">{sub.credits}</td>
+                        <td className="py-4 px-4 text-center text-slate-700 dark:text-slate-300">{sub.assignment_marks}</td>
+                        <td className="py-4 px-4 text-center text-slate-700 dark:text-slate-300">{sub.quiz_marks}</td>
+                        <td className="py-4 px-4 text-center text-slate-700 dark:text-slate-300">{sub.internal_marks}</td>
+                        <td className="py-4 px-4 text-center text-slate-700 dark:text-slate-300">{sub.practical_marks}</td>
                         <td className={`py-4 px-4 text-center font-extrabold ${theme.text}`}>
                           {sub.total_marks}
                         </td>
                         <td className="py-4 px-4 text-center">
                           <span className={`px-2.5 py-1 rounded-md font-bold text-xs ${
                             ['A+', 'A', 'B+', 'B'].includes(sub.grade)
-                              ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                              ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
                               : sub.grade === '-'
-                              ? 'bg-slate-800 text-slate-500'
-                              : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                              ? 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-500'
+                              : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20'
                           }`}>
                             {sub.grade}
                           </span>

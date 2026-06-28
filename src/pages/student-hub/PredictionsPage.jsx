@@ -220,13 +220,13 @@ const PredictionsPage = () => {
       </div>
 
       {/* Tabs navigation panel */}
-      <div className="flex border-b border-slate-800 gap-1.5 pb-px text-xs">
+      <div className="flex border-b border-slate-200 dark:border-slate-800 gap-1.5 pb-px text-xs">
         <button
           onClick={() => setActiveTab('forecast')}
           className={`px-4 py-2.5 font-bold transition-all border-b-2 -mb-px flex items-center gap-2 ${
             activeTab === 'forecast' 
-              ? `border-indigo-500 text-white` 
-              : 'border-transparent text-slate-450 hover:text-slate-300'
+              ? `border-indigo-500 text-slate-900 dark:text-white` 
+              : 'border-transparent text-slate-500 dark:text-slate-450 hover:text-slate-800 dark:hover:text-slate-300'
           }`}
         >
           <Target size={14} />
@@ -236,8 +236,8 @@ const PredictionsPage = () => {
           onClick={() => setActiveTab('analytics')}
           className={`px-4 py-2.5 font-bold transition-all border-b-2 -mb-px flex items-center gap-2 ${
             activeTab === 'analytics' 
-              ? `border-indigo-500 text-white` 
-              : 'border-transparent text-slate-450 hover:text-slate-300'
+              ? `border-indigo-500 text-slate-900 dark:text-white` 
+              : 'border-transparent text-slate-500 dark:text-slate-450 hover:text-slate-800 dark:hover:text-slate-300'
           }`}
         >
           <BarChart2 size={14} />
@@ -247,8 +247,8 @@ const PredictionsPage = () => {
           onClick={() => setActiveTab('history')}
           className={`px-4 py-2.5 font-bold transition-all border-b-2 -mb-px flex items-center gap-2 ${
             activeTab === 'history' 
-              ? `border-indigo-500 text-white` 
-              : 'border-transparent text-slate-450 hover:text-slate-300'
+              ? `border-indigo-500 text-slate-900 dark:text-white` 
+              : 'border-transparent text-slate-500 dark:text-slate-450 hover:text-slate-800 dark:hover:text-slate-300'
           }`}
         >
           <History size={14} />
@@ -268,13 +268,13 @@ const PredictionsPage = () => {
               className="grid grid-cols-1 lg:grid-cols-3 gap-6"
             >
               {/* Left Column: Form Panel */}
-              <div className="bg-slate-900/60 backdrop-blur-md border border-slate-800 rounded-3xl p-6 space-y-4 lg:col-span-1">
+              <div className="bg-white dark:bg-slate-900/60 backdrop-blur-md border border-slate-200 dark:border-slate-800 rounded-3xl p-6 space-y-4 lg:col-span-1">
                 <div>
-                  <h3 className="font-extrabold text-white text-base flex items-center gap-1.5">
+                  <h3 className="font-extrabold text-slate-900 dark:text-white text-base flex items-center gap-1.5">
                     <Activity className={theme.text} size={18} />
                     Simulation controls
                   </h3>
-                  <p className="text-[10px] text-slate-450 mt-0.5">Prefilled automatically using your actual college records</p>
+                  <p className="text-[10px] text-slate-500 dark:text-slate-450 mt-0.5">Prefilled automatically using your actual college records</p>
                 </div>
 
                 {statsLoading ? (
@@ -286,23 +286,23 @@ const PredictionsPage = () => {
                   <form onSubmit={handlePredict} className="space-y-4 text-xs">
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1">
-                        <label className="text-[10px] text-slate-450 uppercase font-bold tracking-wider block">Student Age</label>
+                        <label className="text-[10px] text-slate-500 dark:text-slate-400 uppercase font-bold tracking-wider block">Student Age</label>
                         <input 
                           type="number" 
                           min="15" max="30"
                           value={formData.age}
                           onChange={(e) => setFormData(prev => ({ ...prev, age: parseInt(e.target.value) || 20 }))}
-                          className="w-full bg-slate-950/80 border border-slate-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:ring-1 focus:ring-indigo-500 transition"
+                          className="w-full bg-slate-50 dark:bg-slate-950/80 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-indigo-500 transition"
                           required
                         />
                       </div>
 
                       <div className="space-y-1">
-                        <label className="text-[10px] text-slate-450 uppercase font-bold tracking-wider block">Study Hours/Week</label>
+                        <label className="text-[10px] text-slate-500 dark:text-slate-400 uppercase font-bold tracking-wider block">Study Hours/Week</label>
                         <select
                           value={formData.studytime}
                           onChange={(e) => setFormData(prev => ({ ...prev, studytime: parseInt(e.target.value) }))}
-                          className="w-full bg-slate-950/80 border border-slate-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:ring-1 focus:ring-indigo-500 transition"
+                          className="w-full bg-slate-50 dark:bg-slate-950/80 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-indigo-500 transition"
                         >
                           <option value="1">Under 2 hours</option>
                           <option value="2">2 to 5 hours</option>
@@ -314,32 +314,32 @@ const PredictionsPage = () => {
 
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1">
-                        <label className="text-[10px] text-slate-450 uppercase font-bold tracking-wider block">Past Failures</label>
+                        <label className="text-[10px] text-slate-500 dark:text-slate-400 uppercase font-bold tracking-wider block">Past Failures</label>
                         <input 
                           type="number" 
                           min="0" max="4"
                           value={formData.failures}
                           onChange={(e) => setFormData(prev => ({ ...prev, failures: parseInt(e.target.value) || 0 }))}
-                          className="w-full bg-slate-950/80 border border-slate-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:ring-1 focus:ring-indigo-500 transition"
+                          className="w-full bg-slate-50 dark:bg-slate-950/80 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-indigo-500 transition"
                           required
                         />
                       </div>
 
                       <div className="space-y-1">
-                        <label className="text-[10px] text-slate-450 uppercase font-bold tracking-wider block">Total Absences</label>
+                        <label className="text-[10px] text-slate-500 dark:text-slate-400 uppercase font-bold tracking-wider block">Total Absences</label>
                         <input 
                           type="number" 
                           min="0" max="93"
                           value={formData.absences}
                           onChange={(e) => setFormData(prev => ({ ...prev, absences: parseInt(e.target.value) || 0 }))}
-                          className="w-full bg-slate-950/80 border border-slate-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:ring-1 focus:ring-indigo-500 transition"
+                          className="w-full bg-slate-50 dark:bg-slate-950/80 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-indigo-500 transition"
                           required
                         />
                       </div>
                     </div>
 
                     <div className="space-y-2">
-                      <div className="flex justify-between text-[10px] text-slate-400">
+                      <div className="flex justify-between text-[10px] text-slate-550 dark:text-slate-400">
                         <span className="uppercase font-bold tracking-wider">Internal Marks (G1): {formData.G1}/20</span>
                       </div>
                       <input 
@@ -347,12 +347,12 @@ const PredictionsPage = () => {
                         min="0" max="20" step="0.5"
                         value={formData.G1}
                         onChange={(e) => setFormData(prev => ({ ...prev, G1: parseFloat(e.target.value) }))}
-                        className="w-full accent-indigo-500 bg-slate-950 rounded-lg cursor-pointer"
+                        className="w-full accent-indigo-500 bg-slate-200 dark:bg-slate-950 rounded-lg cursor-pointer"
                       />
                     </div>
 
                     <div className="space-y-2">
-                      <div className="flex justify-between text-[10px] text-slate-400">
+                      <div className="flex justify-between text-[10px] text-slate-550 dark:text-slate-400">
                         <span className="uppercase font-bold tracking-wider">Midterm Marks (G2): {formData.G2}/20</span>
                       </div>
                       <input 
@@ -360,7 +360,7 @@ const PredictionsPage = () => {
                         min="0" max="20" step="0.5"
                         value={formData.G2}
                         onChange={(e) => setFormData(prev => ({ ...prev, G2: parseFloat(e.target.value) }))}
-                        className="w-full accent-indigo-500 bg-slate-950 rounded-lg cursor-pointer"
+                        className="w-full accent-indigo-500 bg-slate-200 dark:bg-slate-950 rounded-lg cursor-pointer"
                       />
                     </div>
 
@@ -395,19 +395,19 @@ const PredictionsPage = () => {
               {/* Right Column: Predictive Results Outputs */}
               <div className="lg:col-span-2 space-y-6">
                 {!predictedResult ? (
-                  <div className="bg-slate-900/40 border border-slate-800/80 rounded-3xl p-12 flex flex-col items-center justify-center text-center space-y-4 min-h-[300px]">
+                  <div className="bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800/80 rounded-3xl p-12 flex flex-col items-center justify-center text-center space-y-4 min-h-[300px]">
                     <div className="p-4 rounded-2xl bg-indigo-500/5 border border-indigo-500/10">
-                      <Gauge className="text-indigo-400 animate-pulse" size={36} />
+                      <Gauge className="text-indigo-650 dark:text-indigo-400 animate-pulse" size={36} />
                     </div>
                     <div>
-                      <h4 className="font-extrabold text-white text-base">Forecast Data Stale or Missing</h4>
-                      <p className="text-slate-450 text-xs mt-1 max-w-sm">
+                      <h4 className="font-extrabold text-slate-900 dark:text-white text-base">Forecast Data Stale or Missing</h4>
+                      <p className="text-slate-500 dark:text-slate-450 text-xs mt-1 max-w-sm">
                         Submit study hours, failures, and midterm grades to calibrate machine learning parameters and view detailed outcomes.
                       </p>
                     </div>
                     <button
                       onClick={() => handlePredict()}
-                      className="px-6 py-2.5 bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 font-bold rounded-xl border border-indigo-500/30 transition text-xs cursor-pointer"
+                      className="px-6 py-2.5 bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-700 dark:text-indigo-300 font-bold rounded-xl border border-indigo-500/30 transition text-xs cursor-pointer"
                     >
                       Generate Initial Prediction
                     </button>
@@ -417,31 +417,31 @@ const PredictionsPage = () => {
                     {/* Top row: 3 Primary Outcome Indicators */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       {/* Projected CGPA Card */}
-                      <div className="bg-slate-900/60 border border-slate-800 p-6 rounded-3xl flex flex-col justify-between min-h-[150px] relative overflow-hidden group hover:border-indigo-500/25 transition-all">
+                      <div className="bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 p-6 rounded-3xl flex flex-col justify-between min-h-[150px] relative overflow-hidden group hover:border-indigo-500/25 transition-all">
                         <div className="flex items-center justify-between">
-                          <span className="text-[10px] text-slate-450 uppercase font-bold tracking-wider">Projected Graduation CGPA</span>
-                          <GraduationCap className="text-indigo-400" size={18} />
+                          <span className="text-[10px] text-slate-500 dark:text-slate-450 uppercase font-bold tracking-wider">Projected Graduation CGPA</span>
+                          <GraduationCap className="text-indigo-600 dark:text-indigo-400" size={18} />
                         </div>
                         <div className="py-2">
-                          <span className="text-3xl font-black text-white">{predictedResult.predicted_cgpa}</span>
-                          <span className="text-slate-400 text-xs font-semibold"> / 10.0</span>
+                          <span className="text-3xl font-black text-slate-900 dark:text-white">{predictedResult.predicted_cgpa}</span>
+                          <span className="text-slate-500 dark:text-slate-400 text-xs font-semibold"> / 10.0</span>
                         </div>
-                        <div className="pt-2.5 border-t border-slate-800/50 flex justify-between items-center text-[10px]">
+                        <div className="pt-2.5 border-t border-slate-100 dark:border-slate-800/50 flex justify-between items-center text-[10px]">
                           <span className="text-slate-500 font-semibold uppercase">Confidence Level</span>
-                          <span className="text-emerald-450 font-bold uppercase">First Class Dist</span>
+                          <span className="text-emerald-650 dark:text-emerald-450 font-bold uppercase">First Class Dist</span>
                         </div>
                       </div>
 
                       {/* Attendance Predictor Card */}
-                      <div className="bg-slate-900/60 border border-slate-800 p-6 rounded-3xl flex flex-col justify-between min-h-[150px] hover:border-indigo-500/25 transition-all">
+                      <div className="bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 p-6 rounded-3xl flex flex-col justify-between min-h-[150px] hover:border-indigo-500/25 transition-all">
                         <div className="flex items-center justify-between">
-                          <span className="text-[10px] text-slate-450 uppercase font-bold tracking-wider">Projected Attendance</span>
-                          <Clock className="text-indigo-400" size={18} />
+                          <span className="text-[10px] text-slate-500 dark:text-slate-455 uppercase font-bold tracking-wider">Projected Attendance</span>
+                          <Clock className="text-indigo-600 dark:text-indigo-400" size={18} />
                         </div>
                         <div className="py-2">
-                          <span className="text-3xl font-black text-white">{predictedResult.attendance_rate}%</span>
+                          <span className="text-3xl font-black text-slate-900 dark:text-white">{predictedResult.attendance_rate}%</span>
                           {/* Progress bar */}
-                          <div className="w-full bg-slate-950 rounded-full h-1.5 mt-2 overflow-hidden">
+                          <div className="w-full bg-slate-100 dark:bg-slate-950 rounded-full h-1.5 mt-2 overflow-hidden">
                             <div 
                               className={`h-full rounded-full transition-all duration-550 ${
                                 predictedResult.attendance_rate < 75 ? 'bg-red-500' : 'bg-emerald-500'
@@ -450,10 +450,10 @@ const PredictionsPage = () => {
                             />
                           </div>
                         </div>
-                        <div className="pt-2.5 border-t border-slate-800/50 flex justify-between items-center text-[10px]">
+                        <div className="pt-2.5 border-t border-slate-100 dark:border-slate-800/50 flex justify-between items-center text-[10px]">
                           <span className="text-slate-500 font-semibold">Requirement threshold: 75%</span>
                           <span className={`font-bold uppercase ${
-                            predictedResult.attendance_rate < 75 ? 'text-red-400' : 'text-emerald-450'
+                            predictedResult.attendance_rate < 75 ? 'text-red-400' : 'text-emerald-650 dark:text-emerald-455'
                           }`}>
                             {predictedResult.attendance_rate < 75 ? 'Critical Drop' : 'Optimal'}
                           </span>
@@ -461,17 +461,17 @@ const PredictionsPage = () => {
                       </div>
 
                       {/* Backlog Risk Level */}
-                      <div className="bg-slate-900/60 border border-slate-800 p-6 rounded-3xl flex flex-col justify-between min-h-[150px] hover:border-indigo-500/25 transition-all">
+                      <div className="bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 p-6 rounded-3xl flex flex-col justify-between min-h-[150px] hover:border-indigo-500/25 transition-all">
                         <div className="flex items-center justify-between">
-                          <span className="text-[10px] text-slate-450 uppercase font-bold tracking-wider">Backlog Risk Status</span>
-                          <ShieldAlert className="text-indigo-400" size={18} />
+                          <span className="text-[10px] text-slate-500 dark:text-slate-450 uppercase font-bold tracking-wider">Backlog Risk Status</span>
+                          <ShieldAlert className="text-indigo-650 dark:text-indigo-400" size={18} />
                         </div>
                         <div className="py-2">
                           <span className={`text-xs font-black px-3 py-1 rounded-full border inline-block ${getRiskColor(predictedResult.risk_level)}`}>
                             {predictedResult.risk_level} Risk Index ({predictedResult.backlog_risk}%)
                           </span>
                         </div>
-                        <div className="pt-2.5 border-t border-slate-800/50 flex justify-between items-center text-[10px] text-slate-500 font-semibold uppercase">
+                        <div className="pt-2.5 border-t border-slate-100 dark:border-slate-800/50 flex justify-between items-center text-[10px] text-slate-500 font-semibold uppercase">
                           <span>Rule-based audit check</span>
                           <span>Passed</span>
                         </div>
@@ -479,28 +479,28 @@ const PredictionsPage = () => {
                     </div>
 
                     {/* Weak Subject Detection Alert */}
-                    <div className="bg-slate-900/60 border border-slate-800 rounded-3xl p-5 space-y-3">
+                    <div className="bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 space-y-3">
                       <div>
-                        <h4 className="font-extrabold text-white text-xs flex items-center gap-1.5">
-                          <BookOpen className="text-indigo-400" size={16} />
+                        <h4 className="font-extrabold text-slate-900 dark:text-white text-xs flex items-center gap-1.5">
+                          <BookOpen className="text-indigo-600 dark:text-indigo-400" size={16} />
                           Subject-Level Remediation Index
                         </h4>
-                        <p className="text-[10px] text-slate-450 mt-0.5">Identified weak subjects requiring target training to boost grades</p>
+                        <p className="text-[10px] text-slate-550 dark:text-slate-450 mt-0.5">Identified weak subjects requiring target training to boost grades</p>
                       </div>
 
                       <div className="flex flex-wrap gap-2.5">
                         {predictedResult.weak_subjects && predictedResult.weak_subjects.map((sub, idx) => (
                           <div 
                             key={idx} 
-                            className="bg-slate-950 border border-slate-850 px-3.5 py-2.5 rounded-2xl flex items-center justify-between gap-6 text-xs w-full sm:w-[48%]"
+                            className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 px-3.5 py-2.5 rounded-2xl flex items-center justify-between gap-6 text-xs w-full sm:w-[48%]"
                           >
                             <div className="space-y-0.5">
-                              <span className="font-bold text-white block truncate max-w-[160px]">{sub}</span>
-                              <span className="text-[9px] text-red-400 font-semibold">Priority Remediation Area</span>
+                              <span className="font-bold text-slate-850 dark:text-white block truncate max-w-[160px]">{sub}</span>
+                              <span className="text-[9px] text-red-500 dark:text-red-400 font-semibold">Priority Remediation Area</span>
                             </div>
                             <a 
                               href="/student-hub/programming"
-                              className="text-[9px] text-indigo-400 hover:text-indigo-300 font-extrabold uppercase flex items-center gap-1 bg-indigo-500/5 px-2.5 py-1 rounded-lg border border-indigo-500/10 hover:border-indigo-500/25 transition"
+                              className="text-[9px] text-indigo-650 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 font-extrabold uppercase flex items-center gap-1 bg-indigo-500/5 px-2.5 py-1 rounded-lg border border-indigo-500/10 hover:border-indigo-500/25 transition"
                             >
                               Practice Quiz
                               <ArrowRight size={10} />
@@ -511,23 +511,23 @@ const PredictionsPage = () => {
                     </div>
 
                     {/* Academic AI Advisor recommendations */}
-                    <div className="bg-slate-900/60 border border-slate-800 rounded-3xl p-6 space-y-4">
-                      <h4 className="font-extrabold text-white text-xs flex items-center gap-1.5">
-                        <Sparkles className="text-indigo-400" size={16} />
+                    <div className="bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 space-y-4">
+                      <h4 className="font-extrabold text-slate-900 dark:text-white text-xs flex items-center gap-1.5">
+                        <Sparkles className="text-indigo-650 dark:text-indigo-400" size={16} />
                         AI Advisor Actions Plan
                       </h4>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 text-xs text-slate-400">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 text-xs text-slate-500 dark:text-slate-400">
                         {predictedResult.recommendations && predictedResult.recommendations.map((rec, idx) => {
                           const isWarning = rec.toLowerCase().includes("attendance") || rec.toLowerCase().includes("absences") || rec.toLowerCase().includes("remediation");
                           return (
-                            <div key={idx} className="p-3.5 bg-slate-950/80 border border-slate-850 rounded-2xl flex gap-3 align-start">
+                            <div key={idx} className="p-3.5 bg-slate-50 dark:bg-slate-950/80 border border-slate-200 dark:border-slate-855 rounded-2xl flex gap-3 align-start">
                               {isWarning ? (
-                                <AlertTriangle className="text-amber-400 shrink-0 mt-0.5" size={16} />
+                                <AlertTriangle className="text-amber-500 dark:text-amber-400 shrink-0 mt-0.5" size={16} />
                               ) : (
-                                <CheckCircle className="text-emerald-500 shrink-0 mt-0.5" size={16} />
+                                <CheckCircle className="text-emerald-555 dark:text-emerald-500 shrink-0 mt-0.5" size={16} />
                               )}
                               <div>
-                                <h5 className="font-extrabold text-white text-[11px]">Recommendation #{idx + 1}</h5>
+                                <h5 className="font-extrabold text-slate-900 dark:text-white text-[11px]">Recommendation #{idx + 1}</h5>
                                 <p className="mt-1 text-[10px] leading-relaxed">{rec}</p>
                               </div>
                             </div>
@@ -551,9 +551,9 @@ const PredictionsPage = () => {
             >
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* GPA Projection Area Chart */}
-                <div className="bg-slate-900/60 border border-slate-800 p-6 rounded-3xl lg:col-span-2">
-                  <h3 className="font-extrabold text-white text-xs md:text-sm mb-4 flex items-center gap-2">
-                    <TrendingUp className="text-indigo-400" size={16} />
+                <div className="bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 p-6 rounded-3xl lg:col-span-2">
+                  <h3 className="font-extrabold text-slate-900 dark:text-white text-xs md:text-sm mb-4 flex items-center gap-2">
+                    <TrendingUp className="text-indigo-650 dark:text-indigo-400" size={16} />
                     Historical GPA & Projections Trajectory
                   </h3>
                   <div className="h-64">
@@ -565,7 +565,7 @@ const PredictionsPage = () => {
                             <stop offset="95%" stopColor="#4f46e5" stopOpacity={0} />
                           </linearGradient>
                         </defs>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" opacity={0.5} />
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" darkStroke="#1e293b" opacity={0.5} />
                         <XAxis dataKey="name" stroke="#64748b" fontSize={10} />
                         <YAxis domain={[4.0, 10.0]} stroke="#64748b" fontSize={10} />
                         <Tooltip 
@@ -587,15 +587,15 @@ const PredictionsPage = () => {
                 </div>
 
                 {/* Grade Progression Bar Chart */}
-                <div className="bg-slate-900/60 border border-slate-800 p-6 rounded-3xl">
-                  <h3 className="font-extrabold text-white text-xs md:text-sm mb-4 flex items-center gap-2">
-                    <BarChart2 className="text-indigo-400" size={16} />
+                <div className="bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 p-6 rounded-3xl">
+                  <h3 className="font-extrabold text-slate-900 dark:text-white text-xs md:text-sm mb-4 flex items-center gap-2">
+                    <BarChart2 className="text-indigo-650 dark:text-indigo-400" size={16} />
                     Term Grade Progression
                   </h3>
                   <div className="h-64">
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={getG1G2FinalDataset()}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" opacity={0.5} />
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" darkStroke="#1e293b" opacity={0.5} />
                         <XAxis dataKey="name" stroke="#64748b" fontSize={10} />
                         <YAxis domain={[0, 20]} stroke="#64748b" fontSize={10} />
                         <Tooltip 
@@ -611,33 +611,33 @@ const PredictionsPage = () => {
 
               {/* Extra Telemetry stats indicators */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="bg-slate-900/40 border border-slate-800/80 p-5 rounded-2xl flex items-center gap-3">
+                <div className="bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800/80 p-5 rounded-2xl flex items-center gap-3">
                   <div className="p-3 bg-indigo-500/10 border border-indigo-500/10 rounded-xl">
-                    <Target className="text-indigo-400" size={20} />
+                    <Target className="text-indigo-655 dark:text-indigo-400" size={20} />
                   </div>
                   <div>
-                    <span className="text-[10px] text-slate-450 uppercase font-semibold block">Forecast Success Accuracy</span>
-                    <span className="text-sm font-bold text-white mt-0.5">91.8% Accuracy Index</span>
+                    <span className="text-[10px] text-slate-500 dark:text-slate-450 uppercase font-semibold block">Forecast Success Accuracy</span>
+                    <span className="text-sm font-bold text-slate-850 dark:text-white mt-0.5">91.8% Accuracy Index</span>
                   </div>
                 </div>
 
-                <div className="bg-slate-900/40 border border-slate-800/80 p-5 rounded-2xl flex items-center gap-3">
+                <div className="bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800/80 p-5 rounded-2xl flex items-center gap-3">
                   <div className="p-3 bg-emerald-500/10 border border-emerald-500/10 rounded-xl">
-                    <Award className="text-emerald-400" size={20} />
+                    <Award className="text-emerald-555 dark:text-emerald-400" size={20} />
                   </div>
                   <div>
-                    <span className="text-[10px] text-slate-450 uppercase font-semibold block">Predicted Semester Honors</span>
-                    <span className="text-sm font-bold text-white mt-0.5">First Class Dist.</span>
+                    <span className="text-[10px] text-slate-500 dark:text-slate-450 uppercase font-semibold block">Predicted Semester Honors</span>
+                    <span className="text-sm font-bold text-slate-850 dark:text-white mt-0.5">First Class Dist.</span>
                   </div>
                 </div>
 
-                <div className="bg-slate-900/40 border border-slate-800/80 p-5 rounded-2xl flex items-center gap-3">
+                <div className="bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800/80 p-5 rounded-2xl flex items-center gap-3">
                   <div className="p-3 bg-red-500/10 border border-red-500/10 rounded-xl">
-                    <AlertTriangle className="text-red-450" size={20} />
+                    <AlertTriangle className="text-red-555 dark:text-red-450" size={20} />
                   </div>
                   <div>
-                    <span className="text-[10px] text-slate-450 uppercase font-semibold block">Minimum safe study bracket</span>
-                    <span className="text-sm font-bold text-white mt-0.5">&gt; 5 hrs weekly (suggested)</span>
+                    <span className="text-[10px] text-slate-500 dark:text-slate-455 uppercase font-semibold block">Minimum safe study bracket</span>
+                    <span className="text-sm font-bold text-slate-850 dark:text-white mt-0.5">&gt; 5 hrs weekly (suggested)</span>
                   </div>
                 </div>
               </div>
@@ -650,14 +650,14 @@ const PredictionsPage = () => {
               initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: 10 }}
-              className="bg-slate-900/60 border border-slate-800 rounded-3xl p-6"
+              className="bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 rounded-3xl p-6"
             >
               <div>
-                <h3 className="font-extrabold text-white text-base flex items-center gap-1.5">
-                  <History className="text-indigo-400" size={18} />
+                <h3 className="font-extrabold text-slate-900 dark:text-white text-base flex items-center gap-1.5">
+                  <History className="text-indigo-650 dark:text-indigo-400" size={18} />
                   Simulation Telemetry Log
                 </h3>
-                <p className="text-[10px] text-slate-450 mt-0.5">Chronological index of past performance forecasting runs</p>
+                <p className="text-[10px] text-slate-500 dark:text-slate-450 mt-0.5">Chronological index of past performance forecasting runs</p>
               </div>
 
               {historyLoading ? (
@@ -667,7 +667,7 @@ const PredictionsPage = () => {
                 </div>
               ) : history.length === 0 ? (
                 <div className="text-center py-16 text-slate-500 text-xs">
-                  <FileText className="mx-auto text-slate-650 mb-3" size={32} />
+                  <FileText className="mx-auto text-slate-400 dark:text-slate-650 mb-3" size={32} />
                   <p className="font-bold">No Forecast Runs Documented</p>
                   <p className="text-[10px] text-slate-500 mt-1">Submit the forecasting form to generate telemetry log history.</p>
                 </div>
@@ -675,7 +675,7 @@ const PredictionsPage = () => {
                 <div className="overflow-x-auto mt-6">
                   <table className="w-full border-collapse text-left text-xs">
                     <thead>
-                      <tr className="border-b border-slate-800 text-[10px] text-slate-450 uppercase font-bold tracking-wider">
+                      <tr className="border-b border-slate-200 dark:border-slate-800 text-[10px] text-slate-500 dark:text-slate-450 uppercase font-bold tracking-wider">
                         <th className="pb-3 pl-2">Timestamp</th>
                         <th className="pb-3">Inputs (Age/Study/Fail/Abs)</th>
                         <th className="pb-3">G1/G2</th>
@@ -685,19 +685,19 @@ const PredictionsPage = () => {
                         <th className="pb-3 text-right pr-2">Action</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-800/50">
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800/50">
                       {history.map((run, idx) => (
-                        <tr key={run.prediction_id} className="hover:bg-slate-950/40 text-slate-350 transition-colors">
+                        <tr key={run.prediction_id} className="hover:bg-slate-50 dark:hover:bg-slate-950/40 text-slate-600 dark:text-slate-350 transition-colors">
                           <td className="py-3.5 pl-2 text-[10px] text-slate-500">
                             {run.created_at ? new Date(run.created_at.replace(" ", "T")).toLocaleDateString() : 'N/A'}
                           </td>
-                          <td className="py-3.5 font-semibold text-slate-200">
+                          <td className="py-3.5 font-semibold text-slate-700 dark:text-slate-200">
                             Age: {run.age} • {getStudyTimeLabel(run.studytime)} • F: {run.failures} • Abs: {run.absences}
                           </td>
                           <td className="py-3.5">
                             {run.G1} / {run.G2}
                           </td>
-                          <td className="py-3.5 text-white font-extrabold">
+                          <td className="py-3.5 text-slate-900 dark:text-white font-extrabold">
                             {run.predicted_cgpa}
                           </td>
                           <td className="py-3.5">
@@ -705,13 +705,13 @@ const PredictionsPage = () => {
                               {run.risk_level} ({run.backlog_risk}%)
                             </span>
                           </td>
-                          <td className="py-3.5 text-[10px] text-slate-400 truncate max-w-[150px]" title={run.weak_subjects?.join(", ")}>
+                          <td className="py-3.5 text-[10px] text-slate-500 dark:text-slate-400 truncate max-w-[150px]" title={run.weak_subjects?.join(", ")}>
                             {run.weak_subjects ? run.weak_subjects.join(", ") : "None"}
                           </td>
                           <td className="py-3.5 text-right pr-2">
                             <button
                               onClick={() => handleRestore(run)}
-                              className="px-2.5 py-1 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 font-extrabold rounded-lg border border-indigo-500/10 transition text-[10px] inline-flex items-center gap-1 cursor-pointer"
+                              className="px-2.5 py-1 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-650 dark:text-indigo-400 font-extrabold rounded-lg border border-indigo-500/10 transition text-[10px] inline-flex items-center gap-1 cursor-pointer"
                             >
                               <RotateCcw size={10} />
                               Restore

@@ -11,11 +11,13 @@ const StudentHubCard = ({ icon: Icon, title, description, badge, onClick }) => {
 
   return (
     <motion.div
+    
       onClick={onClick}
       whileHover={{ y: -4, scale: 1.01 }}
       transition={{ duration: 0.2 }}
       className={`relative cursor-pointer rounded-2xl border ${theme.border} bg-white dark:bg-brand-card hover:bg-slate-50/50 dark:hover:bg-brand-cardlight/30 transition-all duration-300 shadow-premium hover:shadow-premium-lg overflow-hidden group`}
     >
+      <div className="p-6">
       {/* Decorative inner glow */}
       <div className="absolute right-0 top-0 -mr-6 -mt-6 w-24 h-24 bg-white/5 blur-2xl rounded-full group-hover:bg-white/10 transition-colors duration-300" />
       
@@ -31,19 +33,20 @@ const StudentHubCard = ({ icon: Icon, title, description, badge, onClick }) => {
       </div>
 
       <div className="mt-6">
-        <h3 className="text-lg font-bold text-white group-hover:text-slate-200 transition-colors">
-          {title}
+<h3 className="text-lg font-bold text-slate-900 dark:text-white group-hover:text-slate-700 dark:group-hover:text-slate-200 transition-colors">          {title}
         </h3>
-        <p className="mt-2 text-sm text-slate-400 leading-relaxed group-hover:text-slate-300 transition-colors">
+        <p className="mt-2 text-sm text-slate-600 dark:text-slate-400 leading-relaxed group-hover:text-slate-700 dark:group-hover:text-slate-300 transition-colors">
           {description}
         </p>
       </div>
 
-      <div className="mt-6 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-slate-500 group-hover:text-slate-300 transition-colors">
-        <span>Open Console</span>
+      <div className="mt-6 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-500 group-hover:text-slate-700 dark:group-hover:text-slate-300 transition-colors">
+          <span>Open Console</span>
         <ArrowRight size={14} className="transform group-hover:translate-x-1 transition-transform" />
       </div>
+      </div>
     </motion.div>
+    
   );
 };
 

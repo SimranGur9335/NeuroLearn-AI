@@ -492,6 +492,14 @@ class SystemSettingsInput(BaseModel):
     branding_color: Optional[str] = ""
     theme_preference: Optional[str] = ""
 
+class InstitutionConfigurationInput(BaseModel):
+    institution_name: str
+    logo_url: Optional[str] = ""
+    academic_year: str
+    theme: Optional[str] = ""
+    contact_email: Optional[str] = ""
+    contact_phone: Optional[str] = ""
+
 class LoginInput(BaseModel):
     email: str
     password: str
@@ -1830,6 +1838,7 @@ def delete_student(student_id: int, current_user: dict = Depends(require_role(["
 # --- Faculty CRUD ---
 
 @app.get("/api/faculty")
+@app.get("/faculty")
 def get_faculty(current_user: dict = Depends(require_role(["admin", "faculty"]))):
     db = SessionLocal()
     try:
@@ -3681,6 +3690,84 @@ def delete_academic_term(term_id: int, current_user: dict = Depends(require_role
         db.commit()
         log_audit(db, "DELETE", "AcademicTerm", term_id)
         return {"message": "Academic term deleted successfully"}
+    finally:
+        db.close()
+
+
+# --- Institution Branding Endpoints ---
+
+@app.get("/api/v1/institution/configuration")
+def get_institution_configuration(current_user: dict = Depends(get_current_user)):
+    iid = current_user.get("institution_id")
+    if not iid:
+        raise HTTPException(status_code=400, detail="User is not associated with any institution")
+    
+    db = SessionLocal()
+    try:
+        inst = db.execute(
+            text("SELECT institution_name, logo_url, academic_year, theme_color, contact_email, contact_phone FROM institutions WHERE institution_id = :iid"),
+            {"iid": iid}
+        ).fetchone()
+        
+        if not inst:
+            raise HTTPException(status_code=404, detail="Institution configuration not found")
+            
+        return {
+            "institution_name": inst.institution_name,
+            "logo_url": inst.logo_url,
+            "academic_year": inst.academic_year,
+            "theme": inst.theme_color,
+            "contact_email": inst.contact_email or "",
+            "contact_phone": inst.contact_phone or ""
+        }
+    finally:
+        db.close()
+
+@app.post("/api/v1/institution/configuration")
+def update_institution_configuration(data: InstitutionConfigurationInput, current_user: dict = Depends(get_current_user)):
+    if current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Permission denied: Only College Admin may modify branding")
+        
+    iid = current_user.get("institution_id")
+    if not iid:
+        raise HTTPException(status_code=400, detail="User is not associated with any institution")
+        
+    db = SessionLocal()
+    try:
+        inst = db.execute(
+            text("SELECT institution_id FROM institutions WHERE institution_id = :iid"),
+            {"iid": iid}
+        ).fetchone()
+        if not inst:
+            raise HTTPException(status_code=404, detail="Institution not found")
+            
+        db.execute(
+            text("""
+                UPDATE institutions
+                SET institution_name = :name,
+                    logo_url = :logo,
+                    academic_year = :year,
+                    theme_color = :theme,
+                    contact_email = :email,
+                    contact_phone = :phone
+                WHERE institution_id = :iid
+            """),
+            {
+                "name": data.institution_name,
+                "logo": data.logo_url,
+                "year": data.academic_year,
+                "theme": data.theme,
+                "email": data.contact_email,
+                "phone": data.contact_phone,
+                "iid": iid
+            }
+        )
+        db.commit()
+        log_audit(db, "UPDATE_BRANDING", "Institution", iid, performed_by=f"Admin {current_user['user_id']}", institution_id=iid)
+        return {"message": "Institution branding updated successfully"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
     finally:
         db.close()
 
@@ -10380,10 +10467,10 @@ def get_student_badges_api(current_user: dict = Depends(get_current_user)):
         """), {"sid": student_id}).fetchall()
         unlocked_badge_ids = {r.badge_id for r in unlocked_res}
         
-        xp_pts = metrics.xp_points if metrics else 0
-        streak_val = metrics.streak if metrics else 0
-        cgpa_val = float(metrics.predicted_cgpa) if metrics else 0.0
-        attendance_val = float(metrics.attendance) if metrics else 0.0
+        xp_pts = metrics.xp_points or 0 if metrics else 0
+        streak_val = metrics.streak or 0 if metrics else 0
+        cgpa_val = float(metrics.predicted_cgpa or 0.0) if metrics else 0.0
+        attendance_val = float(metrics.attendance or 0.0) if metrics else 0.0
         
         badges_list = [
           { "id": "b1", "name": "Academic Topper", "description": "Achieve the highest score in your department quiz.", "category": "Academic Excellence", "icon": "Trophy", "xpReward": 500, "unlockCondition": "Rank 1 in Department Quiz", "unlocked": "b1" in unlocked_badge_ids, "progress": { "current": 1 if "b1" in unlocked_badge_ids else 0, "target": 1 } },

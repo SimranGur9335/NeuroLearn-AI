@@ -69,7 +69,7 @@
   h1, h2, h3, h4, h5, h6 {
     font-family: 'Geist', 'Manrope', sans-serif;
     font-weight: 600;
-    @apply tracking-tight font-heading;
+    @apply tracking-tight ;
   }
   
   code, pre {

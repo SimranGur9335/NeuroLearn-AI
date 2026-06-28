@@ -64,15 +64,15 @@ const AnnouncementsPage = () => {
 
       {loading ? (
         <div className="flex flex-col items-center justify-center min-h-[30vh] space-y-4">
-          <div className="w-8 h-8 border-4 border-slate-700 border-t-indigo-500 rounded-full animate-spin" />
-          <span className="text-slate-400 text-xs animate-pulse">Loading notices bulletin...</span>
+          <div className="w-8 h-8 border-4 border-slate-200 dark:border-slate-700 border-t-indigo-500 rounded-full animate-spin" />
+          <span className="text-slate-500 dark:text-slate-400 text-xs animate-pulse">Loading notices bulletin...</span>
         </div>
       ) : error ? (
-        <div className="bg-red-500/10 border border-red-500/30 p-4 rounded-xl text-red-400 text-sm">
+        <div className="bg-red-500/10 border border-red-500/30 p-4 rounded-xl text-red-650 dark:text-red-400 text-sm">
           {error}
         </div>
       ) : announcements.length === 0 ? (
-        <div className="bg-slate-900 border border-slate-800 p-12 rounded-2xl text-center text-slate-500 text-sm">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-12 rounded-2xl text-center text-slate-500 dark:text-slate-400 text-sm">
           No announcements have been published for you yet.
         </div>
       ) : (
@@ -80,14 +80,14 @@ const AnnouncementsPage = () => {
           {announcements.map((ann) => (
             <div 
               key={ann.announcement_id}
-              className={`bg-slate-900/60 border ${ann.is_read ? 'border-slate-850' : `border-slate-800 shadow-lg` // highlighting unread
-              } rounded-2xl p-6 hover:border-slate-700 transition-all duration-300 relative overflow-hidden`}
+              className={`bg-white dark:bg-slate-900/60 border ${ann.is_read ? 'border-slate-100 dark:border-slate-850' : `border-slate-200 dark:border-slate-800 shadow-sm dark:shadow-lg` // highlighting unread
+              } rounded-2xl p-6 hover:border-indigo-500/30 hover:shadow-md transition-all duration-300 relative overflow-hidden`}
             >
               {/* Subtle unread glow bar on the left */}
               {!ann.is_read && (
                 <div className={`absolute left-0 top-0 bottom-0 w-1 ${theme.accent}`} />
               )}
-
+ 
               <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
                 <div className="space-y-3">
                   <div className="flex flex-wrap items-center gap-2">
@@ -106,13 +106,13 @@ const AnnouncementsPage = () => {
                       </span>
                     )}
                   </div>
-
+ 
                   <div className="space-y-1">
-                    <h3 className="font-extrabold text-lg text-white leading-snug">{ann.title}</h3>
-                    <p className="text-sm text-slate-300 leading-relaxed whitespace-pre-line">{ann.description}</p>
+                    <h3 className="font-extrabold text-lg text-slate-900 dark:text-white leading-snug">{ann.title}</h3>
+                    <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed whitespace-pre-line">{ann.description}</p>
                   </div>
-
-                  <div className="flex flex-wrap items-center gap-4 text-xs text-slate-500 font-medium">
+ 
+                  <div className="flex flex-wrap items-center gap-4 text-xs text-slate-500 dark:text-slate-400 font-medium">
                     <span className="flex items-center gap-1">
                       <User size={13} />
                       Sender: {ann.sender_name} ({ann.sender_type})
@@ -129,12 +129,12 @@ const AnnouncementsPage = () => {
                     </span>
                   </div>
                 </div>
-
+ 
                 {/* Mark read button */}
                 {!ann.is_read && (
                   <button
                     onClick={() => handleMarkAsRead(ann.announcement_id)}
-                    className={`shrink-0 self-start md:self-auto bg-slate-800 hover:bg-slate-700 text-white hover:${theme.text} border border-slate-700/80 hover:border-slate-600 font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 transition-all cursor-pointer`}
+                    className={`shrink-0 self-start md:self-auto bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white border border-slate-200 dark:border-slate-700/80 hover:border-slate-300 dark:hover:border-slate-600 font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 transition-all cursor-pointer`}
                   >
                     <Check size={14} />
                     <span>Acknowledge</span>

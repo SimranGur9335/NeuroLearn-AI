@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  Trophy, 
-  Award, 
-  Flame, 
-  Star, 
-  Sparkles, 
-  Search, 
+import {
+  Trophy,
+  Award,
+  Flame,
+  Star,
+  Sparkles,
+  Search,
   GraduationCap,
   Zap,
   Percent,
@@ -140,8 +140,8 @@ const Leaderboard = () => {
   const searchedLeaderboard = useMemo(() => {
     if (!searchQuery) return leaderboardData;
     const query = searchQuery.toLowerCase();
-    return leaderboardData.filter(s => 
-      s.name.toLowerCase().includes(query) || 
+    return leaderboardData.filter(s =>
+      s.name.toLowerCase().includes(query) ||
       (s.branch && s.branch.toLowerCase().includes(query)) ||
       (s.designation && s.designation.toLowerCase().includes(query))
     );
@@ -160,18 +160,18 @@ const Leaderboard = () => {
 
   // Current user row in leaderboard list
   const currentUserRow = useMemo(() => {
-    return leaderboardData.find(s => 
-      s.name.includes("You") || 
-      s.name === profile.name || 
+    return leaderboardData.find(s =>
+      s.name.includes("You") ||
+      s.name === profile.name ||
       s.rollNumber === profile.rollNumber ||
       (leaderboardType === "faculty" && s.name === profile.name)
     );
   }, [leaderboardData, profile, leaderboardType]);
 
   const isCurrentUserInSearchResults = useMemo(() => {
-    return searchedLeaderboard.some(s => 
-      s.name.includes("You") || 
-      s.name === profile.name || 
+    return searchedLeaderboard.some(s =>
+      s.name.includes("You") ||
+      s.name === profile.name ||
       s.rollNumber === profile.rollNumber
     );
   }, [searchedLeaderboard, profile]);
@@ -199,7 +199,7 @@ const Leaderboard = () => {
       {statsData && (
         <div className="relative overflow-hidden rounded-3xl border border-slate-200/50 dark:border-slate-800/50 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-950 p-6 md:p-8 shadow-2xl text-white">
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-indigo-500/10 via-transparent to-transparent pointer-events-none" />
-          
+
           <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
             <div className="flex items-center gap-4 md:gap-6">
               <span className="text-4xl md:text-5xl p-4 rounded-3xl bg-white/10 backdrop-blur-md border border-white/10 shadow-inner">
@@ -213,7 +213,7 @@ const Leaderboard = () => {
                   </span>
                 </div>
                 <p className="text-slate-400 text-xs mt-0.5 font-medium">{profile.branch} • {profile.year}</p>
-                
+
                 {profile.role === 'student' && (
                   <div className="mt-3 flex items-center gap-3">
                     <span className="bg-white/10 text-indigo-300 text-xs px-2.5 py-0.5 rounded-md font-bold backdrop-blur-sm">
@@ -258,7 +258,7 @@ const Leaderboard = () => {
                 <span>{statsData.progress_percent}% to Next Level</span>
               </div>
               <div className="w-full h-2.5 bg-slate-950/80 rounded-full overflow-hidden border border-white/5">
-                <motion.div 
+                <motion.div
                   initial={{ width: 0 }}
                   animate={{ width: `${statsData.progress_percent}%` }}
                   transition={{ duration: 0.8, ease: "easeOut" }}
@@ -275,31 +275,28 @@ const Leaderboard = () => {
         <div className="flex items-center justify-center bg-slate-900/60 border border-slate-800 p-1.5 rounded-2xl max-w-lg mx-auto">
           <button
             onClick={() => setActiveTab("leaderboard")}
-            className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
-              activeTab === "leaderboard" 
-                ? `${theme.bg} ${theme.text} border border-indigo-500/20 shadow-md` 
+            className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${activeTab === "leaderboard"
+                ? `${theme.bg} ${theme.text} border border-indigo-500/20 shadow-md`
                 : 'text-slate-400 hover:text-white'
-            }`}
+              }`}
           >
             <Trophy size={14} /> Campus Leaderboard
           </button>
           <button
             onClick={() => setActiveTab("badges")}
-            className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
-              activeTab === "badges" 
-                ? `${theme.bg} ${theme.text} border border-indigo-500/20 shadow-md` 
+            className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${activeTab === "badges"
+                ? `${theme.bg} ${theme.text} border border-indigo-500/20 shadow-md`
                 : 'text-slate-400 hover:text-white'
-            }`}
+              }`}
           >
             <Award size={14} /> Badge Vault
           </button>
           <button
             onClick={() => setActiveTab("analytics")}
-            className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
-              activeTab === "analytics" 
-                ? `${theme.bg} ${theme.text} border border-indigo-500/20 shadow-md` 
+            className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${activeTab === "analytics"
+                ? `${theme.bg} ${theme.text} border border-indigo-500/20 shadow-md`
                 : 'text-slate-400 hover:text-white'
-            }`}
+              }`}
           >
             <BarChart2 size={14} /> Quiz Analytics
           </button>
@@ -323,32 +320,30 @@ const Leaderboard = () => {
                   <Trophy className="text-yellow-500" size={18} />
                   Top Standings Podium
                 </h3>
-                
+
                 <div className="grid grid-cols-3 gap-3 md:gap-6 items-end pt-8 pb-4 max-w-xl mx-auto">
                   {podiumList.map((member) => {
                     const isRank1 = member.place === 1;
                     const isUser = member.name.includes("You") || member.name === profile.name;
-                    
+
                     return (
                       <div key={member.id} className="flex flex-col items-center">
                         <div className="relative group mb-3">
-                          <div className={`w-14 h-14 md:w-20 md:h-20 rounded-full bg-slate-955 flex items-center justify-center text-2xl md:text-4xl shadow-lg border-4 transition-transform duration-300 group-hover:scale-105 ${
-                            isRank1 
-                              ? 'border-yellow-400 dark:border-yellow-500 w-16 h-16 md:w-24 md:h-24 shadow-yellow-500/10' 
-                              : member.place === 2 
-                                ? 'border-slate-400' 
+                          <div className={`w-14 h-14 md:w-20 md:h-20 rounded-full bg-slate-900 flex items-center justify-center text-2xl md:text-4xl shadow-lg border-4 transition-transform duration-300 group-hover:scale-105 ${isRank1
+                              ? 'border-yellow-400 dark:border-yellow-500 w-16 h-16 md:w-24 md:h-24 shadow-yellow-500/10'
+                              : member.place === 2
+                                ? 'border-slate-400'
                                 : 'border-amber-600'
-                          } ${isUser ? 'ring-4 ring-indigo-500/40 ring-offset-2 ring-offset-slate-950' : ''}`}>
+                            } ${isUser ? 'ring-4 ring-indigo-500/40 ring-offset-2 ring-offset-slate-950' : ''}`}>
                             {member.avatar || "🚀"}
                           </div>
-                          
-                          <span className={`absolute -bottom-1 -right-1 w-6 h-6 rounded-full flex items-center justify-center text-xs font-black shadow border border-slate-900 ${
-                            isRank1 
-                              ? 'bg-yellow-400 text-slate-950 text-sm' 
-                              : member.place === 2 
-                                ? 'bg-slate-200 text-slate-700' 
+
+                          <span className={`absolute -bottom-1 -right-1 w-6 h-6 rounded-full flex items-center justify-center text-xs font-black shadow border border-slate-900 ${isRank1
+                              ? 'bg-yellow-400 text-slate-950 text-sm'
+                              : member.place === 2
+                                ? 'bg-slate-200 text-slate-700'
                                 : 'bg-amber-100 text-amber-800'
-                          }`}>
+                            }`}>
                             {member.icon}
                           </span>
                         </div>
@@ -362,13 +357,12 @@ const Leaderboard = () => {
                           </p>
                         </div>
 
-                        <div className={`w-full mt-4 rounded-t-2xl flex flex-col justify-end items-center p-3 text-center border-t shadow-inner ${
-                          isRank1 
-                            ? 'h-28 md:h-36 bg-gradient-to-b from-yellow-500/10 via-yellow-500/5 to-transparent border-yellow-500/35' 
-                            : member.place === 2 
-                              ? 'h-20 md:h-26 bg-gradient-to-b from-slate-400/10 via-slate-400/5 to-transparent border-slate-400/30' 
+                        <div className={`w-full mt-4 rounded-t-2xl flex flex-col justify-end items-center p-3 text-center border-t shadow-inner ${isRank1
+                            ? 'h-28 md:h-36 bg-gradient-to-b from-yellow-500/10 via-yellow-500/5 to-transparent border-yellow-500/35'
+                            : member.place === 2
+                              ? 'h-20 md:h-26 bg-gradient-to-b from-slate-400/10 via-slate-400/5 to-transparent border-slate-400/30'
                               : 'h-16 md:h-20 bg-gradient-to-b from-amber-600/10 via-amber-600/5 to-transparent border-amber-600/30'
-                        }`}>
+                          }`}>
                           <span className="block text-xs font-black text-slate-200">
                             {member.xp?.toLocaleString()}
                           </span>
@@ -393,11 +387,10 @@ const Leaderboard = () => {
                       setLeaderboardType("student");
                       setLeaderboardFilter("institution");
                     }}
-                    className={`px-4 py-2 rounded-xl text-xs font-bold border transition-all ${
-                      leaderboardType === "student"
+                    className={`px-4 py-2 rounded-xl text-xs font-bold border transition-all ${leaderboardType === "student"
                         ? `${theme.bg} ${theme.text} border-indigo-500/50`
                         : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-white'
-                    }`}
+                      }`}
                   >
                     🏆 Student Leaderboard
                   </button>
@@ -406,11 +399,10 @@ const Leaderboard = () => {
                       setLeaderboardType("faculty");
                       setLeaderboardFilter("institution");
                     }}
-                    className={`px-4 py-2 rounded-xl text-xs font-bold border transition-all ${
-                      leaderboardType === "faculty"
+                    className={`px-4 py-2 rounded-xl text-xs font-bold border transition-all ${leaderboardType === "faculty"
                         ? `${theme.bg} ${theme.text} border-indigo-500/50`
                         : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-white'
-                    }`}
+                      }`}
                   >
                     👨‍🏫 Faculty Leaderboard
                   </button>
@@ -428,11 +420,10 @@ const Leaderboard = () => {
                       <button
                         key={tab.id}
                         onClick={() => setLeaderboardFilter(tab.id)}
-                        className={`text-[10px] md:text-xs font-black uppercase px-3 py-1.5 rounded-lg transition-all whitespace-nowrap ${
-                          leaderboardFilter === tab.id 
-                            ? 'bg-indigo-650 text-white shadow' 
+                        className={`text-[10px] md:text-xs font-black uppercase px-3 py-1.5 rounded-lg transition-all whitespace-nowrap ${leaderboardFilter === tab.id
+                            ? 'bg-indigo-650 text-white shadow'
                             : 'text-slate-400 hover:text-white'
-                        }`}
+                          }`}
                       >
                         {tab.name}
                       </button>
@@ -450,7 +441,7 @@ const Leaderboard = () => {
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     placeholder="Search by name, major, or code..."
-                    className="w-full pl-9 pr-3 py-2 text-xs bg-slate-955 border border-slate-800 rounded-xl focus:outline-none focus:border-slate-700 text-white placeholder-slate-500"
+                    className="w-full pl-9 pr-3 py-2 text-xs bg-slate-900 border border-slate-800 rounded-xl focus:outline-none focus:border-slate-700 text-white placeholder-slate-500"
                   />
                 </div>
 
@@ -486,13 +477,12 @@ const Leaderboard = () => {
                           const medal = item.rank === 1 ? "🥇" : item.rank === 2 ? "🥈" : item.rank === 3 ? "🥉" : null;
 
                           return (
-                            <tr 
+                            <tr
                               key={item.id}
-                              className={`transition-colors duration-150 ${
-                                isCurrentUser 
-                                  ? 'bg-indigo-500/10 hover:bg-indigo-500/15 font-bold border-l-4 border-l-indigo-600' 
+                              className={`transition-colors duration-150 ${isCurrentUser
+                                  ? 'bg-indigo-500/10 hover:bg-indigo-500/15 font-bold border-l-4 border-l-indigo-600'
                                   : 'hover:bg-slate-900/40'
-                              }`}
+                                }`}
                             >
                               <td className="py-3.5 pl-4 text-center font-extrabold text-slate-400">
                                 {medal ? <span className="text-sm">{medal}</span> : item.rank}
@@ -630,26 +620,23 @@ const Leaderboard = () => {
                             return (
                               <div
                                 key={badge.id}
-                                className={`p-4 rounded-2xl border flex flex-col justify-between relative transition-all duration-300 ${
-                                  isUnlocked 
-                                    ? 'border-indigo-500/25 bg-slate-955 shadow-inner' 
+                                className={`p-4 rounded-2xl border flex flex-col justify-between relative transition-all duration-300 ${isUnlocked
+                                    ? 'border-indigo-500/25 bg-slate-900 shadow-inner'
                                     : 'border-slate-800/80 bg-slate-950/10 opacity-55 hover:opacity-90'
-                                }`}
+                                  }`}
                               >
                                 <div className="flex items-start justify-between gap-3">
-                                  <div className={`p-2.5 rounded-2xl bg-gradient-to-br shadow-md ${
-                                    isUnlocked 
-                                      ? category.color + ' text-white' 
+                                  <div className={`p-2.5 rounded-2xl bg-gradient-to-br shadow-md ${isUnlocked
+                                      ? category.color + ' text-white'
                                       : 'from-slate-800 to-slate-900 text-slate-500'
-                                  }`}>
+                                    }`}>
                                     <Icon size={16} />
                                   </div>
 
-                                  <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider ${
-                                    isUnlocked 
-                                      ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' 
-                                      : 'bg-slate-900 border border-slate-800 text-slate-550'
-                                  }`}>
+                                  <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider ${isUnlocked
+                                      ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                                      : 'bg-slate-900 border border-slate-800 text-slate-500'
+                                    }`}>
                                     {isUnlocked ? "Unlocked" : "Locked"}
                                   </span>
                                 </div>
@@ -671,8 +658,8 @@ const Leaderboard = () => {
                                       <span>{badge.progress.current} / {badge.progress.target}</span>
                                     </div>
                                     <div className="w-full h-1 bg-slate-900 rounded-full mt-1 overflow-hidden">
-                                      <div 
-                                        className="h-full bg-indigo-650 rounded-full" 
+                                      <div
+                                        className="h-full bg-indigo-650 rounded-full"
                                         style={{ width: `${Math.round((badge.progress.current / badge.progress.target) * 100)}%` }}
                                       />
                                     </div>
@@ -721,9 +708,9 @@ const Leaderboard = () => {
                       <svg className="w-full h-full transform -rotate-90">
                         <circle cx="48" cy="48" r="40" stroke="#1e293b" strokeWidth="8" fill="transparent" />
                         <circle cx="48" cy="48" r="40" stroke="#6366f1" strokeWidth="8" fill="transparent"
-                                strokeDasharray={2 * Math.PI * 40}
-                                strokeDashoffset={2 * Math.PI * 40 * (1 - analyticsData.passing_rate / 100)} 
-                                strokeLinecap="round" />
+                          strokeDasharray={2 * Math.PI * 40}
+                          strokeDashoffset={2 * Math.PI * 40 * (1 - analyticsData.passing_rate / 100)}
+                          strokeLinecap="round" />
                       </svg>
                       <span className="absolute text-lg font-black text-white">{analyticsData.passing_rate}%</span>
                     </div>
@@ -737,9 +724,9 @@ const Leaderboard = () => {
                       <svg className="w-full h-full transform -rotate-90">
                         <circle cx="48" cy="48" r="40" stroke="#1e293b" strokeWidth="8" fill="transparent" />
                         <circle cx="48" cy="48" r="40" stroke="#ec4899" strokeWidth="8" fill="transparent"
-                                strokeDasharray={2 * Math.PI * 40}
-                                strokeDashoffset={2 * Math.PI * 40 * (1 - analyticsData.avg_score / 100)} 
-                                strokeLinecap="round" />
+                          strokeDasharray={2 * Math.PI * 40}
+                          strokeDashoffset={2 * Math.PI * 40 * (1 - analyticsData.avg_score / 100)}
+                          strokeLinecap="round" />
                       </svg>
                       <span className="absolute text-lg font-black text-white">{analyticsData.avg_score}%</span>
                     </div>
@@ -771,7 +758,7 @@ const Leaderboard = () => {
                   <h3 className="font-extrabold text-white text-md flex items-center gap-2">
                     <Activity className="text-indigo-400" size={16} /> Quiz Performance Log History
                   </h3>
-                  
+
                   <div className="overflow-hidden border border-slate-805 rounded-2xl">
                     <table className="w-full text-left border-collapse text-xs">
                       <thead>
