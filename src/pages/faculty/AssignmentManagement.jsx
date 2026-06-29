@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from "../../context/AuthContext";
 import { uploadToSupabase } from '../../utils/supabaseClient';
+import { apiFetch } from "../../services/api";
 import {
   ClipboardList,
   Plus,
@@ -97,7 +98,7 @@ const AssignmentManagement = () => {
   const fetchAssignments = async () => {
     setLoading(true);
     try {
-      const res = await fetch(
+      const res = await apiFetch(
         `/assignments?class_id=${selectedClass.class_id}&subject_id=${selectedClass.subject_id}`
       );
       if (!res.ok) throw new Error("Failed to load assignments");
@@ -114,7 +115,7 @@ const AssignmentManagement = () => {
   const fetchSubmissions = async (assignmentId) => {
     setSubmissionsLoading(true);
     try {
-      const res = await fetch(`/assignments/${assignmentId}/submissions`);
+      const res = await apiFetch(`/assignments/${assignmentId}/submissions`);
       if (!res.ok) throw new Error("Failed to fetch submissions");
       const data = await res.json();
       setSubmissions(data);
@@ -134,9 +135,8 @@ const AssignmentManagement = () => {
 
   const handleCloseIntake = async () => {
     try {
-      const res = await fetch(`http://localhost:8000/assignments/${selectedAssignment.assignment_id}/close`, {
+      const res = await apiFetch(`/assignments/${selectedAssignment.assignment_id}/close`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ faculty_id: facultyId })
       });
       if (!res.ok) {
@@ -155,9 +155,8 @@ const AssignmentManagement = () => {
 
   const handleReopenIntake = async () => {
     try {
-      const res = await fetch(`http://localhost:8000/assignments/${selectedAssignment.assignment_id}/reopen`, {
+      const res = await apiFetch(`/assignments/${selectedAssignment.assignment_id}/reopen`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ faculty_id: facultyId })
       });
       if (!res.ok) {
@@ -193,9 +192,8 @@ const AssignmentManagement = () => {
         faculty_id: facultyId
       };
 
-      const res = await fetch(`/assignments/${assign.assignment_id}`, {
+      const res = await apiFetch(`/assignments/${assign.assignment_id}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)
       });
 
@@ -326,9 +324,8 @@ const AssignmentManagement = () => {
         method = "PUT";
       }
 
-      const res = await fetch(url, {
+      const res = await apiFetch(url, {
         method,
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)
       });
 
@@ -363,7 +360,7 @@ const AssignmentManagement = () => {
 
   const handleDeleteAssignment = async () => {
     try {
-      const res = await fetch(
+      const res = await apiFetch(
         `/assignments/${deleteId}?faculty_id=${facultyId}`,
         { method: "DELETE" }
       );
@@ -413,9 +410,8 @@ const AssignmentManagement = () => {
         faculty_id: facultyId
       };
 
-      const res = await fetch(`/submissions/${selectedSubmission.submission_id}/grade`, {
+      const res = await apiFetch(`/submissions/${selectedSubmission.submission_id}/grade`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)
       });
 

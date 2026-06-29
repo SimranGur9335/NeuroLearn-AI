@@ -13,6 +13,30 @@ import {
   Tag
 } from 'lucide-react';
 
+const CalendarSkeleton = () => (
+  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-pulse">
+    <div className="bg-slate-50 dark:bg-slate-900/30 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 lg:col-span-2 h-96 space-y-6">
+      <div className="flex items-center justify-between">
+        <div className="h-6 w-1/3 bg-slate-200 dark:bg-slate-850 rounded-md" />
+        <div className="h-6 w-1/6 bg-slate-200 dark:bg-slate-850 rounded-md" />
+      </div>
+      <div className="grid grid-cols-7 gap-2">
+        {[...Array(35)].map((_, i) => (
+          <div key={i} className="aspect-square bg-slate-100/70 dark:bg-slate-800/45 rounded-xl" />
+        ))}
+      </div>
+    </div>
+    <div className="bg-slate-50 dark:bg-slate-900/30 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 h-96 space-y-4">
+      <div className="h-6 w-1/2 bg-slate-200 dark:bg-slate-850 rounded-md" />
+      <div className="space-y-4">
+        {[1, 2, 3].map((n) => (
+          <div key={n} className="h-20 bg-slate-105/70 dark:bg-slate-800/30 rounded-2xl" />
+        ))}
+      </div>
+    </div>
+  </div>
+);
+
 const CalendarPage = () => {
   const { profile } = useStudent();
   const themeColor = profile?.theme_color || 'indigo';
@@ -123,10 +147,7 @@ const CalendarPage = () => {
       />
 
       {loading ? (
-        <div className="flex flex-col items-center justify-center min-h-[30vh] space-y-4">
-          <div className="w-8 h-8 border-4 border-slate-200 dark:border-slate-700 border-t-indigo-500 rounded-full animate-spin" />
-          <span className="text-slate-500 dark:text-slate-400 text-xs animate-pulse">Synchronizing academic calendar...</span>
-        </div>
+        <CalendarSkeleton />
       ) : error ? (
         <div className="bg-red-500/10 border border-red-500/30 p-4 rounded-xl text-red-650 dark:text-red-400 text-sm">
           {error}

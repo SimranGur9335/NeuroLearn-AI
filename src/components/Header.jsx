@@ -24,6 +24,8 @@ import { useStudent } from '../context/StudentContext';
 import { useBranding } from '../context/BrandingContext';
 import defaultLogo from '../assets/image.png';
 
+import { apiFetch } from '../services/api';
+
 const Header = () => {
   const {
     role,
@@ -52,9 +54,9 @@ const Header = () => {
     setLoadingNotifications(true);
     try {
       const endpoint = role === 'faculty'
-        ? `http://localhost:8000/api/v1/faculty/${profileId}/notifications`
-        : `http://localhost:8000/api/v1/student/${profileId}/notifications`;
-      const res = await fetch(endpoint);
+        ? `/v1/faculty/${profileId}/notifications`
+        : `/v1/student/${profileId}/notifications`;
+      const res = await apiFetch(endpoint);
       if (res.ok) {
         const data = await res.json();
         setNotifications(data);
@@ -78,9 +80,9 @@ const Header = () => {
   const handleMarkRead = async (id) => {
     try {
       const endpoint = role === 'faculty'
-        ? `http://localhost:8000/api/v1/faculty/notifications/${id}/read`
-        : `http://localhost:8000/api/v1/student/notifications/${id}/read`;
-      const res = await fetch(endpoint, {
+        ? `/v1/faculty/notifications/${id}/read`
+        : `/v1/student/notifications/${id}/read`;
+      const res = await apiFetch(endpoint, {
         method: 'PATCH'
       });
       if (res.ok) {
@@ -96,9 +98,9 @@ const Header = () => {
     if (!profileId) return;
     try {
       const endpoint = role === 'faculty'
-        ? `http://localhost:8000/api/v1/faculty/${profileId}/notifications/read-all`
-        : `http://localhost:8000/api/v1/student/notifications/read-all`;
-      const res = await fetch(endpoint, {
+        ? `/v1/faculty/${profileId}/notifications/read-all`
+        : `/v1/student/notifications/read-all`;
+      const res = await apiFetch(endpoint, {
         method: 'PATCH'
       });
       if (res.ok) {
@@ -113,9 +115,9 @@ const Header = () => {
     e.stopPropagation();
     try {
       const endpoint = role === 'faculty'
-        ? `http://localhost:8000/api/v1/faculty/notifications/${id}`
-        : `http://localhost:8000/api/v1/student/notifications/${id}`;
-      const res = await fetch(endpoint, {
+        ? `/v1/faculty/notifications/${id}`
+        : `/v1/student/notifications/${id}`;
+      const res = await apiFetch(endpoint, {
         method: 'DELETE'
       });
       if (res.ok) {

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { BrandingProvider } from './context/BrandingContext';
@@ -8,101 +8,101 @@ import FacultyLayout from './components/TeacherLayout';
 import AdminLayout from './components/AdminLayout';
 import ProtectedRoute from './components/ProtectedRoute';
 import PlatformAdminLayout from './components/PlatformAdminLayout';
-import InstitutionRequests from "./pages/platform-admin/InstitutionRequests";
-import PlatformDashboard from './pages/platform-admin/Dashboard';
-import PlatformInstitutions from './pages/platform-admin/Institutions';
-import PlatformUsers from './pages/platform-admin/Users';
-import PlatformSettings from './pages/platform-admin/Settings';
+const InstitutionRequests = lazy(() => import('./pages/platform-admin/InstitutionRequests'));
+const PlatformDashboard = lazy(() => import('./pages/platform-admin/Dashboard'));
+const PlatformInstitutions = lazy(() => import('./pages/platform-admin/Institutions'));
+const PlatformUsers = lazy(() => import('./pages/platform-admin/Users'));
+const PlatformSettings = lazy(() => import('./pages/platform-admin/Settings'));
 
 // Public & Selection Pages
-import LandingPage from './pages/LandingPage';
-import RoleSelection from './pages/RoleSelection';
-import SelectInstitution from './pages/SelectInstitution';
-import Login from './pages/Login';
-import Register from './pages/Register';
-import ChangePassword from './pages/ChangePassword';
-import Profile from './pages/Profile';
-import ApplyInstitution from './pages/ApplyInstitution';
+const LandingPage = lazy(() => import('./pages/LandingPage'));
+const RoleSelection = lazy(() => import('./pages/RoleSelection'));
+const SelectInstitution = lazy(() => import('./pages/SelectInstitution'));
+const Login = lazy(() => import('./pages/Login'));
+const Register = lazy(() => import('./pages/Register'));
+const ChangePassword = lazy(() => import('./pages/ChangePassword'));
+const Profile = lazy(() => import('./pages/Profile'));
+const ApplyInstitution = lazy(() => import('./pages/ApplyInstitution'));
 
 // Student Portal Pages
-import Dashboard from './pages/Dashboard';
-import LearningDomains from './pages/LearningDomains';
-import DomainDetail from './pages/domains/DomainDetail';
-import Roadmap from './pages/Roadmap';
-import Quiz from './pages/Quiz';
-import Analytics from './pages/Analytics';
-import CareerGuidance from './pages/CareerGuidance';
-import Leaderboard from './pages/Leaderboard';
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const LearningDomains = lazy(() => import('./pages/LearningDomains'));
+const DomainDetail = lazy(() => import('./pages/domains/DomainDetail'));
+const Roadmap = lazy(() => import('./pages/Roadmap'));
+const Quiz = lazy(() => import('./pages/Quiz'));
+const Analytics = lazy(() => import('./pages/Analytics'));
+const CareerGuidance = lazy(() => import('./pages/CareerGuidance'));
+const Leaderboard = lazy(() => import('./pages/Leaderboard'));
 
 // Career Journey Module Pages
-import CareerDashboard from './pages/career/CareerDashboard';
-import CareerProfile from './pages/career/CareerProfile';
-import ExploreCareers from './pages/career/careers/ExploreCareers';
-import CareerDetail from './pages/career/careers/CareerDetail';
-import CareerRoadmap from './pages/career/CareerRoadmap';
-import SkillsList from './pages/career/skills/SkillsList';
-import SkillDetail from './pages/career/skills/SkillDetail';
-import ProjectStudio from './pages/career/projects/ProjectStudio';
-import ProjectDetail from './pages/career/projects/ProjectDetail';
-import CompaniesList from './pages/career/companies/CompaniesList';
-import CertificationsList from './pages/career/certifications/CertificationsList';
-import ResumeReview from './pages/career/resume/ResumeReview';
-import InterviewPractice from './pages/career/interview/InterviewPractice';
-import PlacementPrep from './pages/career/placement/PlacementPrep';
-import LearningHub from './pages/career/learning/LearningHub';
-import SalaryInsights from './pages/career/salary/SalaryInsights';
-import TechTrends from './pages/career/trends/TechTrends';
+const CareerDashboard = lazy(() => import('./pages/career/CareerDashboard'));
+const CareerProfile = lazy(() => import('./pages/career/CareerProfile'));
+const ExploreCareers = lazy(() => import('./pages/career/careers/ExploreCareers'));
+const CareerDetail = lazy(() => import('./pages/career/careers/CareerDetail'));
+const CareerRoadmap = lazy(() => import('./pages/career/CareerRoadmap'));
+const SkillsList = lazy(() => import('./pages/career/skills/SkillsList'));
+const SkillDetail = lazy(() => import('./pages/career/skills/SkillDetail'));
+const ProjectStudio = lazy(() => import('./pages/career/projects/ProjectStudio'));
+const ProjectDetail = lazy(() => import('./pages/career/projects/ProjectDetail'));
+const CompaniesList = lazy(() => import('./pages/career/companies/CompaniesList'));
+const CertificationsList = lazy(() => import('./pages/career/certifications/CertificationsList'));
+const ResumeReview = lazy(() => import('./pages/career/resume/ResumeReview'));
+const InterviewPractice = lazy(() => import('./pages/career/interview/InterviewPractice'));
+const PlacementPrep = lazy(() => import('./pages/career/placement/PlacementPrep'));
+const LearningHub = lazy(() => import('./pages/career/learning/LearningHub'));
+const SalaryInsights = lazy(() => import('./pages/career/salary/SalaryInsights'));
+const TechTrends = lazy(() => import('./pages/career/trends/TechTrends'));
 
 // Student Portal AI Module Pages
-import AiMentorChat from './pages/ai/AiMentorChat';
-import EmotionAnalysis from './pages/ai/EmotionAnalysis';
+const AiMentorChat = lazy(() => import('./pages/ai/AiMentorChat'));
+const EmotionAnalysis = lazy(() => import('./pages/ai/EmotionAnalysis'));
 
 // Student Hub Pages
-import StudentHubHome from './pages/student-hub/StudentHubHome';
-import CoursesPage from './pages/student-hub/CoursesPage';
-import AssignmentsPage from './pages/student-hub/AssignmentsPage';
-import AttendancePage from './pages/student-hub/AttendancePage';
-import GradesPage from './pages/student-hub/GradesPage';
-import AnnouncementsPage from './pages/student-hub/AnnouncementsPage';
-import CalendarPage from './pages/student-hub/CalendarPage';
-import PredictionsPage from './pages/student-hub/PredictionsPage';
-import CollegeNotes from './pages/student-hub/CollegeNotes';
-import ProgrammingHub from './pages/student-hub/ProgrammingHub';
+const StudentHubHome = lazy(() => import('./pages/student-hub/StudentHubHome'));
+const CoursesPage = lazy(() => import('./pages/student-hub/CoursesPage'));
+const AssignmentsPage = lazy(() => import('./pages/student-hub/AssignmentsPage'));
+const AttendancePage = lazy(() => import('./pages/student-hub/AttendancePage'));
+const GradesPage = lazy(() => import('./pages/student-hub/GradesPage'));
+const AnnouncementsPage = lazy(() => import('./pages/student-hub/AnnouncementsPage'));
+const CalendarPage = lazy(() => import('./pages/student-hub/CalendarPage'));
+const PredictionsPage = lazy(() => import('./pages/student-hub/PredictionsPage'));
+const CollegeNotes = lazy(() => import('./pages/student-hub/CollegeNotes'));
+const ProgrammingHub = lazy(() => import('./pages/student-hub/ProgrammingHub'));
 
 // Faculty Portal Pages
-import FacultyDashboard from './pages/faculty/FacultyDashboard';
-import StudentPerformance from './pages/faculty/StudentPerformance';
-import FacultyAnalytics from './pages/faculty/FacultyAnalytics';
-import RiskPrediction from './pages/faculty/RiskPrediction';
-import AttendanceTracking from './pages/faculty/AttendanceTracking';
-import ClassSelection from './pages/faculty/ClassSelection';
-import FacultyAnnouncement from "./pages/faculty/FacultyAnnouncement";
-import AssignmentManagement from "./pages/faculty/AssignmentManagement";
-import MarksGradebook from "./pages/faculty/MarksGradebook";
-import RemedialSessions from "./pages/faculty/RemedialSessions";
-import FacultySelfProfile from './pages/faculty/FacultyProfile';
-import FacultyActivityStream from './pages/faculty/FacultyActivityStream';
+const FacultyDashboard = lazy(() => import('./pages/faculty/FacultyDashboard'));
+const StudentPerformance = lazy(() => import('./pages/faculty/StudentPerformance'));
+const FacultyAnalytics = lazy(() => import('./pages/faculty/FacultyAnalytics'));
+const RiskPrediction = lazy(() => import('./pages/faculty/RiskPrediction'));
+const AttendanceTracking = lazy(() => import('./pages/faculty/AttendanceTracking'));
+const ClassSelection = lazy(() => import('./pages/faculty/ClassSelection'));
+const FacultyAnnouncement = lazy(() => import('./pages/faculty/FacultyAnnouncement'));
+const AssignmentManagement = lazy(() => import('./pages/faculty/AssignmentManagement'));
+const MarksGradebook = lazy(() => import('./pages/faculty/MarksGradebook'));
+const RemedialSessions = lazy(() => import('./pages/faculty/RemedialSessions'));
+const FacultySelfProfile = lazy(() => import('./pages/faculty/FacultyProfile'));
+const FacultyActivityStream = lazy(() => import('./pages/faculty/FacultyActivityStream'));
 
 // Admin Portal Pages
-import AdminDashboard from './pages/admin/AdminDashboard';
-import UserManagement from './pages/admin/UserManagement';
-import CourseManagement from './pages/admin/CourseManagement';
-import SubjectManagement from "./pages/admin/SubjectManagement";
-import AdminReports from './pages/admin/AdminReports';
-import SystemMonitoring from './pages/admin/SystemMonitoring';
-import SecurityCenter from './pages/admin/SecurityCenter';
-import FacultyMapping from "./pages/admin/FacultyMapping";
-import StudentProfile from './pages/admin/StudentProfile';
-import FacultyProfile from './pages/admin/FacultyProfile';
-import DepartmentManagement from './pages/admin/DepartmentManagement';
-import ClassManagement from './pages/admin/ClassManagement';
-import EnrollmentManagement from './pages/admin/EnrollmentManagement';
-import CourseSubjectMapping from './pages/admin/CourseSubjectMapping';
-import AnnouncementCenter from './pages/admin/AnnouncementCenter';
-import AcademicStructure from './pages/admin/AcademicStructure';
-import FacultyWorkload from './pages/admin/FacultyWorkload';
-import AuditLogs from './pages/admin/AuditLogs';
-import AdminSettings from './pages/admin/AdminSettings';
+const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'));
+const UserManagement = lazy(() => import('./pages/admin/UserManagement'));
+const CourseManagement = lazy(() => import('./pages/admin/CourseManagement'));
+const SubjectManagement = lazy(() => import('./pages/admin/SubjectManagement'));
+const AdminReports = lazy(() => import('./pages/admin/AdminReports'));
+const SystemMonitoring = lazy(() => import('./pages/admin/SystemMonitoring'));
+const SecurityCenter = lazy(() => import('./pages/admin/SecurityCenter'));
+const FacultyMapping = lazy(() => import('./pages/admin/FacultyMapping'));
+const StudentProfile = lazy(() => import('./pages/admin/StudentProfile'));
+const FacultyProfile = lazy(() => import('./pages/admin/FacultyProfile'));
+const DepartmentManagement = lazy(() => import('./pages/admin/DepartmentManagement'));
+const ClassManagement = lazy(() => import('./pages/admin/ClassManagement'));
+const EnrollmentManagement = lazy(() => import('./pages/admin/EnrollmentManagement'));
+const CourseSubjectMapping = lazy(() => import('./pages/admin/CourseSubjectMapping'));
+const AnnouncementCenter = lazy(() => import('./pages/admin/AnnouncementCenter'));
+const AcademicStructure = lazy(() => import('./pages/admin/AcademicStructure'));
+const FacultyWorkload = lazy(() => import('./pages/admin/FacultyWorkload'));
+const AuditLogs = lazy(() => import('./pages/admin/AuditLogs'));
+const AdminSettings = lazy(() => import('./pages/admin/AdminSettings'));
 
 
 function App() {
@@ -111,7 +111,12 @@ function App() {
       <BrandingProvider>
         <StudentProvider>
         <Router>
-          <Routes>
+          <Suspense fallback={
+            <div className="flex items-center justify-center min-h-screen bg-slate-50 dark:bg-slate-950">
+              <div className="w-10 h-10 border-4 border-slate-200 dark:border-slate-800 border-t-indigo-500 rounded-full animate-spin" />
+            </div>
+          }>
+            <Routes>
             {/* Public Landing Page */}
             <Route path="/" element={<LandingPage />} />
 
@@ -261,6 +266,7 @@ function App() {
             {/* Fallback route */}
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
+          </Suspense>
         </Router>
       </StudentProvider>
       </BrandingProvider>

@@ -308,6 +308,11 @@ def run_migrations():
         
         db.commit()
         print("Migrations executed successfully!")
+        try:
+            from backend.create_indexes import create_database_indexes
+            create_database_indexes()
+        except Exception as idx_err:
+            print(f"Warning: Could not create database indexes automatically: {idx_err}")
 
 
     except Exception as e:
@@ -321,6 +326,14 @@ run_migrations()
 import os
 from dotenv import load_dotenv
 load_dotenv()
+
+# Gemini API Key startup check
+gemini_key = os.getenv("GEMINI_API_KEY")
+if not gemini_key:
+    print("\n" + "!"*70)
+    print(" WARNING: GEMINI_API_KEY is not set in the environment!")
+    print(" AI Mentor Chat and Career Guidance features will use static mock fallbacks.")
+    print("!"*70 + "\n")
 
 # --- JWT Config & Helpers ---
 JWT_SECRET = os.getenv("JWT_SECRET")
@@ -622,7 +635,7 @@ class InstitutionApplication(BaseModel):
     contact_person: str
     email: str
     phone: str
-    website: str | None = None
+    website: Optional[str] = None
     address: str
 
 
@@ -1306,7 +1319,7 @@ def predict_test():
     return {"predicted_grade": 14.8}
 
 @app.post("/api/predict/student-performance")
-def predict_student_performance(data: StudentPerformanceInput):
+def predict_student_performance(data: StudentPerformanceInput, current_user: dict = Depends(get_current_user)):
     if not student_model:
         return {"predicted_grade": 0.0, "error": "Model not loaded"}
     prediction = student_model.predict([
@@ -1321,11 +1334,14 @@ def predict_student_performance(data: StudentPerformanceInput):
 
 # --- faculty Telemetry Routes ---
 
+@app.get("/api/faculty/{faculty_id}/classes")
 @app.get("/faculty/{faculty_id}/classes")
 def get_faculty_classes(
     faculty_id: int,
     current_user: dict = Depends(get_current_user)
 ):
+    if current_user["role"] not in ["faculty", "admin", "platform_admin"]:
+        raise HTTPException(status_code=403, detail="Unauthorized")
     if current_user["role"] == "faculty" and current_user["faculty_id"] != faculty_id:
         raise HTTPException(status_code=403, detail="Unauthorized")
     db = SessionLocal()
@@ -1349,6 +1365,7 @@ def get_faculty_classes(
     db.close()
     return classes
 
+@app.get("/api/class/{class_id}/students")
 @app.get("/class/{class_id}/students")
 def get_class_students(
     class_id: int,
@@ -1357,7 +1374,14 @@ def get_class_students(
     db = SessionLocal()
 
     try:
-        if current_user["role"] == "faculty":
+        if current_user["role"] == "student":
+            enrolled = db.execute(
+                text("SELECT 1 FROM enrollments WHERE student_id = :sid AND class_id = :cid"),
+                {"sid": current_user["student_id"], "cid": class_id}
+            ).fetchone()
+            if not enrolled:
+                raise HTTPException(status_code=403, detail="Unauthorized: Student not enrolled in this class")
+        elif current_user["role"] == "faculty":
             verify_faculty_access(
                 db,
                 current_user["faculty_id"],
@@ -1398,6 +1422,7 @@ def get_class_students(
     finally:
         db.close()
 
+@app.get("/api/class/{class_id}/student-metrics")
 @app.get("/class/{class_id}/student-metrics")
 def get_class_student_metrics(
     class_id: int,
@@ -1406,7 +1431,9 @@ def get_class_student_metrics(
     db = SessionLocal()
 
     try:
-        if current_user["role"] == "faculty":
+        if current_user["role"] == "student":
+            raise HTTPException(status_code=403, detail="Unauthorized: Students cannot view class metrics.")
+        elif current_user["role"] == "faculty":
             verify_faculty_access(
                 db,
                 current_user["faculty_id"],
@@ -1469,6 +1496,7 @@ def get_class_student_metrics(
     finally:
         db.close()
 
+@app.get("/api/class/{class_id}/dashboard-summary")
 @app.get("/class/{class_id}/dashboard-summary")
 def get_dashboard_summary(
     class_id: int,
@@ -1521,6 +1549,7 @@ def get_dashboard_summary(
         "students_at_risk": (result.high_risk or 0) + (result.med_risk or 0)
     }
 
+@app.get("/api/class/{class_id}/attendance")
 @app.get("/class/{class_id}/attendance")
 def get_class_attendance(
     class_id: int,
@@ -1535,7 +1564,14 @@ def get_class_attendance(
                 detail="Permission denied"
             )
 
-        if current_user["role"] == "faculty":
+        if current_user["role"] == "student":
+            enrolled = db.execute(
+                text("SELECT 1 FROM enrollments WHERE student_id = :sid AND class_id = :cid"),
+                {"sid": current_user["student_id"], "cid": class_id}
+            ).fetchone()
+            if not enrolled:
+                raise HTTPException(status_code=403, detail="Unauthorized: Student not enrolled in this class")
+        elif current_user["role"] == "faculty":
             verify_faculty_access(
                 db,
                 current_user["faculty_id"],
@@ -1577,6 +1613,7 @@ def get_class_attendance(
     finally:
         db.close()
 
+@app.get("/api/class/{class_id}/attendance-summary")
 @app.get("/class/{class_id}/attendance-summary")
 def get_attendance_summary(
     class_id: int,
@@ -1617,6 +1654,7 @@ def get_attendance_summary(
         "attendance_rate": rate
     }
 
+@app.get("/api/student/{student_id}/attendance-history")
 @app.get("/student/{student_id}/attendance-history")
 def get_student_attendance_history(
     student_id: int,
@@ -1637,6 +1675,7 @@ def get_student_attendance_history(
     finally:
         db.close()
 
+@app.post("/api/attendance/mark")
 @app.post("/attendance/mark")
 def mark_attendance(
     data: AttendanceInput,
@@ -1695,6 +1734,7 @@ def mark_attendance(
     finally:
         db.close()
 
+@app.get("/api/class/{class_id}/attendance-registry")
 @app.get("/class/{class_id}/attendance-registry")
 def get_attendance_registry(
     class_id: int,
@@ -1744,6 +1784,7 @@ def get_attendance_registry(
     finally:
         db.close()
 
+@app.get("/api/class/{class_id}/today-attendance")
 @app.get("/class/{class_id}/today-attendance")
 def get_today_attendance(
     class_id: int,
@@ -5627,6 +5668,7 @@ class RunRiskEngineInput(BaseModel):
 
 # --- faculty Portal V1 Endpoints ---
 
+@app.get("/api/faculty/by-email/{email}")
 @app.get("/faculty/by-email/{email}")
 def get_faculty_by_email(email: str, current_user: dict = Depends(get_current_user)):
     role = current_user["role"]
@@ -5688,6 +5730,7 @@ def get_faculty_by_email(email: str, current_user: dict = Depends(get_current_us
     finally:
         db.close()
 
+@app.get("/api/faculty/mapping-audit")
 @app.get("/faculty/mapping-audit")
 def get_mapping_audit(current_user: dict = Depends(require_role(["admin", "super_admin"]))):
     db = SessionLocal()
@@ -5774,6 +5817,7 @@ def get_mapping_audit(current_user: dict = Depends(require_role(["admin", "super
     finally:
         db.close()
 
+@app.get("/api/attendance/records")
 @app.get("/attendance/records")
 def get_attendance_records(class_id: int, subject_id: int, date: str, current_user: dict = Depends(get_current_user)):
     if current_user["role"] not in ["admin", "faculty"]:
@@ -5816,6 +5860,7 @@ def get_attendance_records(class_id: int, subject_id: int, date: str, current_us
     finally:
         db.close()
 
+@app.post("/api/attendance/save")
 @app.post("/attendance/save")
 def save_attendance(data: AttendanceSaveInput, current_user: dict = Depends(get_current_user)):
     if current_user["role"] not in ["admin", "faculty"]:
@@ -5881,6 +5926,7 @@ def save_attendance(data: AttendanceSaveInput, current_user: dict = Depends(get_
     finally:
         db.close()
 
+@app.get("/api/attendance/history")
 @app.get("/attendance/history")
 def get_attendance_history(class_id: int, subject_id: int, current_user: dict = Depends(get_current_user)):
     if current_user["role"] not in ["admin", "faculty"]:
@@ -5916,6 +5962,7 @@ def get_attendance_history(class_id: int, subject_id: int, current_user: dict = 
     finally:
         db.close()
 
+@app.get("/api/attendance/monthly-report")
 @app.get("/attendance/monthly-report")
 def get_monthly_attendance_report(class_id: int, subject_id: int, month: int, year: int, current_user: dict = Depends(get_current_user)):
     if current_user["role"] not in ["admin", "faculty"]:
@@ -5975,8 +6022,11 @@ def get_monthly_attendance_report(class_id: int, subject_id: int, month: int, ye
         db.close()
 
 
+@app.get("/api/faculty/{faculty_id}/students")
 @app.get("/faculty/{faculty_id}/students")
 def get_faculty_students(faculty_id: int, current_user: dict = Depends(get_current_user)):
+    if current_user["role"] not in ["faculty", "admin", "platform_admin"]:
+        raise HTTPException(status_code=403, detail="Access denied")
     if current_user["role"] == "faculty" and current_user["faculty_id"] != faculty_id:
         raise HTTPException(status_code=403, detail="Access denied: Faculty ID mismatch")
     db = SessionLocal()
@@ -6085,6 +6135,7 @@ def update_student_intervention(student_id: int, input_data: StudentIntervention
     finally:
         db.close()
 
+@app.get("/api/student/{student_id}/profile")
 @app.get("/student/{student_id}/profile")
 
 def get_student_profile_v1(student_id: int, current_user: dict = Depends(get_current_user)):
@@ -6243,6 +6294,7 @@ def get_student_profile_v1(student_id: int, current_user: dict = Depends(get_cur
         db.close()
 
 
+@app.get("/api/assignments")
 @app.get("/assignments")
 def get_assignments(class_id: int, subject_id: int, current_user: dict = Depends(get_current_user)):
     db = SessionLocal()
@@ -6298,6 +6350,7 @@ def get_assignments(class_id: int, subject_id: int, current_user: dict = Depends
     finally:
         db.close()
 
+@app.post("/api/assignments")
 @app.post("/assignments")
 def create_assignment(data: AssignmentCreateInput, current_user: dict = Depends(get_current_user)):
     if current_user["role"] not in ["admin", "faculty"]:
@@ -6370,6 +6423,7 @@ def create_assignment(data: AssignmentCreateInput, current_user: dict = Depends(
     finally:
         db.close()
 
+@app.put("/api/assignments/{assignment_id}")
 @app.put("/assignments/{assignment_id}")
 def update_assignment(assignment_id: int, data: AssignmentCreateInput, current_user: dict = Depends(get_current_user)):
     if current_user["role"] not in ["admin", "faculty"]:
@@ -6470,6 +6524,7 @@ def update_assignment(assignment_id: int, data: AssignmentCreateInput, current_u
     finally:
         db.close()
 
+@app.delete("/api/assignments/{assignment_id}")
 @app.delete("/assignments/{assignment_id}")
 def delete_assignment(assignment_id: int, faculty_id: int, current_user: dict = Depends(get_current_user)):
     if current_user["role"] not in ["admin", "faculty"]:
@@ -6496,6 +6551,7 @@ def delete_assignment(assignment_id: int, faculty_id: int, current_user: dict = 
     finally:
         db.close()
 
+@app.post("/api/assignments/{assignment_id}/close")
 @app.post("/assignments/{assignment_id}/close")
 def close_assignment(assignment_id: int, data: CloseAssignmentInput, current_user: dict = Depends(get_current_user)):
     if current_user["role"] not in ["admin", "faculty"]:
@@ -6539,6 +6595,7 @@ def close_assignment(assignment_id: int, data: CloseAssignmentInput, current_use
     finally:
         db.close()
 
+@app.post("/api/assignments/{assignment_id}/reopen")
 @app.post("/assignments/{assignment_id}/reopen")
 def reopen_assignment(assignment_id: int, data: CloseAssignmentInput, current_user: dict = Depends(get_current_user)):
     if current_user["role"] not in ["admin", "faculty"]:
@@ -6582,6 +6639,7 @@ def reopen_assignment(assignment_id: int, data: CloseAssignmentInput, current_us
     finally:
         db.close()
 
+@app.get("/api/assignments/{assignment_id}/submissions")
 @app.get("/assignments/{assignment_id}/submissions")
 def get_assignment_submissions(assignment_id: int, current_user: dict = Depends(get_current_user)):
     if current_user["role"] not in ["admin", "faculty"]:
@@ -6592,7 +6650,9 @@ def get_assignment_submissions(assignment_id: int, current_user: dict = Depends(
         if not assign:
             raise HTTPException(status_code=404, detail="Assignment not found")
             
-        if current_user["role"] == "faculty":
+        if current_user["role"] == "student":
+            raise HTTPException(status_code=403, detail="Access denied: Students cannot view all submissions.")
+        elif current_user["role"] == "faculty":
             verify_faculty_access(db, current_user["faculty_id"], assign.class_id, assign.subject_id)
 
         submissions = db.execute(text("""
@@ -6625,6 +6685,7 @@ def get_assignment_submissions(assignment_id: int, current_user: dict = Depends(
     finally:
         db.close()
 
+@app.post("/api/submissions/{submission_id}/grade")
 @app.post("/submissions/{submission_id}/grade")
 def grade_submission(submission_id: int, data: GradeSubmissionInput, current_user: dict = Depends(get_current_user)):
     if current_user["role"] not in ["admin", "faculty"]:
@@ -6690,6 +6751,7 @@ def grade_submission(submission_id: int, data: GradeSubmissionInput, current_use
     finally:
         db.close()
 
+@app.post("/api/assignments/{assignment_id}/submit")
 @app.post("/assignments/{assignment_id}/submit")
 def submit_assignment(assignment_id: int, data: StudentSubmissionInput, current_user: dict = Depends(get_current_user)):
     if current_user["role"] not in ["admin", "student"]:
@@ -6778,6 +6840,7 @@ def submit_assignment(assignment_id: int, data: StudentSubmissionInput, current_
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
+@app.get("/api/marks")
 @app.get("/marks")
 def get_student_marks(class_id: int, subject_id: int, current_user: dict = Depends(get_current_user)):
     db = SessionLocal()
@@ -6934,6 +6997,7 @@ def get_student_marks(class_id: int, subject_id: int, current_user: dict = Depen
     finally:
         db.close()
 
+@app.post("/api/marks/bulk-entry")
 @app.post("/marks/bulk-entry")
 def save_student_marks_bulk(data: BulkMarksInput, current_user: dict = Depends(get_current_user)):
     if current_user["role"] not in ["admin", "faculty"]:
@@ -7136,6 +7200,7 @@ def save_student_marks_bulk(data: BulkMarksInput, current_user: dict = Depends(g
     finally:
         db.close()
 
+@app.post("/api/faculty/run-risk-engine")
 @app.post("/faculty/run-risk-engine")
 def run_risk_engine(data: RunRiskEngineInput, current_user: dict = Depends(get_current_user)):
     if current_user["role"] not in ["admin", "faculty"]:
@@ -7261,6 +7326,7 @@ def run_risk_engine(data: RunRiskEngineInput, current_user: dict = Depends(get_c
     finally:
         db.close()
 
+@app.get("/api/faculty/{faculty_id}/analytics")
 @app.get("/faculty/{faculty_id}/analytics")
 def get_faculty_analytics(
     faculty_id: int, 
@@ -7270,6 +7336,8 @@ def get_faculty_analytics(
     end_date: Optional[str] = None,
     current_user: dict = Depends(get_current_user)
 ):
+    if current_user["role"] not in ["faculty", "admin", "platform_admin"]:
+        raise HTTPException(status_code=403, detail="Access denied")
     if current_user["role"] == "faculty" and current_user["faculty_id"] != faculty_id:
         raise HTTPException(status_code=403, detail="Access denied: Faculty ID mismatch")
     db = SessionLocal()
@@ -8964,8 +9032,11 @@ def complete_remedial_session_helper(db, session_id: int, faculty_id: int, outco
     create_notification(db, "faculty", faculty_id, "Remedial Class Completed", f"Remedial session '{topic}' completion notes recorded.", "remedial", session_id)
 
 
+@app.post("/api/remedial/sessions")
 @app.post("/remedial/sessions")
-def create_remedial_session(payload: RemedialSessionCreateInput):
+def create_remedial_session(payload: RemedialSessionCreateInput, current_user: dict = Depends(get_current_user)):
+    if current_user["role"] not in ["faculty", "admin"]:
+        raise HTTPException(status_code=403, detail="Permission denied")
     db = SessionLocal()
     try:
         session_id = create_remedial_session_helper(db, payload)
@@ -8981,8 +9052,11 @@ def create_remedial_session(payload: RemedialSessionCreateInput):
         db.close()
 
 
+@app.put("/api/remedial/sessions/{session_id}")
 @app.put("/remedial/sessions/{session_id}")
-def update_remedial_session(session_id: int, payload: RemedialSessionUpdateInput):
+def update_remedial_session(session_id: int, payload: RemedialSessionUpdateInput, current_user: dict = Depends(get_current_user)):
+    if current_user["role"] not in ["faculty", "admin"]:
+        raise HTTPException(status_code=403, detail="Permission denied")
     db = SessionLocal()
     try:
         update_remedial_session_helper(db, session_id, payload)
@@ -8997,8 +9071,11 @@ def update_remedial_session(session_id: int, payload: RemedialSessionUpdateInput
         db.close()
 
 
+@app.post("/api/remedial/sessions/{session_id}/cancel")
 @app.post("/remedial/sessions/{session_id}/cancel")
-def cancel_remedial_session(session_id: int, payload: CancelRemedialSessionInput):
+def cancel_remedial_session(session_id: int, payload: CancelRemedialSessionInput, current_user: dict = Depends(get_current_user)):
+    if current_user["role"] not in ["faculty", "admin"]:
+        raise HTTPException(status_code=403, detail="Permission denied")
     db = SessionLocal()
     try:
         cancel_remedial_session_helper(db, session_id, payload.faculty_id, payload.cancellation_reason)
@@ -9013,8 +9090,11 @@ def cancel_remedial_session(session_id: int, payload: CancelRemedialSessionInput
         db.close()
 
 
+@app.post("/api/remedial/sessions/{session_id}/start")
 @app.post("/remedial/sessions/{session_id}/start")
-def start_remedial_session(session_id: int, payload: StartRemedialSessionInput):
+def start_remedial_session(session_id: int, payload: StartRemedialSessionInput, current_user: dict = Depends(get_current_user)):
+    if current_user["role"] not in ["faculty", "admin"]:
+        raise HTTPException(status_code=403, detail="Permission denied")
     db = SessionLocal()
     try:
         start_remedial_session_helper(db, session_id, payload.faculty_id)
@@ -9029,8 +9109,11 @@ def start_remedial_session(session_id: int, payload: StartRemedialSessionInput):
         db.close()
 
 
+@app.post("/api/remedial/sessions/{session_id}/complete")
 @app.post("/remedial/sessions/{session_id}/complete")
-def complete_remedial_session(session_id: int, payload: CompleteRemedialSessionInput):
+def complete_remedial_session(session_id: int, payload: CompleteRemedialSessionInput, current_user: dict = Depends(get_current_user)):
+    if current_user["role"] not in ["faculty", "admin"]:
+        raise HTTPException(status_code=403, detail="Permission denied")
     db = SessionLocal()
     try:
         complete_remedial_session_helper(db, session_id, payload.faculty_id, payload.outcome, payload.remarks, payload.recommendation)
@@ -9045,8 +9128,13 @@ def complete_remedial_session(session_id: int, payload: CompleteRemedialSessionI
         db.close()
 
 
+@app.get("/api/remedial/sessions")
 @app.get("/remedial/sessions")
-def get_remedial_sessions(faculty_id: int):
+def get_remedial_sessions(faculty_id: int, current_user: dict = Depends(get_current_user)):
+    if current_user["role"] not in ["faculty", "admin"]:
+        raise HTTPException(status_code=403, detail="Permission denied")
+    if current_user["role"] == "faculty" and current_user["faculty_id"] != faculty_id:
+        raise HTTPException(status_code=403, detail="Access denied")
     db = SessionLocal()
     try:
         rows = db.execute(
@@ -9089,8 +9177,11 @@ def get_remedial_sessions(faculty_id: int):
         db.close()
 
 
+@app.get("/api/remedial/sessions/{session_id}/invitations")
 @app.get("/remedial/sessions/{session_id}/invitations")
-def get_session_invitations(session_id: int):
+def get_session_invitations(session_id: int, current_user: dict = Depends(get_current_user)):
+    if current_user["role"] not in ["faculty", "admin"]:
+        raise HTTPException(status_code=403, detail="Permission denied")
     db = SessionLocal()
     try:
         rows = db.execute(
@@ -9113,13 +9204,25 @@ def get_session_invitations(session_id: int):
         db.close()
 
 
+@app.post("/api/remedial/invitations/{invitation_id}/status")
 @app.post("/remedial/invitations/{invitation_id}/status")
 def update_invitation_status(
     invitation_id: int,
-    payload: InvitationStatusUpdate
+    payload: InvitationStatusUpdate,
+    current_user: dict = Depends(get_current_user)
 ):
+    if current_user["role"] not in ["student", "admin"]:
+        raise HTTPException(status_code=403, detail="Permission denied")
     db = SessionLocal()
     try:
+        if current_user["role"] == "student":
+            # Verify invitation belongs to student
+            inv = db.execute(
+                text("SELECT student_id FROM remedial_invitations WHERE invitation_id = :id"),
+                {"id": invitation_id}
+            ).fetchone()
+            if not inv or inv.student_id != current_user["student_id"]:
+                raise HTTPException(status_code=403, detail="Access denied: invitation mismatch")
         db.execute(
             text("""
             UPDATE remedial_invitations
