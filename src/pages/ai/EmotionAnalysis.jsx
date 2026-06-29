@@ -96,7 +96,7 @@ const EmotionAnalysis = () => {
   const fetchStatistics = async () => {
     try {
       setLoadingStats(true);
-      let url = `/api/v1/wellness/statistics?range=${chartRange}`;
+      let url = `/v1/wellness/statistics?range=${chartRange}`;
       if (chartRange === 'custom') {
         if (startDate) url += `&start_date=${startDate}`;
         if (endDate) url += `&end_date=${endDate}`;
@@ -117,7 +117,7 @@ const EmotionAnalysis = () => {
   const fetchReflections = async () => {
     try {
       setLoadingReflections(true);
-      const res = await apiFetch('/api/v1/wellness/reflection/history');
+      const res = await apiFetch('/v1/wellness/reflection/history');
       if (res.ok) {
         const data = await res.json();
         setReflections(data);
@@ -132,7 +132,7 @@ const EmotionAnalysis = () => {
   const fetchCheckins = async () => {
     try {
       setLoadingCheckins(true);
-      const res = await apiFetch('/api/v1/wellness/checkin/history');
+      const res = await apiFetch('/v1/wellness/checkin/history');
       if (res.ok) {
         const data = await res.json();
         setCheckins(data);
@@ -173,7 +173,7 @@ const EmotionAnalysis = () => {
     setSubmittingCheckin(true);
     setCheckinMessage('');
     try {
-      const res = await apiFetch('/api/v1/wellness/checkin', {
+      const res = await apiFetch('/v1/wellness/checkin', {
         method: 'POST',
         body: JSON.stringify(checkinForm)
       });
@@ -199,7 +199,7 @@ const EmotionAnalysis = () => {
     if (!reflectionText.trim()) return;
     setSubmittingReflection(true);
     try {
-      const res = await apiFetch('/api/v1/wellness/reflection', {
+      const res = await apiFetch('/v1/wellness/reflection', {
         method: 'POST',
         body: JSON.stringify({ reflection_text: reflectionText })
       });
@@ -218,7 +218,7 @@ const EmotionAnalysis = () => {
   const handleUpdateReflection = async (id) => {
     if (!editingText.trim()) return;
     try {
-      const res = await apiFetch(`/api/v1/wellness/reflection/${id}`, {
+      const res = await apiFetch(`/v1/wellness/reflection/${id}`, {
         method: 'PUT',
         body: JSON.stringify({ reflection_text: editingText })
       });
@@ -235,7 +235,7 @@ const EmotionAnalysis = () => {
   const handleDeleteReflection = async (id) => {
     if (!confirm("Are you sure you want to delete this reflection log?")) return;
     try {
-      const res = await apiFetch(`/api/v1/wellness/reflection/${id}`, {
+      const res = await apiFetch(`/v1/wellness/reflection/${id}`, {
         method: 'DELETE'
       });
       if (res.ok) {
@@ -251,7 +251,7 @@ const EmotionAnalysis = () => {
     try {
       // If we were paused, resume the existing session in backend
       if (timerPaused && activeSessionId) {
-        const res = await apiFetch(`/api/v1/wellness/focus/${activeSessionId}/resume`, { method: 'POST' });
+        const res = await apiFetch(`/v1/wellness/focus/${activeSessionId}/resume`, { method: 'POST' });
         if (res.ok) {
           setTimerRunning(true);
           setTimerPaused(false);
@@ -259,7 +259,7 @@ const EmotionAnalysis = () => {
         }
       } else {
         // Start a fresh session
-        const res = await apiFetch('/api/v1/wellness/focus/start', {
+        const res = await apiFetch('/v1/wellness/focus/start', {
           method: 'POST',
           body: JSON.stringify({ preset_minutes: timerPreset })
         });
@@ -302,7 +302,7 @@ const EmotionAnalysis = () => {
     
     if (activeSessionId) {
       try {
-        await apiFetch(`/api/v1/wellness/focus/${activeSessionId}/pause`, { method: 'POST' });
+        await apiFetch(`/v1/wellness/focus/${activeSessionId}/pause`, { method: 'POST' });
       } catch (err) {
         console.error("Failed to sync pause status:", err);
       }
@@ -328,7 +328,7 @@ const EmotionAnalysis = () => {
 
     if (activeSessionId) {
       try {
-        const res = await apiFetch(`/api/v1/wellness/focus/${activeSessionId}/complete`, {
+        const res = await apiFetch(`/v1/wellness/focus/${activeSessionId}/complete`, {
           method: 'POST',
           body: JSON.stringify({
             duration_minutes: durationMin,

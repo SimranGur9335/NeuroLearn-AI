@@ -23,7 +23,7 @@ export const BrandingProvider = ({ children }) => {
     if (!isAuthenticated) return;
     try {
       setLoading(true);
-      const res = await apiFetch("/api/v1/institution/configuration");
+      const res = await apiFetch("/v1/institution/configuration");
       if (res.ok) {
         const data = await res.json();
         setBranding({
