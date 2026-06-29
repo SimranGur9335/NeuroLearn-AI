@@ -5,6 +5,21 @@ import { useStudent } from '../../context/StudentContext';
 import { THEME_COLOR_MAP } from '../../components/StudentHubTheme';
 import { Bell, Check, Megaphone, User, Clock } from 'lucide-react';
 
+const AnnouncementsSkeleton = () => (
+  <div className="space-y-4 animate-pulse">
+    {[1, 2, 3].map((n) => (
+      <div key={n} className="bg-slate-50 dark:bg-slate-900/30 border border-slate-200 dark:border-slate-800 p-6 rounded-3xl h-32 space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="h-6 w-1/4 bg-slate-200 dark:bg-slate-850 rounded-md" />
+          <div className="h-6 w-12 bg-slate-200 dark:bg-slate-850 rounded-md" />
+        </div>
+        <div className="h-4 w-3/4 bg-slate-100 dark:bg-slate-850 rounded-md" />
+        <div className="h-4 w-1/2 bg-slate-100 dark:bg-slate-850 rounded-md" />
+      </div>
+    ))}
+  </div>
+);
+
 const AnnouncementsPage = () => {
   const { profile } = useStudent();
   const themeColor = profile?.theme_color || 'indigo';
@@ -63,10 +78,7 @@ const AnnouncementsPage = () => {
       />
 
       {loading ? (
-        <div className="flex flex-col items-center justify-center min-h-[30vh] space-y-4">
-          <div className="w-8 h-8 border-4 border-slate-200 dark:border-slate-700 border-t-indigo-500 rounded-full animate-spin" />
-          <span className="text-slate-500 dark:text-slate-400 text-xs animate-pulse">Loading notices bulletin...</span>
-        </div>
+        <AnnouncementsSkeleton />
       ) : error ? (
         <div className="bg-red-500/10 border border-red-500/30 p-4 rounded-xl text-red-650 dark:text-red-400 text-sm">
           {error}

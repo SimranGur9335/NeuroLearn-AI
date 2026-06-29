@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { BookOpen, Users, GraduationCap, ArrowRight, LogOut, Sparkles, Layers, BookMarked, UserCheck } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useAuth } from '../../context/AuthContext';
+import { apiFetch } from '../../services/api';
 
 const ClassSelection = () => {
     const [classes, setClasses] = useState([]);
@@ -21,11 +22,9 @@ const ClassSelection = () => {
             }
             setLoading(true);
             setError(null);
-            const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
             try {
                 // 1. Fetch faculty details by email
-                // The global fetch interceptor in AuthContext will automatically attach the authorization header
-                const facultyRes = await fetch(`${backendUrl}/faculty/by-email/${email}`);
+                const facultyRes = await apiFetch(`/faculty/by-email/${email}`);
                 if (!facultyRes.ok) {
                     throw new Error(`Failed to load faculty profile (Status: ${facultyRes.status})`);
                 }
@@ -33,7 +32,7 @@ const ClassSelection = () => {
                 setFacultyInfo(facultyData);
 
                 // 2. Fetch classes assigned to this faculty
-                const classesRes = await fetch(`${backendUrl}/faculty/${facultyData.faculty_id}/classes`);
+                const classesRes = await apiFetch(`/faculty/${facultyData.faculty_id}/classes`);
                 if (!classesRes.ok) {
                     throw new Error(`Failed to load assigned classes (Status: ${classesRes.status})`);
                 }
