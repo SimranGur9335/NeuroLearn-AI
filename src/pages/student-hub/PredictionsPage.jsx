@@ -64,7 +64,7 @@ const PredictionsPage = () => {
   // Fetch real-time student default stats on load
   const loadStudentStats = async () => {
     try {
-      const response = await apiFetch("/api/v1/academic/student-stats");
+      const response = await apiFetch("/v1/academic/student-stats");
       if (response.ok) {
         const data = await response.json();
         setFormData(data);
@@ -79,7 +79,7 @@ const PredictionsPage = () => {
   // Fetch chronological runs history logs
   const loadHistory = async () => {
     try {
-      const response = await apiFetch("/api/v1/academic/predictions/history");
+      const response = await apiFetch("/v1/academic/predictions/history");
       if (response.ok) {
         const data = await response.json();
         setHistory(data);
@@ -113,7 +113,7 @@ const PredictionsPage = () => {
     setLoading(true);
     setError(null);
     try {
-      const response = await apiFetch("/api/v1/academic/predict", {
+      const response = await apiFetch("/v1/academic/predict", {
         method: "POST",
         body: JSON.stringify(formData),
       });

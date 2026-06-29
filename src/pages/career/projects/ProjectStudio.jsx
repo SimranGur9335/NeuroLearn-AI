@@ -8,6 +8,8 @@ import { THEME_COLOR_MAP } from '../../../components/StudentHubTheme';
 import { bookmarkEngine } from '../utils/bookmarkEngine';
 import { rankItemsByProfile } from '../utils/personalizationEngine';
 
+const categories = ['All', 'Beginner', 'Intermediate', 'Advanced', 'Industry Projects'];
+
 const ProjectStudio = () => {
   const navigate = useNavigate();
   const { profile } = useStudent();

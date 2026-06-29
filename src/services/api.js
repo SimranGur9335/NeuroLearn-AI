@@ -4,7 +4,9 @@ export const apiFetch = async (endpoint, options = {}) => {
         : `/${endpoint}`;
 
     const apiBase = "/api";
-    const url = `${apiBase}${cleanEndpoint}`;
+    const url = cleanEndpoint.startsWith('/api/') || cleanEndpoint === '/api'
+        ? cleanEndpoint
+        : `${apiBase}${cleanEndpoint}`;
 
     const headers = {
         'Content-Type': 'application/json',

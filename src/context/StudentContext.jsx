@@ -184,7 +184,7 @@ export const StudentProvider = ({ children }) => {
   useEffect(() => {
     const loadDomains = async () => {
       try {
-        const res = await apiFetch('/api/v1/domains');
+        const res = await apiFetch('/v1/domains');
         if (res.ok) {
           const data = await res.json();
           if (Array.isArray(data) && data.length > 0) {

@@ -54,7 +54,7 @@ const AdminSettings = () => {
   const fetchSettings = async () => {
     try {
       setLoading(true);
-      const res = await apiFetch("/api/v1/institution/configuration");
+      const res = await apiFetch("/v1/institution/configuration");
       if (res.ok) {
         const data = await res.json();
         setSettings({
@@ -179,7 +179,7 @@ const AdminSettings = () => {
         contact_phone: settings.contact_phone
       };
 
-      const res = await apiFetch("/api/v1/institution/configuration", {
+      const res = await apiFetch("/v1/institution/configuration", {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
