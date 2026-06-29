@@ -9213,16 +9213,16 @@ def update_invitation_status(
 ):
     if current_user["role"] not in ["student", "admin"]:
         raise HTTPException(status_code=403, detail="Permission denied")
-    if current_user["role"] == "student":
-        # Verify invitation belongs to student
-        inv = db.execute(
-            text("SELECT student_id FROM remedial_invitations WHERE invitation_id = :id"),
-            {"id": invitation_id}
-        ).fetchone()
-        if not inv or inv.student_id != current_user["student_id"]:
-            raise HTTPException(status_code=403, detail="Access denied: invitation mismatch")
     db = SessionLocal()
     try:
+        if current_user["role"] == "student":
+            # Verify invitation belongs to student
+            inv = db.execute(
+                text("SELECT student_id FROM remedial_invitations WHERE invitation_id = :id"),
+                {"id": invitation_id}
+            ).fetchone()
+            if not inv or inv.student_id != current_user["student_id"]:
+                raise HTTPException(status_code=403, detail="Access denied: invitation mismatch")
         db.execute(
             text("""
             UPDATE remedial_invitations
