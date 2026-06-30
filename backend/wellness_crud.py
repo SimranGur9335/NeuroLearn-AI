@@ -9,9 +9,9 @@ def recalculate_wellness_statistics(db, student_id: int):
     No AI, pure backend calculations.
     """
     try:
-        # 1. Average Sleep & Average Focus (from check-ins)
+        # 1. Average Sleep, Focus, & Stress (from check-ins)
         checkins = db.execute(text("""
-            SELECT sleep_hours, focus_level, log_date 
+            SELECT sleep_hours, focus_level, stress_level, log_date 
             FROM learning_wellness_logs 
             WHERE student_id = :sid AND is_deleted = FALSE
             ORDER BY log_date DESC
@@ -19,19 +19,21 @@ def recalculate_wellness_statistics(db, student_id: int):
         
         avg_sleep = 0.0
         avg_focus = 0.0
+        avg_stress = 0.0
         if checkins:
             avg_sleep = float(sum(float(c.sleep_hours) for c in checkins) / len(checkins))
             avg_focus = float(sum(int(c.focus_level) for c in checkins) / len(checkins))
+            avg_stress = float(sum(int(c.stress_level) for c in checkins) / len(checkins))
             
         # 2. Focus Session Metrics
         sessions = db.execute(text("""
-            SELECT duration_minutes, status, started_at 
+            SELECT duration_minutes, status, started_at, interruptions_count 
             FROM focus_sessions 
             WHERE student_id = :sid AND is_deleted = FALSE
         """), {"sid": student_id}).fetchall()
         
         completed_sessions = sum(1 for s in sessions if s.status == 'completed')
-        interrupted_sessions = sum(1 for s in sessions if s.status == 'interrupted')
+        interrupted_sessions = sum(1 for s in sessions if s.status == 'interrupted' or s.status == 'cancelled')
         focus_sessions_count = len(sessions)
         
         avg_session_duration = 0.0
@@ -48,6 +50,14 @@ def recalculate_wellness_statistics(db, student_id: int):
             FROM focus_sessions 
             WHERE student_id = :sid AND status = 'completed' AND started_at >= :date_limit AND is_deleted = FALSE
         """), {"sid": student_id, "date_limit": seven_days_ago}).scalar() or 0.0)
+
+        # 3b. Monthly Study Hours (sum of completed focus sessions in last 30 days)
+        thirty_days_ago = datetime.utcnow() - timedelta(days=30)
+        monthly_study_hours = float(db.execute(text("""
+            SELECT COALESCE(SUM(duration_minutes), 0) / 60.0 
+            FROM focus_sessions 
+            WHERE student_id = :sid AND status = 'completed' AND started_at >= :date_limit AND is_deleted = FALSE
+        """), {"sid": student_id, "date_limit": thirty_days_ago}).scalar() or 0.0)
 
         # 4. Streak Calculation (Check-ins, completed focus sessions, or quiz attempts)
         # Fetch all active days (check-in dates, completed focus session dates, or quiz attempts)
@@ -152,21 +162,23 @@ def recalculate_wellness_statistics(db, student_id: int):
         # 7. Upsert into wellness_statistics
         db.execute(text("""
             INSERT INTO wellness_statistics (
-                student_id, focus_score, weekly_study_hours, focus_sessions_count,
-                current_streak, longest_streak, average_sleep, average_focus,
+                student_id, focus_score, weekly_study_hours, monthly_study_hours, focus_sessions_count,
+                current_streak, longest_streak, average_sleep, average_focus, average_stress,
                 average_study_hours, completed_sessions, interrupted_sessions,
                 avg_session_duration, attendance_rate, assignment_completion_rate,
                 quiz_performance_rate, learning_consistency, last_calculated_at, updated_at
             ) VALUES (
-                :sid, :fs, :wsh, :fsc, :cs, :ls, :as, :af, :ash, :comps, :intps, :asd, :ar, :acr, :qpr, :lc, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+                :sid, :fs, :wsh, :msh, :fsc, :cs, :ls, :as, :af, :ast, :ash, :comps, :intps, :asd, :ar, :acr, :qpr, :lc, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
             ) ON CONFLICT (student_id) DO UPDATE SET
                 focus_score = EXCLUDED.focus_score,
                 weekly_study_hours = EXCLUDED.weekly_study_hours,
+                monthly_study_hours = EXCLUDED.monthly_study_hours,
                 focus_sessions_count = EXCLUDED.focus_sessions_count,
                 current_streak = EXCLUDED.current_streak,
                 longest_streak = EXCLUDED.longest_streak,
                 average_sleep = EXCLUDED.average_sleep,
                 average_focus = EXCLUDED.average_focus,
+                average_stress = EXCLUDED.average_stress,
                 average_study_hours = EXCLUDED.average_study_hours,
                 completed_sessions = EXCLUDED.completed_sessions,
                 interrupted_sessions = EXCLUDED.interrupted_sessions,
@@ -181,11 +193,13 @@ def recalculate_wellness_statistics(db, student_id: int):
             "sid": student_id,
             "fs": focus_score,
             "wsh": weekly_study_hours,
+            "msh": monthly_study_hours,
             "fsc": focus_sessions_count,
             "cs": current_streak,
             "ls": longest_streak,
             "as": avg_sleep,
             "af": avg_focus,
+            "ast": avg_stress,
             "ash": total_study_hours / max(len(checkins), 1),
             "comps": completed_sessions,
             "intps": interrupted_sessions,
@@ -210,7 +224,7 @@ def recalculate_wellness_statistics(db, student_id: int):
 
 def get_preferences(db, student_id: int):
     pref = db.execute(text("""
-        SELECT preference_id, student_id, pomodoro_preset, daily_study_goal, daily_sleep_goal, created_at, updated_at
+        SELECT preference_id, student_id, pomodoro_preset, preferred_focus_duration, daily_study_goal, daily_sleep_goal, reminder_time, notification_preference, created_at, updated_at
         FROM wellness_preferences
         WHERE student_id = :sid AND is_deleted = FALSE
     """), {"sid": student_id}).fetchone()
@@ -218,14 +232,14 @@ def get_preferences(db, student_id: int):
     if not pref:
         # Create default preferences
         db.execute(text("""
-            INSERT INTO wellness_preferences (student_id, pomodoro_preset, daily_study_goal, daily_sleep_goal)
-            VALUES (:sid, 25, 4.00, 8.00)
+            INSERT INTO wellness_preferences (student_id, pomodoro_preset, preferred_focus_duration, daily_study_goal, daily_sleep_goal, reminder_time, notification_preference)
+            VALUES (:sid, 25, 25, 4.00, 8.00, '09:00', TRUE)
             ON CONFLICT (student_id) DO NOTHING
         """), {"sid": student_id})
         db.commit()
         
         pref = db.execute(text("""
-            SELECT preference_id, student_id, pomodoro_preset, daily_study_goal, daily_sleep_goal, created_at, updated_at
+            SELECT preference_id, student_id, pomodoro_preset, preferred_focus_duration, daily_study_goal, daily_sleep_goal, reminder_time, notification_preference, created_at, updated_at
             FROM wellness_preferences
             WHERE student_id = :sid AND is_deleted = FALSE
         """), {"sid": student_id}).fetchone()

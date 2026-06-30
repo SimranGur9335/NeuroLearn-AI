@@ -445,7 +445,8 @@ def run_migrations():
                 completed_at TIMESTAMP NULL,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                is_deleted BOOLEAN DEFAULT FALSE
+                is_deleted BOOLEAN DEFAULT FALSE,
+                interruptions_count INTEGER DEFAULT 0
             );
         """))
         db.execute(text("CREATE INDEX IF NOT EXISTS idx_focus_sessions_student ON focus_sessions(student_id);"))
@@ -476,6 +477,9 @@ def run_migrations():
                 pomodoro_preset INTEGER DEFAULT 25,
                 daily_study_goal NUMERIC(5, 2) DEFAULT 4.00,
                 daily_sleep_goal NUMERIC(5, 2) DEFAULT 8.00,
+                preferred_focus_duration INTEGER DEFAULT 25,
+                reminder_time VARCHAR(10) DEFAULT '09:00',
+                notification_preference BOOLEAN DEFAULT TRUE,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 is_deleted BOOLEAN DEFAULT FALSE
@@ -492,11 +496,13 @@ def run_migrations():
                 student_id INTEGER NOT NULL REFERENCES students(student_id) ON DELETE CASCADE UNIQUE,
                 focus_score NUMERIC(5, 2) DEFAULT 0.00,
                 weekly_study_hours NUMERIC(5, 2) DEFAULT 0.00,
+                monthly_study_hours NUMERIC(5, 2) DEFAULT 0.00,
                 focus_sessions_count INTEGER DEFAULT 0,
                 current_streak INTEGER DEFAULT 0,
                 longest_streak INTEGER DEFAULT 0,
                 average_sleep NUMERIC(5, 2) DEFAULT 0.00,
                 average_focus NUMERIC(5, 2) DEFAULT 0.00,
+                average_stress NUMERIC(5, 2) DEFAULT 0.00,
                 average_study_hours NUMERIC(5, 2) DEFAULT 0.00,
                 completed_sessions INTEGER DEFAULT 0,
                 interrupted_sessions INTEGER DEFAULT 0,
@@ -512,8 +518,16 @@ def run_migrations():
             );
         """))
         db.execute(text("CREATE INDEX IF NOT EXISTS idx_wellness_stats_student ON wellness_statistics(student_id);"))
+        
+        # Explicitly run ALTER migration statements for existing tables to ensure they have the new columns
+        db.execute(text("ALTER TABLE focus_sessions ADD COLUMN IF NOT EXISTS interruptions_count INTEGER DEFAULT 0;"))
+        db.execute(text("ALTER TABLE wellness_preferences ADD COLUMN IF NOT EXISTS preferred_focus_duration INTEGER DEFAULT 25;"))
+        db.execute(text("ALTER TABLE wellness_preferences ADD COLUMN IF NOT EXISTS reminder_time VARCHAR(10) DEFAULT '09:00';"))
+        db.execute(text("ALTER TABLE wellness_preferences ADD COLUMN IF NOT EXISTS notification_preference BOOLEAN DEFAULT TRUE;"))
+        db.execute(text("ALTER TABLE wellness_statistics ADD COLUMN IF NOT EXISTS average_stress NUMERIC(5, 2) DEFAULT 0.00;"))
+        db.execute(text("ALTER TABLE wellness_statistics ADD COLUMN IF NOT EXISTS monthly_study_hours NUMERIC(5, 2) DEFAULT 0.00;"))
         db.commit()
-        print("OK: wellness_statistics table verified/created.")
+        print("OK: wellness_statistics table verified/created and migrations executed.")
 
         # 30. Create notifications table
         db.execute(text("""

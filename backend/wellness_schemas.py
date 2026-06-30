@@ -61,6 +61,7 @@ class FocusSessionStartInput(BaseModel):
 class FocusSessionUpdateInput(BaseModel):
     duration_minutes: Optional[int] = None
     status: Optional[str] = None
+    interruptions_count: Optional[int] = None
 
 class FocusSessionResponse(BaseModel):
     session_id: int
@@ -68,6 +69,7 @@ class FocusSessionResponse(BaseModel):
     preset_minutes: int
     duration_minutes: int
     status: str
+    interruptions_count: int
     started_at: datetime
     completed_at: Optional[datetime]
     created_at: datetime
@@ -78,15 +80,21 @@ class FocusSessionResponse(BaseModel):
 
 class WellnessPreferencesInput(BaseModel):
     pomodoro_preset: Optional[int] = 25
+    preferred_focus_duration: Optional[int] = 25
     daily_study_goal: Optional[float] = 4.0
     daily_sleep_goal: Optional[float] = 8.0
+    reminder_time: Optional[str] = "09:00"
+    notification_preference: Optional[bool] = True
 
 class WellnessPreferencesResponse(BaseModel):
     preference_id: int
     student_id: int
     pomodoro_preset: int
+    preferred_focus_duration: int
     daily_study_goal: float
     daily_sleep_goal: float
+    reminder_time: str
+    notification_preference: bool
     created_at: datetime
     updated_at: datetime
 
@@ -96,11 +104,13 @@ class WellnessPreferencesResponse(BaseModel):
 class WellnessStatisticsResponse(BaseModel):
     focus_score: float
     weekly_study_hours: float
+    monthly_study_hours: float
     focus_sessions_count: int
     current_streak: int
     longest_streak: int
     average_sleep: float
     average_focus: float
+    average_stress: float
     average_study_hours: float
     completed_sessions: int
     interrupted_sessions: int

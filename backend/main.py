@@ -244,7 +244,8 @@ def run_migrations():
                 completed_at TIMESTAMP NULL,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                is_deleted BOOLEAN DEFAULT FALSE
+                is_deleted BOOLEAN DEFAULT FALSE,
+                interruptions_count INTEGER DEFAULT 0
             );
         """))
         db.execute(text("CREATE INDEX IF NOT EXISTS idx_focus_sessions_student ON focus_sessions(student_id);"))
@@ -271,6 +272,9 @@ def run_migrations():
                 pomodoro_preset INTEGER DEFAULT 25,
                 daily_study_goal NUMERIC(5, 2) DEFAULT 4.00,
                 daily_sleep_goal NUMERIC(5, 2) DEFAULT 8.00,
+                preferred_focus_duration INTEGER DEFAULT 25,
+                reminder_time VARCHAR(10) DEFAULT '09:00',
+                notification_preference BOOLEAN DEFAULT TRUE,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 is_deleted BOOLEAN DEFAULT FALSE
@@ -285,11 +289,13 @@ def run_migrations():
                 student_id INTEGER NOT NULL REFERENCES students(student_id) ON DELETE CASCADE UNIQUE,
                 focus_score NUMERIC(5, 2) DEFAULT 0.00,
                 weekly_study_hours NUMERIC(5, 2) DEFAULT 0.00,
+                monthly_study_hours NUMERIC(5, 2) DEFAULT 0.00,
                 focus_sessions_count INTEGER DEFAULT 0,
                 current_streak INTEGER DEFAULT 0,
                 longest_streak INTEGER DEFAULT 0,
                 average_sleep NUMERIC(5, 2) DEFAULT 0.00,
                 average_focus NUMERIC(5, 2) DEFAULT 0.00,
+                average_stress NUMERIC(5, 2) DEFAULT 0.00,
                 average_study_hours NUMERIC(5, 2) DEFAULT 0.00,
                 completed_sessions INTEGER DEFAULT 0,
                 interrupted_sessions INTEGER DEFAULT 0,
@@ -305,6 +311,14 @@ def run_migrations():
             );
         """))
         db.execute(text("CREATE INDEX IF NOT EXISTS idx_wellness_stats_student ON wellness_statistics(student_id);"))
+        
+        # Explicitly run ALTER migration statements for existing tables to ensure they have the new columns
+        db.execute(text("ALTER TABLE focus_sessions ADD COLUMN IF NOT EXISTS interruptions_count INTEGER DEFAULT 0;"))
+        db.execute(text("ALTER TABLE wellness_preferences ADD COLUMN IF NOT EXISTS preferred_focus_duration INTEGER DEFAULT 25;"))
+        db.execute(text("ALTER TABLE wellness_preferences ADD COLUMN IF NOT EXISTS reminder_time VARCHAR(10) DEFAULT '09:00';"))
+        db.execute(text("ALTER TABLE wellness_preferences ADD COLUMN IF NOT EXISTS notification_preference BOOLEAN DEFAULT TRUE;"))
+        db.execute(text("ALTER TABLE wellness_statistics ADD COLUMN IF NOT EXISTS average_stress NUMERIC(5, 2) DEFAULT 0.00;"))
+        db.execute(text("ALTER TABLE wellness_statistics ADD COLUMN IF NOT EXISTS monthly_study_hours NUMERIC(5, 2) DEFAULT 0.00;"))
         
         db.commit()
         print("Migrations executed successfully!")
@@ -11300,11 +11314,10 @@ def get_academic_predictions_history(current_user: dict = Depends(get_current_us
     finally:
         db.close()
 
-
 # --- Learning Wellness Routes ---
 from datetime import date
 from backend.wellness_schemas import (
-    DailyCheckInInput, DailyCheckInUpdate, WeeklyReflectionInput,
+    DailyCheckInInput, DailyCheckInUpdate, WeeklyReflectionInput, WeeklyReflectionUpdate,
     FocusSessionStartInput, FocusSessionUpdateInput, WellnessPreferencesInput
 )
 from backend.wellness_crud import recalculate_wellness_statistics, get_preferences
@@ -11314,6 +11327,21 @@ def create_or_update_daily_checkin(data: DailyCheckInInput, current_user: dict =
     if current_user["role"] != "student":
         raise HTTPException(status_code=400, detail="Only students can check in")
     student_id = current_user["student_id"]
+    
+    # Validation constraints
+    if data.sleep_hours < 0.0 or data.sleep_hours > 24.0:
+        raise HTTPException(status_code=400, detail="Sleep hours must be between 0 and 24")
+    if data.planned_study_hours < 0.0 or data.planned_study_hours > 24.0:
+        raise HTTPException(status_code=400, detail="Planned study hours must be between 0 and 24")
+    if data.mood.lower() not in {'happy', 'focused', 'stressed', 'tired', 'bored'}:
+        raise HTTPException(status_code=400, detail="Invalid mood value. Allowed: happy, focused, stressed, tired, bored")
+    if data.energy_level < 1 or data.energy_level > 10:
+        raise HTTPException(status_code=400, detail="Energy level must be between 1 and 10")
+    if data.focus_level < 1 or data.focus_level > 10:
+        raise HTTPException(status_code=400, detail="Focus level must be between 1 and 10")
+    if data.stress_level < 1 or data.stress_level > 10:
+        raise HTTPException(status_code=400, detail="Stress level must be between 1 and 10")
+
     db = SessionLocal()
     try:
         today = date.today()
@@ -11359,11 +11387,138 @@ def create_or_update_daily_checkin(data: DailyCheckInInput, current_user: dict =
     finally:
         db.close()
 
+@app.get("/api/v1/wellness/checkin/today")
+def get_todays_checkin(current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "student":
+        raise HTTPException(status_code=400, detail="Only students can view check-ins")
+    student_id = current_user["student_id"]
+    db = SessionLocal()
+    try:
+        today = date.today()
+        row = db.execute(text("""
+            SELECT log_id, mood, energy_level, focus_level, stress_level, sleep_hours, planned_study_hours, learning_goal, log_date, created_at, updated_at
+            FROM learning_wellness_logs
+            WHERE student_id = :sid AND log_date = :today AND is_deleted = FALSE
+        """), {"sid": student_id, "today": today}).fetchone()
+        
+        if not row:
+            raise HTTPException(status_code=404, detail="No check-in found for today")
+            
+        return {
+            "log_id": row.log_id,
+            "mood": row.mood,
+            "energy_level": row.energy_level,
+            "focus_level": row.focus_level,
+            "stress_level": row.stress_level,
+            "sleep_hours": float(row.sleep_hours),
+            "planned_study_hours": float(row.planned_study_hours),
+            "learning_goal": row.learning_goal,
+            "log_date": str(row.log_date),
+            "created_at": str(row.created_at),
+            "updated_at": str(row.updated_at)
+        }
+    finally:
+        db.close()
+
+@app.put("/api/v1/wellness/checkin/today")
+def update_todays_checkin(data: DailyCheckInUpdate, current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "student":
+        raise HTTPException(status_code=400, detail="Only students can modify check-ins")
+    student_id = current_user["student_id"]
+    
+    if data.sleep_hours is not None and (data.sleep_hours < 0.0 or data.sleep_hours > 24.0):
+        raise HTTPException(status_code=400, detail="Sleep hours must be between 0 and 24")
+    if data.planned_study_hours is not None and (data.planned_study_hours < 0.0 or data.planned_study_hours > 24.0):
+        raise HTTPException(status_code=400, detail="Planned study hours must be between 0 and 24")
+    if data.mood is not None and data.mood.lower() not in {'happy', 'focused', 'stressed', 'tired', 'bored'}:
+        raise HTTPException(status_code=400, detail="Invalid mood value. Allowed: happy, focused, stressed, tired, bored")
+    if data.energy_level is not None and (data.energy_level < 1 or data.energy_level > 10):
+        raise HTTPException(status_code=400, detail="Energy level must be between 1 and 10")
+    if data.focus_level is not None and (data.focus_level < 1 or data.focus_level > 10):
+        raise HTTPException(status_code=400, detail="Focus level must be between 1 and 10")
+    if data.stress_level is not None and (data.stress_level < 1 or data.stress_level > 10):
+        raise HTTPException(status_code=400, detail="Stress level must be between 1 and 10")
+
+    db = SessionLocal()
+    try:
+        today = date.today()
+        existing = db.execute(text("""
+            SELECT log_id FROM learning_wellness_logs 
+            WHERE student_id = :sid AND log_date = :today AND is_deleted = FALSE
+        """), {"sid": student_id, "today": today}).fetchone()
+        
+        if not existing:
+            raise HTTPException(status_code=404, detail="No check-in found for today")
+            
+        update_fields = []
+        params = {"lid": existing.log_id}
+        for k, v in data.dict(exclude_unset=True).items():
+            update_fields.append(f"{k} = :{k}")
+            params[k] = v
+            
+        if update_fields:
+            query = f"UPDATE learning_wellness_logs SET {', '.join(update_fields)}, updated_at = CURRENT_TIMESTAMP WHERE log_id = :lid"
+            db.execute(text(query), params)
+            db.commit()
+            recalculate_wellness_statistics(db, student_id)
+            
+        return {"success": True, "message": "Today's check-in updated successfully"}
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        db.close()
+
+@app.delete("/api/v1/wellness/checkin/today")
+def delete_todays_checkin(current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "student":
+        raise HTTPException(status_code=400, detail="Only students can delete check-ins")
+    student_id = current_user["student_id"]
+    db = SessionLocal()
+    try:
+        today = date.today()
+        existing = db.execute(text("""
+            SELECT log_id FROM learning_wellness_logs 
+            WHERE student_id = :sid AND log_date = :today AND is_deleted = FALSE
+        """), {"sid": student_id, "today": today}).fetchone()
+        
+        if not existing:
+            raise HTTPException(status_code=404, detail="No check-in found for today")
+            
+        db.execute(text("UPDATE learning_wellness_logs SET is_deleted = TRUE, updated_at = CURRENT_TIMESTAMP WHERE log_id = :lid"), {"lid": existing.log_id})
+        db.commit()
+        recalculate_wellness_statistics(db, student_id)
+        return {"success": True, "message": "Today's check-in deleted successfully"}
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        db.close()
+
 @app.put("/api/v1/wellness/checkin/{log_id}")
 def update_daily_checkin(log_id: int, data: DailyCheckInUpdate, current_user: dict = Depends(get_current_user)):
     if current_user["role"] != "student":
         raise HTTPException(status_code=400, detail="Only students can modify check-ins")
     student_id = current_user["student_id"]
+    
+    # Validation constraints
+    if data.sleep_hours is not None and (data.sleep_hours < 0.0 or data.sleep_hours > 24.0):
+        raise HTTPException(status_code=400, detail="Sleep hours must be between 0 and 24")
+    if data.planned_study_hours is not None and (data.planned_study_hours < 0.0 or data.planned_study_hours > 24.0):
+        raise HTTPException(status_code=400, detail="Planned study hours must be between 0 and 24")
+    if data.mood is not None and data.mood.lower() not in {'happy', 'focused', 'stressed', 'tired', 'bored'}:
+        raise HTTPException(status_code=400, detail="Invalid mood value. Allowed: happy, focused, stressed, tired, bored")
+    if data.energy_level is not None and (data.energy_level < 1 or data.energy_level > 10):
+        raise HTTPException(status_code=400, detail="Energy level must be between 1 and 10")
+    if data.focus_level is not None and (data.focus_level < 1 or data.focus_level > 10):
+        raise HTTPException(status_code=400, detail="Focus level must be between 1 and 10")
+    if data.stress_level is not None and (data.stress_level < 1 or data.stress_level > 10):
+        raise HTTPException(status_code=400, detail="Stress level must be between 1 and 10")
+
     db = SessionLocal()
     try:
         # Check ownership
@@ -11459,66 +11614,24 @@ def create_weekly_reflection(data: WeeklyReflectionInput, current_user: dict = D
     if current_user["role"] != "student":
         raise HTTPException(status_code=400, detail="Only students can log reflections")
     student_id = current_user["student_id"]
+    
+    # Validation
+    if not data.reflection_text or not data.reflection_text.strip():
+        raise HTTPException(status_code=400, detail="Reflection text is required")
+    text_len = len(data.reflection_text.strip())
+    if text_len < 3 or text_len > 1000:
+        raise HTTPException(status_code=400, detail="Reflection text must be between 3 and 1000 characters")
+
     db = SessionLocal()
     try:
         reflection_id = db.execute(text("""
             INSERT INTO weekly_reflections (student_id, reflection_text, ref_date, created_at, updated_at)
             VALUES (:sid, :text, CURRENT_DATE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
             RETURNING reflection_id
-        """), {"sid": student_id, "text": data.reflection_text}).scalar()
+        """), {"sid": student_id, "text": data.reflection_text.strip()}).scalar()
         db.commit()
+        recalculate_wellness_statistics(db, student_id)
         return {"success": True, "message": "Reflection logged successfully", "reflection_id": reflection_id}
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
-    finally:
-        db.close()
-
-@app.put("/api/v1/wellness/reflection/{reflection_id}")
-def update_weekly_reflection(reflection_id: int, data: WeeklyReflectionInput, current_user: dict = Depends(get_current_user)):
-    if current_user["role"] != "student":
-        raise HTTPException(status_code=400, detail="Only students can modify reflections")
-    student_id = current_user["student_id"]
-    db = SessionLocal()
-    try:
-        ref = db.execute(text("SELECT student_id FROM weekly_reflections WHERE reflection_id = :rid AND is_deleted = FALSE"), {"rid": reflection_id}).fetchone()
-        if not ref:
-            raise HTTPException(status_code=404, detail="Reflection not found")
-        if ref.student_id != student_id:
-            raise HTTPException(status_code=403, detail="Unauthorized")
-            
-        db.execute(text("""
-            UPDATE weekly_reflections SET reflection_text = :text, updated_at = CURRENT_TIMESTAMP
-            WHERE reflection_id = :rid
-        """), {"text": data.reflection_text, "rid": reflection_id})
-        db.commit()
-        return {"success": True, "message": "Reflection updated successfully"}
-    except HTTPException as he:
-        raise he
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
-    finally:
-        db.close()
-
-@app.delete("/api/v1/wellness/reflection/{reflection_id}")
-def delete_weekly_reflection(reflection_id: int, current_user: dict = Depends(get_current_user)):
-    if current_user["role"] != "student":
-        raise HTTPException(status_code=400, detail="Only students can delete reflections")
-    student_id = current_user["student_id"]
-    db = SessionLocal()
-    try:
-        ref = db.execute(text("SELECT student_id FROM weekly_reflections WHERE reflection_id = :rid AND is_deleted = FALSE"), {"rid": reflection_id}).fetchone()
-        if not ref:
-            raise HTTPException(status_code=404, detail="Reflection not found")
-        if ref.student_id != student_id:
-            raise HTTPException(status_code=403, detail="Unauthorized")
-            
-        db.execute(text("UPDATE weekly_reflections SET is_deleted = TRUE, updated_at = CURRENT_TIMESTAMP WHERE reflection_id = :rid"), {"rid": reflection_id})
-        db.commit()
-        return {"success": True, "message": "Reflection deleted successfully"}
-    except HTTPException as he:
-        raise he
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
@@ -11551,6 +11664,95 @@ def get_weekly_reflection_history(current_user: dict = Depends(get_current_user)
     finally:
         db.close()
 
+@app.get("/api/v1/wellness/reflection/{reflection_id}")
+def get_weekly_reflection(reflection_id: int, current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "student":
+        raise HTTPException(status_code=400, detail="Only students can view reflections")
+    student_id = current_user["student_id"]
+    db = SessionLocal()
+    try:
+        ref = db.execute(text("""
+            SELECT reflection_id, student_id, reflection_text, ref_date, created_at, updated_at 
+            FROM weekly_reflections 
+            WHERE reflection_id = :rid AND is_deleted = FALSE
+        """), {"rid": reflection_id}).fetchone()
+        if not ref:
+            raise HTTPException(status_code=404, detail="Reflection not found")
+        if ref.student_id != student_id:
+            raise HTTPException(status_code=403, detail="Unauthorized")
+            
+        return {
+            "reflection_id": ref.reflection_id,
+            "student_id": ref.student_id,
+            "reflection_text": ref.reflection_text,
+            "ref_date": str(ref.ref_date),
+            "created_at": str(ref.created_at),
+            "updated_at": str(ref.updated_at)
+        }
+    finally:
+        db.close()
+
+@app.put("/api/v1/wellness/reflection/{reflection_id}")
+def update_weekly_reflection(reflection_id: int, data: WeeklyReflectionUpdate, current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "student":
+        raise HTTPException(status_code=400, detail="Only students can modify reflections")
+    student_id = current_user["student_id"]
+    
+    # Validation
+    if not data.reflection_text or not data.reflection_text.strip():
+        raise HTTPException(status_code=400, detail="Reflection text is required")
+    text_len = len(data.reflection_text.strip())
+    if text_len < 3 or text_len > 1000:
+        raise HTTPException(status_code=400, detail="Reflection text must be between 3 and 1000 characters")
+
+    db = SessionLocal()
+    try:
+        ref = db.execute(text("SELECT student_id FROM weekly_reflections WHERE reflection_id = :rid AND is_deleted = FALSE"), {"rid": reflection_id}).fetchone()
+        if not ref:
+            raise HTTPException(status_code=404, detail="Reflection not found")
+        if ref.student_id != student_id:
+            raise HTTPException(status_code=403, detail="Unauthorized")
+            
+        db.execute(text("""
+            UPDATE weekly_reflections SET reflection_text = :text, updated_at = CURRENT_TIMESTAMP
+            WHERE reflection_id = :rid
+        """), {"text": data.reflection_text.strip(), "rid": reflection_id})
+        db.commit()
+        recalculate_wellness_statistics(db, student_id)
+        return {"success": True, "message": "Reflection updated successfully"}
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        db.close()
+
+@app.delete("/api/v1/wellness/reflection/{reflection_id}")
+def delete_weekly_reflection(reflection_id: int, current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "student":
+        raise HTTPException(status_code=400, detail="Only students can delete reflections")
+    student_id = current_user["student_id"]
+    db = SessionLocal()
+    try:
+        ref = db.execute(text("SELECT student_id FROM weekly_reflections WHERE reflection_id = :rid AND is_deleted = FALSE"), {"rid": reflection_id}).fetchone()
+        if not ref:
+            raise HTTPException(status_code=404, detail="Reflection not found")
+        if ref.student_id != student_id:
+            raise HTTPException(status_code=403, detail="Unauthorized")
+            
+        db.execute(text("UPDATE weekly_reflections SET is_deleted = TRUE, updated_at = CURRENT_TIMESTAMP WHERE reflection_id = :rid"), {"rid": reflection_id})
+        db.commit()
+        recalculate_wellness_statistics(db, student_id)
+        return {"success": True, "message": "Reflection deleted successfully"}
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        db.close()
+
 # --- Focus Session Endpoints ---
 
 @app.post("/api/v1/wellness/focus/start")
@@ -11561,12 +11763,12 @@ def start_focus_session(data: FocusSessionStartInput, current_user: dict = Depen
     db = SessionLocal()
     try:
         session_id = db.execute(text("""
-            INSERT INTO focus_sessions (student_id, preset_minutes, duration_minutes, status, started_at, created_at, updated_at)
-            VALUES (:sid, :preset, 0, 'running', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            INSERT INTO focus_sessions (student_id, preset_minutes, duration_minutes, status, interruptions_count, started_at, created_at, updated_at)
+            VALUES (:sid, :preset, 0, 'running', 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
             RETURNING session_id
         """), {"sid": student_id, "preset": data.preset_minutes}).scalar()
         db.commit()
-        return {"success": True, "session_id": session_id, "preset_minutes": data.preset_minutes}
+        return {"success": True, "session_id": session_id, "preset_minutes": data.preset_minutes, "status": "running", "interruptions_count": 0}
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
@@ -11587,11 +11789,12 @@ def pause_focus_session(session_id: int, current_user: dict = Depends(get_curren
             raise HTTPException(status_code=403, detail="Unauthorized")
             
         db.execute(text("""
-            UPDATE focus_sessions SET status = 'paused', updated_at = CURRENT_TIMESTAMP
+            UPDATE focus_sessions 
+            SET status = 'paused', interruptions_count = interruptions_count + 1, updated_at = CURRENT_TIMESTAMP
             WHERE session_id = :sid
         """), {"sid": session_id})
         db.commit()
-        return {"success": True, "message": "Session paused"}
+        return {"success": True, "message": "Session paused", "status": "paused"}
     except HTTPException as he:
         raise he
     except Exception as e:
@@ -11618,7 +11821,36 @@ def resume_focus_session(session_id: int, current_user: dict = Depends(get_curre
             WHERE session_id = :sid
         """), {"sid": session_id})
         db.commit()
-        return {"success": True, "message": "Session resumed"}
+        return {"success": True, "message": "Session resumed", "status": "running"}
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        db.close()
+
+@app.post("/api/v1/wellness/focus/{session_id}/cancel")
+def cancel_focus_session(session_id: int, current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "student":
+        raise HTTPException(status_code=400, detail="Only students can perform focus sessions")
+    student_id = current_user["student_id"]
+    db = SessionLocal()
+    try:
+        sess = db.execute(text("SELECT student_id, status FROM focus_sessions WHERE session_id = :sid AND is_deleted = FALSE"), {"sid": session_id}).fetchone()
+        if not sess:
+            raise HTTPException(status_code=404, detail="Focus session not found")
+        if sess.student_id != student_id:
+            raise HTTPException(status_code=403, detail="Unauthorized")
+            
+        db.execute(text("""
+            UPDATE focus_sessions 
+            SET status = 'cancelled', completed_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+            WHERE session_id = :sid
+        """), {"sid": session_id})
+        db.commit()
+        recalculate_wellness_statistics(db, student_id)
+        return {"success": True, "message": "Session cancelled", "status": "cancelled"}
     except HTTPException as he:
         raise he
     except Exception as e:
@@ -11645,9 +11877,10 @@ def complete_focus_session(session_id: int, data: FocusSessionUpdateInput, curre
         
         db.execute(text("""
             UPDATE focus_sessions 
-            SET status = :status, duration_minutes = :dur, completed_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+            SET status = :status, duration_minutes = :dur, completed_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP,
+                interruptions_count = COALESCE(:ic, interruptions_count)
             WHERE session_id = :sid
-        """), {"status": status, "dur": duration, "sid": session_id})
+        """), {"status": status, "dur": duration, "ic": data.interruptions_count, "sid": session_id})
         db.commit()
         
         # Award XP for completed sessions
@@ -11664,7 +11897,7 @@ def complete_focus_session(session_id: int, data: FocusSessionUpdateInput, curre
             
         recalculate_wellness_statistics(db, student_id)
         
-        return {"success": True, "message": "Session finalized", "xp_earned": xp_earned}
+        return {"success": True, "message": "Session finalized", "xp_earned": xp_earned, "status": status}
     except HTTPException as he:
         raise he
     except Exception as e:
@@ -11681,7 +11914,7 @@ def get_focus_session_history(current_user: dict = Depends(get_current_user)):
     db = SessionLocal()
     try:
         rows = db.execute(text("""
-            SELECT session_id, preset_minutes, duration_minutes, status, started_at, completed_at, created_at
+            SELECT session_id, preset_minutes, duration_minutes, status, interruptions_count, started_at, completed_at, created_at
             FROM focus_sessions
             WHERE student_id = :sid AND is_deleted = FALSE
             ORDER BY started_at DESC
@@ -11693,6 +11926,7 @@ def get_focus_session_history(current_user: dict = Depends(get_current_user)):
                 "preset_minutes": r.preset_minutes,
                 "duration_minutes": r.duration_minutes,
                 "status": r.status,
+                "interruptions_count": r.interruptions_count,
                 "started_at": str(r.started_at),
                 "completed_at": str(r.completed_at) if r.completed_at else None,
                 "created_at": str(r.created_at)
@@ -11715,8 +11949,11 @@ def get_wellness_preferences(current_user: dict = Depends(get_current_user)):
             "preference_id": pref.preference_id,
             "student_id": pref.student_id,
             "pomodoro_preset": pref.pomodoro_preset,
+            "preferred_focus_duration": pref.preferred_focus_duration,
             "daily_study_goal": float(pref.daily_study_goal),
             "daily_sleep_goal": float(pref.daily_sleep_goal),
+            "reminder_time": pref.reminder_time,
+            "notification_preference": bool(pref.notification_preference),
             "created_at": str(pref.created_at),
             "updated_at": str(pref.updated_at)
         }
@@ -11750,8 +11987,11 @@ def update_wellness_preferences(data: WellnessPreferencesInput, current_user: di
             "preference_id": pref.preference_id,
             "student_id": pref.student_id,
             "pomodoro_preset": pref.pomodoro_preset,
+            "preferred_focus_duration": pref.preferred_focus_duration,
             "daily_study_goal": float(pref.daily_study_goal),
             "daily_sleep_goal": float(pref.daily_sleep_goal),
+            "reminder_time": pref.reminder_time,
+            "notification_preference": bool(pref.notification_preference),
             "created_at": str(pref.created_at),
             "updated_at": str(pref.updated_at)
         }
@@ -11780,8 +12020,8 @@ def get_wellness_statistics(
         
         # Load calculated statistics
         stats = db.execute(text("""
-            SELECT focus_score, weekly_study_hours, focus_sessions_count, current_streak, longest_streak,
-                   average_sleep, average_focus, average_study_hours, completed_sessions, interrupted_sessions,
+            SELECT focus_score, weekly_study_hours, monthly_study_hours, focus_sessions_count, current_streak, longest_streak,
+                   average_sleep, average_focus, average_stress, average_study_hours, completed_sessions, interrupted_sessions,
                    avg_session_duration, attendance_rate, assignment_completion_rate, quiz_performance_rate,
                    learning_consistency, last_calculated_at
             FROM wellness_statistics
@@ -11806,7 +12046,7 @@ def get_wellness_statistics(
             except Exception:
                 start = today - timedelta(days=7)
                 end = today
-                
+                 
         # Fetch chart data: checkins and study time in that date range
         chart_rows = db.execute(text("""
             SELECT l.log_date, l.mood, l.focus_level, l.sleep_hours,
@@ -11843,11 +12083,13 @@ def get_wellness_statistics(
             return {
                 "focus_score": 0.0,
                 "weekly_study_hours": 0.0,
+                "monthly_study_hours": 0.0,
                 "focus_sessions_count": 0,
                 "current_streak": 0,
                 "longest_streak": 0,
                 "average_sleep": 0.0,
                 "average_focus": 0.0,
+                "average_stress": 0.0,
                 "average_study_hours": 0.0,
                 "completed_sessions": 0,
                 "interrupted_sessions": 0,
@@ -11863,11 +12105,13 @@ def get_wellness_statistics(
         return {
             "focus_score": float(stats.focus_score),
             "weekly_study_hours": float(stats.weekly_study_hours),
+            "monthly_study_hours": float(stats.monthly_study_hours),
             "focus_sessions_count": int(stats.focus_sessions_count),
             "current_streak": int(stats.current_streak),
             "longest_streak": int(stats.longest_streak),
             "average_sleep": float(stats.average_sleep),
             "average_focus": float(stats.average_focus),
+            "average_stress": float(stats.average_stress),
             "average_study_hours": float(stats.average_study_hours),
             "completed_sessions": int(stats.completed_sessions),
             "interrupted_sessions": int(stats.interrupted_sessions),
