@@ -49,12 +49,14 @@ def recalculate_wellness_statistics(db, student_id: int):
             WHERE student_id = :sid AND status = 'completed' AND started_at >= :date_limit AND is_deleted = FALSE
         """), {"sid": student_id, "date_limit": seven_days_ago}).scalar() or 0.0)
 
-        # 4. Streak Calculation (Check-ins or completed focus sessions)
-        # Fetch all active days (check-in dates or completed focus session dates)
+        # 4. Streak Calculation (Check-ins, completed focus sessions, or quiz attempts)
+        # Fetch all active days (check-in dates, completed focus session dates, or quiz attempts)
         active_dates = db.execute(text("""
             SELECT DISTINCT log_date AS adate FROM learning_wellness_logs WHERE student_id = :sid AND is_deleted = FALSE
             UNION
             SELECT DISTINCT DATE(started_at) AS adate FROM focus_sessions WHERE student_id = :sid AND status = 'completed' AND is_deleted = FALSE
+            UNION
+            SELECT DISTINCT DATE(created_at) AS adate FROM quiz_attempts WHERE student_id = :sid
             ORDER BY adate DESC
         """), {"sid": student_id}).fetchall()
         
@@ -193,6 +195,14 @@ def recalculate_wellness_statistics(db, student_id: int):
             "qpr": quiz_performance_rate,
             "lc": learning_consistency
         })
+        db.commit()
+
+        # Sync with student_metrics streak and last active date
+        db.execute(text("""
+            UPDATE student_metrics 
+            SET streak = :cs, last_active_date = CURRENT_DATE, updated_at = CURRENT_TIMESTAMP
+            WHERE student_id = :sid
+        """), {"cs": current_streak, "sid": student_id})
         db.commit()
     except Exception as e:
         db.rollback()

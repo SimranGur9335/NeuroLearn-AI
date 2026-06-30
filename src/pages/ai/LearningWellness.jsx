@@ -1,4 +1,4 @@
-// src/pages/ai/EmotionAnalysis.jsx
+// src/pages/ai/LearningWellness.jsx
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -47,7 +47,7 @@ import { apiFetch } from '../../services/api';
 import { THEME_COLOR_MAP } from '../../components/StudentHubTheme';
 import StudentHubHeader from '../../components/StudentHubHeader';
 
-const EmotionAnalysis = () => {
+const LearningWellness = () => {
   const { profile, xp, setXp } = useStudent();
   const themeColor = profile?.theme_color || 'indigo';
   const theme = THEME_COLOR_MAP[themeColor] || THEME_COLOR_MAP.indigo;
@@ -382,10 +382,8 @@ const EmotionAnalysis = () => {
   };
 
   // Heuristic Diagnostics & Recommendations
-  const sleepTarget = stats?.average_sleep || 0.0;
   const stressVal = checkinForm.stress_level;
   const sleepVal = checkinForm.sleep_hours;
-  const focusVal = checkinForm.focus_level;
 
   const burnoutRisk = stressVal > 7 || (stats?.average_focus < 4 && stats?.completed_sessions < stats?.interrupted_sessions)
     ? 'High Burnout Warning'
@@ -688,7 +686,7 @@ const EmotionAnalysis = () => {
           {/* Pomodoro Focus Studio */}
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm text-center space-y-4">
             <h3 className="font-extrabold text-slate-900 dark:text-white text-sm flex items-center justify-center gap-2">
-              <Clock className="text-indigo-500" size={18} />
+              <Clock className="text-indigo-550" size={18} />
               Focus Studio
             </h3>
 
@@ -721,7 +719,7 @@ const EmotionAnalysis = () => {
                   {formatTime(secondsLeft)}
                 </span>
                 <span className="text-[9px] text-slate-500 uppercase font-black tracking-widest mt-1">
-                  {timerRunning ? 'Session active' : timerPaused ? 'Paused' : 'Ready'}
+                  {timerRunning ? 'Focus active' : timerPaused ? 'Paused' : 'Ready'}
                 </span>
               </div>
             </div>
@@ -779,7 +777,7 @@ const EmotionAnalysis = () => {
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
               <h3 className="font-extrabold text-slate-900 dark:text-white text-sm flex items-center gap-2">
-                <TrendingUp className="text-indigo-500" size={18} />
+                <TrendingUp className="text-indigo-550" size={18} />
                 Cognitive Analytics Stack
               </h3>
               
@@ -896,7 +894,7 @@ const EmotionAnalysis = () => {
 
               {/* Sleep Hygiene Card */}
               <div className="p-4 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 rounded-2xl flex flex-col justify-between">
-                <span className="text-[10px] text-slate-500 font-extrabold uppercase tracking-wider block mb-1">Sleep Hygiene</span>
+                <span className="text-[10px] text-slate-550 font-extrabold uppercase tracking-wider block mb-1">Sleep Hygiene</span>
                 <span className={`text-[10px] font-extrabold ${sleepStatusColor}`}>
                   {sleepStatus}
                 </span>
@@ -905,7 +903,7 @@ const EmotionAnalysis = () => {
 
               {/* Learning Consistency Card */}
               <div className="p-4 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 rounded-2xl flex flex-col justify-between">
-                <span className="text-[10px] text-slate-500 font-extrabold uppercase tracking-wider block mb-1">Consistency</span>
+                <span className="text-[10px] text-slate-505 font-extrabold uppercase tracking-wider block mb-1">Consistency</span>
                 <span className="text-xs font-black text-slate-800 dark:text-white">
                   {stats?.learning_consistency ? stats.learning_consistency.toFixed(1) : '0.0'}%
                 </span>
@@ -914,9 +912,9 @@ const EmotionAnalysis = () => {
             </div>
 
             {/* Static Guidelines / Recommendations */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs text-slate-550 dark:text-slate-400">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs text-slate-550 dark:text-slate-450">
               <div className="p-4 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 rounded-2xl flex gap-3">
-                <ShieldAlert className="text-indigo-500 shrink-0 w-5 h-5" />
+                <ShieldAlert className="text-indigo-505 shrink-0 w-5 h-5" />
                 <div>
                   <h5 className="font-extrabold text-slate-900 dark:text-white text-[10px] uppercase tracking-wider">Guideline: Rest Cycle</h5>
                   <p className="mt-1 text-[10px] leading-relaxed">
@@ -928,7 +926,7 @@ const EmotionAnalysis = () => {
               </div>
 
               <div className="p-4 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 rounded-2xl flex gap-3">
-                <Brain className="text-indigo-500 shrink-0 w-5 h-5" />
+                <Brain className="text-indigo-505 shrink-0 w-5 h-5" />
                 <div>
                   <h5 className="font-extrabold text-slate-900 dark:text-white text-[10px] uppercase tracking-wider">Guideline: Cognitive Load</h5>
                   <p className="mt-1 text-[10px] leading-relaxed">
@@ -945,7 +943,7 @@ const EmotionAnalysis = () => {
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm space-y-6">
             <div>
               <h3 className="font-extrabold text-slate-900 dark:text-white text-sm flex items-center gap-2">
-                <BookOpen className="text-indigo-500" size={18} />
+                <BookOpen className="text-indigo-550" size={18} />
                 Reflection Journal
               </h3>
               <p className="text-xs text-slate-550 dark:text-slate-400 mt-1">Reflect on your weekly progress, difficulties encountered, and achievements.</p>
@@ -984,12 +982,12 @@ const EmotionAnalysis = () => {
               </h4>
 
               {loadingReflections ? (
-                <div className="text-center py-6 text-slate-500 text-xs">
+                <div className="text-center py-6 text-slate-555 text-xs">
                   <div className="animate-spin inline-block w-4 h-4 border-2 border-indigo-500 border-t-transparent rounded-full mb-1" />
                   <p className="text-[10px]">Retrieving reflection logs...</p>
                 </div>
               ) : reflections.length === 0 ? (
-                <div className="text-center py-6 text-slate-500 text-xs border border-dashed border-slate-200 dark:border-slate-850 rounded-2xl bg-slate-50/50 dark:bg-slate-950/20">
+                <div className="text-center py-6 text-slate-555 text-xs border border-dashed border-slate-200 dark:border-slate-850 rounded-2xl bg-slate-50/50 dark:bg-slate-950/20">
                   <p className="font-bold text-slate-400">No reflections logged yet.</p>
                   <p className="text-[9px] text-slate-400 mt-1">Start writing reflections to track academic milestones.</p>
                 </div>
@@ -998,7 +996,7 @@ const EmotionAnalysis = () => {
                   {reflections.map((ref) => (
                     <div 
                       key={ref.reflection_id}
-                      className="p-4 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 rounded-2xl text-xs space-y-2 hover:border-slate-350 dark:hover:border-slate-800 transition-colors"
+                      className="p-4 bg-slate-50 dark:bg-slate-955 border border-slate-200 dark:border-slate-850 rounded-2xl text-xs space-y-2 hover:border-slate-350 dark:hover:border-slate-800 transition-colors"
                     >
                       <div className="flex justify-between items-center text-[10px] text-slate-500 font-semibold">
                         <span className="flex items-center gap-1 text-indigo-550 dark:text-indigo-400 font-extrabold uppercase">
@@ -1012,7 +1010,7 @@ const EmotionAnalysis = () => {
                               setEditingReflectionId(ref.reflection_id);
                               setEditingText(ref.reflection_text);
                             }}
-                            className="text-slate-450 hover:text-indigo-550 dark:hover:text-indigo-450 p-1"
+                            className="text-slate-450 hover:text-indigo-550 dark:hover:text-indigo-455 p-1"
                             title="Edit"
                           >
                             <Edit2 size={12} />
@@ -1038,16 +1036,16 @@ const EmotionAnalysis = () => {
                           <div className="flex gap-2">
                             <button
                               onClick={() => handleUpdateReflection(ref.reflection_id)}
-                              className="px-3 py-1 bg-indigo-650 text-white rounded-lg font-bold text-[10px] hover:bg-indigo-500 transition-colors"
+                              className="px-3 py-1 bg-indigo-655 text-white rounded-lg font-bold text-[10px] hover:bg-indigo-500 transition-colors"
                             >
                               Save
                             </button>
                             <button
                               onClick={() => {
-                                setEditingReflectionId(null);
-                                setEditingText('');
+                                  setEditingReflectionId(null);
+                                  setEditingText('');
                               }}
-                              className="px-3 py-1 bg-slate-200 dark:bg-slate-800 text-slate-650 dark:text-slate-405 rounded-lg font-bold text-[10px] hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors"
+                              className="px-3 py-1 bg-slate-200 dark:bg-slate-800 text-slate-650 dark:text-slate-400 rounded-lg font-bold text-[10px] hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors"
                             >
                               Cancel
                             </button>
@@ -1072,4 +1070,4 @@ const EmotionAnalysis = () => {
   );
 };
 
-export default EmotionAnalysis;
+export default LearningWellness;

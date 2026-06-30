@@ -193,11 +193,9 @@ def run_migrations():
             );
         """))
         
-        # Check and add columns to wellness_mood_logs table
-        db.execute(text("ALTER TABLE wellness_mood_logs ADD COLUMN IF NOT EXISTS sleep_hours NUMERIC(5, 2) DEFAULT 8.00;"))
-        db.execute(text("ALTER TABLE wellness_mood_logs ADD COLUMN IF NOT EXISTS study_hours NUMERIC(5, 2) DEFAULT 0.00;"))
-        db.execute(text("ALTER TABLE wellness_mood_logs ADD COLUMN IF NOT EXISTS learning_habits TEXT DEFAULT '[]';"))
-        db.execute(text("ALTER TABLE wellness_mood_logs ADD COLUMN IF NOT EXISTS recommendations TEXT DEFAULT '[]';"))
+        # Ensure new columns on learning_wellness_logs exist
+        db.execute(text("ALTER TABLE learning_wellness_logs ADD COLUMN IF NOT EXISTS learning_habits TEXT DEFAULT '[]';"))
+        db.execute(text("ALTER TABLE learning_wellness_logs ADD COLUMN IF NOT EXISTS recommendations TEXT DEFAULT '[]';"))
         
         # Check and add columns for extended profile features
         db.execute(text("ALTER TABLE students ADD COLUMN IF NOT EXISTS mobile VARCHAR(20) DEFAULT NULL;"))
@@ -227,7 +225,9 @@ def run_migrations():
                 log_date DATE NOT NULL DEFAULT CURRENT_DATE,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                is_deleted BOOLEAN DEFAULT FALSE
+                is_deleted BOOLEAN DEFAULT FALSE,
+                learning_habits TEXT DEFAULT '[]',
+                recommendations TEXT DEFAULT '[]'
             );
         """))
         db.execute(text("CREATE INDEX IF NOT EXISTS idx_lw_logs_student_date ON learning_wellness_logs(student_id, log_date);"))
@@ -4787,28 +4787,66 @@ def log_wellness_mood(data: WellnessMoodInput, current_user: dict = Depends(get_
                 
         recs_json = json.dumps(recommendations_list)
         
-        # 2. Insert into PostgreSQL DB
-        db.execute(
-            text("""
-                INSERT INTO wellness_mood_logs (
-                    student_id, happiness, focus, frustration, stress, 
-                    sleep_hours, study_hours, learning_habits, recommendations
-                )
-                VALUES (:sid, :hap, :foc, :fru, :str, :sleep, :study, :habits, :recs)
-            """),
-            {
-                "sid": sid,
-                "hap": data.happiness,
-                "foc": data.focus,
-                "fru": data.frustration,
-                "str": data.stress,
-                "sleep": data.sleep_hours,
-                "study": data.study_hours,
-                "habits": habits_json,
-                "recs": recs_json
-            }
-        )
+        # Map parameters to learning_wellness_logs fields for legacy compatibility
+        happy_val = int(data.happiness)
+        stress_val = int(data.stress)
+        focus_val = int(data.focus)
+        
+        mood = 'happy' if happy_val > 60 else 'stressed' if stress_val > 60 else 'focused'
+        energy_level = max(1, min(10, happy_val // 10))
+        focus_level = max(1, min(10, focus_val // 10))
+        stress_level = max(1, min(10, stress_val // 10))
+        
+        # 2. Insert or update today's log in learning_wellness_logs
+        today = datetime.now().date()
+        existing = db.execute(text("""
+            SELECT log_id FROM learning_wellness_logs 
+            WHERE student_id = :sid AND log_date = :today AND is_deleted = FALSE
+        """), {"sid": sid, "today": today}).fetchone()
+        
+        if existing:
+            db.execute(
+                text("""
+                    UPDATE learning_wellness_logs 
+                    SET mood = :mood, energy_level = :el, focus_level = :fl, stress_level = :sl,
+                        sleep_hours = :sleep, planned_study_hours = :study, learning_goal = 'Legacy AI Log (Updated)',
+                        learning_habits = :habits, recommendations = :recs, updated_at = CURRENT_TIMESTAMP
+                    WHERE log_id = :lid
+                """),
+                {
+                    "mood": mood, "el": energy_level, "fl": focus_level, "sl": stress_level,
+                    "sleep": data.sleep_hours, "study": data.study_hours, "habits": habits_json,
+                    "recs": recs_json, "lid": existing.log_id
+                }
+            )
+        else:
+            db.execute(
+                text("""
+                    INSERT INTO learning_wellness_logs (
+                        student_id, mood, energy_level, focus_level, stress_level, 
+                        sleep_hours, planned_study_hours, learning_goal, 
+                        learning_habits, recommendations, log_date, created_at, updated_at, is_deleted
+                    )
+                    VALUES (:sid, :mood, :el, :fl, :sl, :sleep, :study, 'Legacy AI Log Submission', :habits, :recs, :today, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE)
+                """),
+                {
+                    "sid": sid,
+                    "mood": mood,
+                    "el": energy_level,
+                    "fl": focus_level,
+                    "sl": stress_level,
+                    "sleep": data.sleep_hours,
+                    "study": data.study_hours,
+                    "habits": habits_json,
+                    "recs": recs_json,
+                    "today": today
+                }
+            )
         db.commit()
+        # Recalculate wellness statistics to update streak
+        from backend.wellness_crud import recalculate_wellness_statistics
+        recalculate_wellness_statistics(db, sid)
+        
         return {
             "success": True, 
             "message": "Wellness metrics logged successfully",
@@ -4830,11 +4868,11 @@ def get_wellness_mood_history(current_user: dict = Depends(get_current_user)):
         sid = current_user["student_id"]
         result = db.execute(
             text("""
-                SELECT happiness, focus, frustration, stress, sleep_hours, study_hours, 
-                       learning_habits, recommendations, log_date 
-                FROM wellness_mood_logs 
-                WHERE student_id = :sid 
-                ORDER BY created_at DESC 
+                SELECT mood, energy_level, focus_level, stress_level, sleep_hours, planned_study_hours, 
+                       learning_habits, recommendations, log_date, created_at
+                FROM learning_wellness_logs 
+                WHERE student_id = :sid AND is_deleted = FALSE
+                ORDER BY log_date DESC, created_at DESC 
                 LIMIT 10
             """),
             {"sid": sid}
@@ -4853,15 +4891,25 @@ def get_wellness_mood_history(current_user: dict = Depends(get_current_user)):
             except Exception:
                 recs = []
                 
+            # Map back to 100-scale for legacy compatibility
+            el = int(r.energy_level or 5)
+            fl = int(r.focus_level or 5)
+            sl = int(r.stress_level or 5)
+            
+            happiness = el * 10
+            focus = fl * 10
+            frustration = sl * 5
+            stress = sl * 10
+            
             history_list.append({
                 "day": r.log_date.strftime("%a") if r.log_date else "Today",
                 "date": str(r.log_date) if r.log_date else None,
-                "happy": int(r.happiness),
-                "focused": int(r.focus),
-                "frustrated": int(r.frustration),
-                "stressed": int(r.stress),
+                "happy": happiness,
+                "focused": focus,
+                "frustrated": frustration,
+                "stressed": stress,
                 "sleep_hours": float(r.sleep_hours) if r.sleep_hours is not None else 8.0,
-                "study_hours": float(r.study_hours) if r.study_hours is not None else 0.0,
+                "study_hours": float(r.planned_study_hours) if r.planned_study_hours is not None else 0.0,
                 "learning_habits": habs,
                 "recommendations": recs
             })
@@ -10549,28 +10597,21 @@ def submit_quiz_score(data: QuizSubmitInput, current_user: dict = Depends(get_cu
             "passed": passed
         })
         
-        # 2. Calculate and update streak
-        metrics = db.execute(text("SELECT streak, last_active_date FROM student_metrics WHERE student_id = :sid"), {"sid": student_id}).fetchone()
-        current_streak = metrics.streak if metrics and metrics.streak else 0
-        last_active = metrics.last_active_date if metrics else None
-        
-        today = datetime.now().date()
-        if last_active:
-            if last_active == today:
-                pass
-            elif last_active == today - timedelta(days=1):
-                current_streak += 1
-            else:
-                current_streak = 1
-        else:
-            current_streak = 1
-            
-        # 3. Update student metrics (XP & Streak)
+        # 2. Update student metrics (XP)
         db.execute(text("""
             UPDATE student_metrics 
-            SET xp_points = xp_points + :xp, streak = :streak, last_active_date = :today, updated_at = CURRENT_TIMESTAMP
+            SET xp_points = xp_points + :xp, updated_at = CURRENT_TIMESTAMP
             WHERE student_id = :sid
-        """), {"xp": data.xp_earned, "streak": current_streak, "today": today, "sid": student_id})
+        """), {"xp": data.xp_earned, "sid": student_id})
+        db.commit()
+        
+        # 3. Recalculate wellness statistics and sync streak
+        from backend.wellness_crud import recalculate_wellness_statistics
+        recalculate_wellness_statistics(db, student_id)
+        
+        # Fetch updated streak for badge unlocks check and return data
+        metrics = db.execute(text("SELECT streak FROM student_metrics WHERE student_id = :sid"), {"sid": student_id}).fetchone()
+        current_streak = metrics.streak if metrics and metrics.streak else 1
         
         # 4. Insert completion notification
         db.execute(text("""

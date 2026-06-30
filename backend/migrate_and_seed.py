@@ -409,32 +409,111 @@ def run_migrations():
         db.commit()
         print("OK: mentor_messages table verified/created.")
 
-        # 28. Create wellness_mood_logs table
+        # 28. Create learning_wellness_logs
         db.execute(text("""
-            CREATE TABLE IF NOT EXISTS wellness_mood_logs (
+            CREATE TABLE IF NOT EXISTS learning_wellness_logs (
                 log_id SERIAL PRIMARY KEY,
-                student_id INTEGER REFERENCES students(student_id) ON DELETE CASCADE,
-                happiness INTEGER NOT NULL,
-                focus INTEGER NOT NULL,
-                frustration INTEGER NOT NULL,
-                stress INTEGER NOT NULL,
-                log_date DATE DEFAULT CURRENT_DATE,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                student_id INTEGER NOT NULL REFERENCES students(student_id) ON DELETE CASCADE,
+                mood VARCHAR(50) NOT NULL,
+                energy_level INTEGER NOT NULL,
+                focus_level INTEGER NOT NULL,
+                stress_level INTEGER NOT NULL,
+                sleep_hours NUMERIC(5, 2) NOT NULL,
+                planned_study_hours NUMERIC(5, 2) NOT NULL,
+                learning_goal TEXT,
+                log_date DATE NOT NULL DEFAULT CURRENT_DATE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                is_deleted BOOLEAN DEFAULT FALSE,
+                learning_habits TEXT DEFAULT '[]',
+                recommendations TEXT DEFAULT '[]'
             );
         """))
+        db.execute(text("CREATE INDEX IF NOT EXISTS idx_lw_logs_student_date ON learning_wellness_logs(student_id, log_date);"))
         db.commit()
-        print("OK: wellness_mood_logs table verified/created.")
+        print("OK: learning_wellness_logs table verified/created.")
 
-        # 29. Create wellness_focus_sessions table
+        # 29. Create focus_sessions
         db.execute(text("""
-            CREATE TABLE IF NOT EXISTS wellness_focus_sessions (
+            CREATE TABLE IF NOT EXISTS focus_sessions (
                 session_id SERIAL PRIMARY KEY,
-                student_id INTEGER REFERENCES students(student_id) ON DELETE CASCADE,
-                completed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                student_id INTEGER NOT NULL REFERENCES students(student_id) ON DELETE CASCADE,
+                preset_minutes INTEGER NOT NULL,
+                duration_minutes INTEGER DEFAULT 0,
+                status VARCHAR(50) NOT NULL,
+                started_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                completed_at TIMESTAMP NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                is_deleted BOOLEAN DEFAULT FALSE
             );
         """))
+        db.execute(text("CREATE INDEX IF NOT EXISTS idx_focus_sessions_student ON focus_sessions(student_id);"))
         db.commit()
-        print("OK: wellness_focus_sessions table verified/created.")
+        print("OK: focus_sessions table verified/created.")
+
+        # Create weekly_reflections
+        db.execute(text("""
+            CREATE TABLE IF NOT EXISTS weekly_reflections (
+                reflection_id SERIAL PRIMARY KEY,
+                student_id INTEGER NOT NULL REFERENCES students(student_id) ON DELETE CASCADE,
+                reflection_text TEXT NOT NULL,
+                ref_date DATE NOT NULL DEFAULT CURRENT_DATE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                is_deleted BOOLEAN DEFAULT FALSE
+            );
+        """))
+        db.execute(text("CREATE INDEX IF NOT EXISTS idx_weekly_reflections_student ON weekly_reflections(student_id);"))
+        db.commit()
+        print("OK: weekly_reflections table verified/created.")
+
+        # Create wellness_preferences
+        db.execute(text("""
+            CREATE TABLE IF NOT EXISTS wellness_preferences (
+                preference_id SERIAL PRIMARY KEY,
+                student_id INTEGER NOT NULL REFERENCES students(student_id) ON DELETE CASCADE UNIQUE,
+                pomodoro_preset INTEGER DEFAULT 25,
+                daily_study_goal NUMERIC(5, 2) DEFAULT 4.00,
+                daily_sleep_goal NUMERIC(5, 2) DEFAULT 8.00,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                is_deleted BOOLEAN DEFAULT FALSE
+            );
+        """))
+        db.execute(text("CREATE INDEX IF NOT EXISTS idx_wellness_pref_student ON wellness_preferences(student_id);"))
+        db.commit()
+        print("OK: wellness_preferences table verified/created.")
+
+        # Create wellness_statistics
+        db.execute(text("""
+            CREATE TABLE IF NOT EXISTS wellness_statistics (
+                stat_id SERIAL PRIMARY KEY,
+                student_id INTEGER NOT NULL REFERENCES students(student_id) ON DELETE CASCADE UNIQUE,
+                focus_score NUMERIC(5, 2) DEFAULT 0.00,
+                weekly_study_hours NUMERIC(5, 2) DEFAULT 0.00,
+                focus_sessions_count INTEGER DEFAULT 0,
+                current_streak INTEGER DEFAULT 0,
+                longest_streak INTEGER DEFAULT 0,
+                average_sleep NUMERIC(5, 2) DEFAULT 0.00,
+                average_focus NUMERIC(5, 2) DEFAULT 0.00,
+                average_study_hours NUMERIC(5, 2) DEFAULT 0.00,
+                completed_sessions INTEGER DEFAULT 0,
+                interrupted_sessions INTEGER DEFAULT 0,
+                avg_session_duration NUMERIC(5, 2) DEFAULT 0.00,
+                attendance_rate NUMERIC(5, 2) DEFAULT 0.00,
+                assignment_completion_rate NUMERIC(5, 2) DEFAULT 0.00,
+                quiz_performance_rate NUMERIC(5, 2) DEFAULT 0.00,
+                learning_consistency NUMERIC(5, 2) DEFAULT 0.00,
+                last_calculated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                is_deleted BOOLEAN DEFAULT FALSE
+            );
+        """))
+        db.execute(text("CREATE INDEX IF NOT EXISTS idx_wellness_stats_student ON wellness_statistics(student_id);"))
+        db.commit()
+        print("OK: wellness_statistics table verified/created.")
 
         # 30. Create notifications table
         db.execute(text("""

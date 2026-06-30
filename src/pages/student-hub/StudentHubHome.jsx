@@ -225,7 +225,7 @@ const StudentHubHome = () => {
             <h1 className="text-2xl md:text-3xl font-black mt-3">
               Academic Operations Center
             </h1>
-            <p className="text-slate-300 text-sm mt-1 max-w-xl leading-relaxed">
+            <p className="text-white/90 text-sm mt-1 max-w-xl leading-relaxed">
               Welcome to your centralized student control deck. Access your course information, upload pending assignments, and review grades synced from the faculty records.
             </p>
           </div>

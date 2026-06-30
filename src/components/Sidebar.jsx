@@ -68,7 +68,7 @@ const Sidebar = () => {
     { name: 'Career Profile', path: '/career/profile', icon: User },
     { name: 'Leaderboard & Badges', path: '/leaderboard', icon: Trophy },
     { name: 'AI Mentor Chat', path: '/ai/chat', icon: MessageSquareCode },
-    { name: 'Learning Wellness', path: '/ai/emotions', icon: Smile }
+    { name: 'Learning Wellness', path: '/ai/wellness', icon: Smile }
   ];
 
   const theme = THEME_ACCENT_MAP[branding.themeColor] || THEME_ACCENT_MAP.indigo;

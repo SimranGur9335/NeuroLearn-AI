@@ -55,7 +55,7 @@ const TechTrends = lazy(() => import('./pages/career/trends/TechTrends'));
 
 // Student Portal AI Module Pages
 const AiMentorChat = lazy(() => import('./pages/ai/AiMentorChat'));
-const EmotionAnalysis = lazy(() => import('./pages/ai/EmotionAnalysis'));
+const LearningWellness = lazy(() => import('./pages/ai/LearningWellness'));
 
 // Student Hub Pages
 const StudentHubHome = lazy(() => import('./pages/student-hub/StudentHubHome'));
@@ -172,7 +172,7 @@ function App() {
 
               {/* AI Module nested routes */}
               <Route path="/ai/chat" element={<AiMentorChat />} />
-              <Route path="/ai/emotions" element={<EmotionAnalysis />} />
+              <Route path="/ai/wellness" element={<LearningWellness />} />
 
               {/* Student Hub Routes */}
               <Route path="/student-hub" element={<StudentHubHome />} />
