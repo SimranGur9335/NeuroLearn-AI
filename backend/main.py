@@ -1,4 +1,7 @@
 # main.py
+import warnings
+from sklearn.exceptions import InconsistentVersionWarning
+warnings.filterwarnings("ignore",category=InconsistentVersionWarning )
 import re
 import joblib
 from pathlib import Path
@@ -18,22 +21,24 @@ from typing import Optional, List, Dict, Union
 from backend.services.ai_mentor.prompt_builder import build_prompt
 from backend.services.ai_mentor.groq_service import generate_response
 from backend.services.ai_mentor.context_builder import build_student_context
-from backend.services.ai_mentor.memory_service import (
-    get_memory,
-    add_message,
-    clear_memory
-)
-from backend.services.ai_mentor.chat_service import (
-    create_chat_session,
-    get_latest_chat_session,
-    save_chat_message,
-    get_active_chat_sessions,
-    get_chat_messages,
-    get_chat_session_owner,
-    rename_chat_session,
-    delete_chat_session
-)
+from backend.services.ai_mentor.memory_service import (get_memory, add_message,clear_memory)
+from backend.services.ai_mentor.chat_service import (create_chat_session,get_latest_chat_session,save_chat_message,get_active_chat_sessions,get_chat_messages,get_chat_session_owner,rename_chat_session,delete_chat_session)
 import logging
+
+#models input 
+from backend.schemas.auth import *
+from backend.schemas.student import *
+from backend.schemas.faculty import *
+from backend.schemas.academic import *
+from backend.schemas.assignment import *
+from backend.schemas.attendance import *
+from backend.schemas.announcement import *
+from backend.schemas.career import *
+from backend.schemas.mentor import *
+from backend.schemas.wellness import *
+from backend.schemas.prediction import *
+from backend.schemas.institution import *
+from backend.schemas.admin import *
 
 # Configure production logging
 logging.basicConfig(
@@ -116,7 +121,6 @@ def run_migrations():
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
         """))
-        db.execute(text("CREATE INDEX IF NOT EXISTS idx_domains_key ON domains(domain_key);"))
         
         # Create college_notes table
         db.execute(text("""
@@ -272,7 +276,6 @@ def run_migrations():
                 is_deleted BOOLEAN DEFAULT FALSE
             );
         """))
-        db.execute(text("CREATE INDEX IF NOT EXISTS idx_lw_logs_student_date ON learning_wellness_logs(student_id, log_date);"))
 
         # Create focus_sessions
         db.execute(text("""
@@ -289,7 +292,6 @@ def run_migrations():
                 is_deleted BOOLEAN DEFAULT FALSE
             );
         """))
-        db.execute(text("CREATE INDEX IF NOT EXISTS idx_focus_sessions_student ON focus_sessions(student_id);"))
 
         # Create weekly_reflections
         db.execute(text("""
@@ -303,7 +305,6 @@ def run_migrations():
                 is_deleted BOOLEAN DEFAULT FALSE
             );
         """))
-        db.execute(text("CREATE INDEX IF NOT EXISTS idx_weekly_reflections_student ON weekly_reflections(student_id);"))
 
         # Create wellness_preferences
         db.execute(text("""
@@ -318,7 +319,6 @@ def run_migrations():
                 is_deleted BOOLEAN DEFAULT FALSE
             );
         """))
-        db.execute(text("CREATE INDEX IF NOT EXISTS idx_wellness_pref_student ON wellness_preferences(student_id);"))
 
         # Create wellness_statistics
         db.execute(text("""
@@ -346,7 +346,6 @@ def run_migrations():
                 is_deleted BOOLEAN DEFAULT FALSE
             );
         """))
-        db.execute(text("CREATE INDEX IF NOT EXISTS idx_wellness_stats_student ON wellness_statistics(student_id);"))
         
         db.commit()
         try:
@@ -561,182 +560,6 @@ try:
 except Exception as e:
     print(f"Error loading student performance model: {e}")
 
-
-# --- Pydantic Schemas ---
-
-class StudentPerformanceInput(BaseModel):
-    age: int
-    studytime: int
-    failures: int
-    absences: int
-    G1: int
-    G2: int
-
-class AttendanceInput(BaseModel):
-    student_id: int
-    class_id: int
-    attendance_date: str
-    status: str
-
-class SubjectInput(BaseModel):
-    subject_code: str
-    subject_name: str
-    credits: int
-    department: str
-    semester: int
-
-class FacultyMappingInput(BaseModel):
-    faculty_id: int
-    subject_id: int
-    class_id: int
-    academic_year: str
-
-class StudentInput(BaseModel):
-    roll_no: str
-    full_name: str
-    email: str
-    department: str
-    semester: int
-    division: str
-
-class FacultyInput(BaseModel):
-    faculty_code: str
-    full_name: str
-    email: str
-    department: str
-    designation: str
-
-class DepartmentInput(BaseModel):
-    department_name: str
-    department_code: str
-
-class ForgotPasswordInput(BaseModel):
-    email: str
-
-class ClassInput(BaseModel):
-    class_name: str
-    division: str
-    department: str
-    semester: int
-    term_id: Optional[int] = None
-
-class EnrollmentInput(BaseModel):
-    student_id: int
-    class_id: int
-
-class CourseInput(BaseModel):
-    course_code: str
-    course_title: str
-    department: str
-    category: str
-    duration: str
-
-class CourseSubjectMappingInput(BaseModel):
-    course_id: int
-    subject_id: int
-
-class AnnouncementInput(BaseModel):
-    title: str
-    description: str
-
-    target_type: str
-    target_id: Optional[int] = None
-    priority: Optional[str] = "Normal"  # Normal, Important, Urgent
-    attachment_url: Optional[str] = None
-    attachment_name: Optional[str] = None
-
-class AcademicTermInput(BaseModel):
-    academic_year: str
-    semester: int
-
-class SystemSettingsInput(BaseModel):
-    institution_name: str
-    institution_logo: Optional[str] = ""
-    academic_year: str
-    contact_email: Optional[str] = ""
-    contact_phone: Optional[str] = ""
-    branding_color: Optional[str] = ""
-    theme_preference: Optional[str] = ""
-
-class InstitutionConfigurationInput(BaseModel):
-    institution_name: str
-    logo_url: Optional[str] = ""
-    academic_year: str
-    theme: Optional[str] = ""
-    contact_email: Optional[str] = ""
-    contact_phone: Optional[str] = ""
-
-class LoginInput(BaseModel):
-    email: str
-    password: str
-    role: str
-    institution_id: Optional[int] = 1
-
-class RefreshInput(BaseModel):
-    refresh_token: Optional[str] = None
-
-class RegisterInput(BaseModel):
-    email: str
-    password: str
-    name: str
-    role: str
-    institution_id: Optional[int] = 1
-    roll_no: Optional[str] = None
-    department: Optional[str] = None
-    division: Optional[str] = None
-    semester: Optional[int] = None
-    faculty_code: Optional[str] = None
-    designation: Optional[str] = None
-
-class InstitutionApplication(BaseModel):
-    institution_name: str
-    institution_code: str
-    contact_person: str
-    email: str
-    phone: str
-    website: Optional[str] = None
-    address: str
-
-
-class CreateFacultyInput(BaseModel):
-    full_name: str
-    faculty_id: str
-    department: str
-    phone: str
-
-
-class CreateStudentInput(BaseModel):
-    full_name: str
-    roll_no: str
-    department: str
-    semester: int
-    division: str
-    phone: str
-
-
-class ChangePasswordInput(BaseModel):
-    old_password: str
-    new_password: str
-
-
-class QuizSubmitInput(BaseModel):
-    node_id: str
-    domain_id: str
-    score: float
-    total_questions: int
-    xp_earned: int
-
-class MentorChatInput(BaseModel):
-    message: str
-    session_id: Optional[int] = None
-
-
-class RenameChatInput(BaseModel):
-    title: str
-
-
-
-# --- Audit Logging Helper ---
 
 def log_audit(db, action: str, entity_type: str, entity_id: Optional[int] = None, performed_by: str = "Admin", institution_id: Optional[int] = None):
     try:
@@ -4038,12 +3861,9 @@ def update_branding(data: SystemSettingsInput, current_user: dict = Depends(requ
 
 # --- Profile Schemas & Endpoints ---
 
-class PasswordChangeInput(BaseModel):
-    old_password: str
-    new_password: str
 
-class AvatarUpdateInput(BaseModel):
-    avatar_url: str
+
+
 
 @app.get("/api/v1/profile")
 def get_my_profile(current_user: dict = Depends(get_current_user)):
@@ -4334,36 +4154,6 @@ def change_my_password(data: PasswordChangeInput, current_user: dict = Depends(g
         db.close()
 
 
-# --- Additional Schemas for AI & Wellness ---
-
-class AiChatInput(BaseModel):
-    prompt: str
-
-class WellnessMoodInput(BaseModel):
-    happiness: int
-    focus: int
-    frustration: int
-    stress: int
-    sleep_hours: float
-    study_hours: float
-    learning_habits: List[str]
-
-class TargetCareerInput(BaseModel):
-    target_career: str
-
-class CareerProfileInput(BaseModel):
-    resume_text: Optional[str] = None
-    target_career: Optional[str] = None
-    custom_skills: Optional[List[str]] = None
-
-class InterviewAnswerInput(BaseModel):
-    question: str
-    answer: str
-    topic: str
-
-
-
-# --- Additional Endpoints for AI, Wellness, & Career ---
 
 @app.get("/api/v1/ai/chat/history")
 def get_ai_chat_history(current_user: dict = Depends(get_current_user)):
@@ -5560,42 +5350,13 @@ def get_report_active_sessions(current_user: dict = Depends(require_role(["admin
 
 
 # --- Pydantic Schemas for V1 faculty Portal ---
-from typing import List, Dict
-
-class AttendanceRecordInput(BaseModel):
-    student_id: int
-    status: str
-
-class AttendanceSaveInput(BaseModel):
-    class_id: int
-    subject_id: int
-    faculty_id: int
-    date: str
-    records: List[AttendanceRecordInput]
-
-class AssignmentCreateInput(BaseModel):
-    subject_id: int
-    class_id: int
-    title: str
-    description: str
-    due_date: str
-    total_marks: int
-    faculty_id: int
-    due_time: Optional[str] = "23:59"
-    attachment_url: Optional[str] = None
-    attachment_name: Optional[str] = None
-    attachment_type: Optional[str] = None
-    attachment_size: Optional[int] = None
-    instructions: Optional[str] = None
-    status: Optional[str] = "Published"
 
 class StudentInterventionUpdateInput(BaseModel):
     faculty_notes: Optional[str] = None
     intervention_status: Optional[str] = None
     faculty_id: int
 
-class CloseAssignmentInput(BaseModel):
-    faculty_id: int
+
 
 class RemedialSessionCreateInput(BaseModel):
     class_id: int
@@ -5643,43 +5404,6 @@ class RemedialSessionUpdateInput(BaseModel):
 class UpdateInvitationStatusInput(BaseModel):
     status: str
     faculty_id: int
-
-class GradeSubmissionInput(BaseModel):
-    marks_obtained: int
-    status: str
-    faculty_id: int
-    feedback: Optional[str] = None
-
-class StudentSubmissionInput(BaseModel):
-    student_id: int
-    submission_url: Optional[str] = None
-    submission_file_name: Optional[str] = None
-    submission_file_size: Optional[int] = None
-    external_url: Optional[str] = None
-
-class StudentMarkEntry(BaseModel):
-    student_id: int
-    assignment_marks: float
-    quiz_marks: float
-    internal_marks: float
-    practical_marks: float
-
-class StudentAssessmentMarkEntry(BaseModel):
-    student_id: int
-    marks: Dict[str, float]  # key is subject_assessment_id (as string), value is marks_obtained
-
-class BulkMarksInput(BaseModel):
-    class_id: int
-    subject_id: int
-    faculty_id: int
-    marks_list: Optional[List[StudentMarkEntry]] = None
-    custom_marks_list: Optional[List[StudentAssessmentMarkEntry]] = None
-    is_publish: Optional[bool] = False
-
-class RunRiskEngineInput(BaseModel):
-    class_id: int
-    faculty_id: int
-
 
 # --- faculty Portal V1 Endpoints ---
 
@@ -9450,20 +9174,7 @@ def get_subject_assessments(subject_id: int, academic_year: Optional[str] = None
         db.close()
 
 
-class AdminAssessmentComponentInput(BaseModel):
-    name: str
-    category: str
-    max_marks: float
-    weightage: float
-    display_order: int
-    is_mandatory: bool
-    visible_to_students: bool
-    editable_by_faculty: bool
 
-
-class SubjectAssessmentsSaveInput(BaseModel):
-    academic_year: str
-    components: List[AdminAssessmentComponentInput]
 
 
 @app.post("/api/v1/subjects/{subject_id}/assessments")
@@ -10971,13 +10682,7 @@ def get_gamification_analytics(current_user: dict = Depends(get_current_user)):
 
 # --- Academic Predictions Endpoints ---
 
-class AcademicPredictInput(BaseModel):
-    age: int
-    studytime: int
-    failures: int
-    absences: int
-    G1: float
-    G2: float
+
 
 
 @app.get("/api/v1/academic/student-stats")
@@ -12129,13 +11834,11 @@ def clear_chat(current_user: dict = Depends(get_current_user)):
             {"student_id": student_id}
         )
         db.commit()
-
         clear_memory(student_id)
 
         return {
             "success": True,
             "message": "Conversation cleared."
         }
-
     finally:
         db.close()
