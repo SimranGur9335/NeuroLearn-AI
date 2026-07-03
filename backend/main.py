@@ -2,7 +2,7 @@
 import re
 import joblib
 from pathlib import Path
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 import jwt
 import bcrypt
 import random
@@ -13,6 +13,25 @@ from pydantic import BaseModel
 from sqlalchemy import text
 from backend.database import SessionLocal, engine
 from typing import Optional, List, Dict, Union
+from backend.services.ai_mentor.prompt_builder import build_prompt
+from backend.services.ai_mentor.groq_service import generate_response
+from backend.services.ai_mentor.context_builder import build_student_context
+from backend.services.ai_mentor.memory_service import (
+    get_memory,
+    add_message,
+    clear_memory
+)
+from backend.services.ai_mentor.chat_service import (
+    create_chat_session,
+    get_latest_chat_session,
+    save_chat_message,
+    get_active_chat_sessions,
+    get_chat_messages,
+    get_chat_session_owner,
+    rename_chat_session,
+    delete_chat_session
+)
+
 
 app = FastAPI()
 
@@ -307,7 +326,6 @@ def run_migrations():
         db.execute(text("CREATE INDEX IF NOT EXISTS idx_wellness_stats_student ON wellness_statistics(student_id);"))
         
         db.commit()
-        print("Migrations executed successfully!")
         try:
             from backend.create_indexes import create_database_indexes
             create_database_indexes()
@@ -317,7 +335,6 @@ def run_migrations():
 
     except Exception as e:
         db.rollback()
-        print(f"Error executing migrations: {e}")
     finally:
         db.close()
 
@@ -329,11 +346,7 @@ load_dotenv()
 
 # Gemini API Key startup check
 gemini_key = os.getenv("GEMINI_API_KEY")
-if not gemini_key:
-    print("\n" + "!"*70)
-    print(" WARNING: GEMINI_API_KEY is not set in the environment!")
-    print(" AI Mentor Chat and Career Guidance features will use static mock fallbacks.")
-    print("!"*70 + "\n")
+
 
 # --- JWT Config & Helpers ---
 JWT_SECRET = os.getenv("JWT_SECRET")
@@ -667,6 +680,15 @@ class QuizSubmitInput(BaseModel):
     total_questions: int
     xp_earned: int
 
+class MentorChatInput(BaseModel):
+    message: str
+    session_id: Optional[int] = None
+
+
+class RenameChatInput(BaseModel):
+    title: str
+
+
 
 # --- Audit Logging Helper ---
 
@@ -806,18 +828,25 @@ def login_route(data: LoginInput, response: Response):
         roll_number = None
         branch = None
         designation = None
-        college = "COEP Technological University"
+        college = "NeuroLearn AI"
         inst_color = "indigo"
         inst_logo = "/assets/logo.png"
-        if user.institution_id:
+        
+        # Query user's institution, falling back to default/first active institution if unassigned
+        iid = user.institution_id or 1
+        inst = db.execute(
+            text("SELECT institution_name, theme_color, logo_url FROM institutions WHERE institution_id = :iid"),
+            {"iid": iid}
+        ).fetchone()
+        if not inst and not user.institution_id:
             inst = db.execute(
-                text("SELECT institution_name, theme_color, logo_url FROM institutions WHERE institution_id = :iid"),
-                {"iid": user.institution_id}
+                text("SELECT institution_name, theme_color, logo_url FROM institutions WHERE status = 'active' LIMIT 1")
             ).fetchone()
-            if inst:
-                college = inst.institution_name
-                inst_color = inst.theme_color
-                inst_logo = inst.logo_url
+            
+        if inst:
+            college = inst.institution_name
+            inst_color = inst.theme_color
+            inst_logo = inst.logo_url
 
         if user.role == "student" and user.student_id:
             student = db.execute(
@@ -956,25 +985,29 @@ def refresh_token_route(data: RefreshInput, response: Response, request: Request
         roll_number = None
         branch = None
         designation = None
-        college = "COEP Technological University"
+        college = "NeuroLearn AI"
+        inst_color = "indigo"
+        inst_logo = "/assets/logo.png"
 
-        inst_color = None
-        inst_logo = None
-
-        if user.institution_id:
+        # Query user's institution, falling back to default/first active institution if unassigned
+        iid = user.institution_id or 1
+        inst = db.execute(
+            text("""
+                SELECT institution_name, theme_color, logo_url
+                FROM institutions
+                WHERE institution_id = :iid
+            """),
+            {"iid": iid}
+        ).fetchone()
+        if not inst and not user.institution_id:
             inst = db.execute(
-                text("""
-                    SELECT institution_name, theme_color, logo_url
-                    FROM institutions
-                    WHERE institution_id = :iid
-                """),
-                {"iid": user.institution_id}
+                text("SELECT institution_name, theme_color, logo_url FROM institutions WHERE status = 'active' LIMIT 1")
             ).fetchone()
 
-            if inst:
-                college = inst.institution_name
-                inst_color = inst.theme_color
-                inst_logo = inst.logo_url
+        if inst:
+            college = inst.institution_name
+            inst_color = inst.theme_color
+            inst_logo = inst.logo_url
 
         if user.role == "super_admin":
             name = "Platform Owner"
@@ -1111,10 +1144,11 @@ def register_route(data: RegisterInput):
         valid_domain = inst.domain_name.lower()
         email_domain = email.split("@")[-1]
         
+        short_name_clean = "".join(c for c in inst.short_name.lower() if c.isalnum())
         is_valid_domain = (
             email_domain == valid_domain or 
             email_domain == "neurolearn.ai" or
-            (inst.domain_name == "coeptech.ac.in" and email_domain in ["coep.smail.in", "coep.ac.in", "coeptech.ac.in"])
+            short_name_clean in email_domain
         )
 
         if not is_valid_domain:
@@ -1310,13 +1344,7 @@ def clear_security_events(current_user: dict = Depends(require_role(["admin"])))
         db.close()
 
 
-@app.get("/model-status")
-def model_status():
-    return {"student_performance": "loaded" if student_model is not None else "failed"}
 
-@app.get("/predict-test")
-def predict_test():
-    return {"predicted_grade": 14.8}
 
 @app.post("/api/predict/student-performance")
 def predict_student_performance(data: StudentPerformanceInput, current_user: dict = Depends(get_current_user)):
@@ -4104,7 +4132,6 @@ def get_my_profile(current_user: dict = Depends(get_current_user)):
                         })
 
                 # Fetch institution name
-                institution_name = "COEP Technological University"
                 if f.institution_id:
                     inst = db.execute(
                         text("SELECT institution_name FROM institutions WHERE institution_id = :iid"),
@@ -7702,6 +7729,10 @@ def approve_institution(request_id: int, current_user: dict = Depends(require_ro
 
         admin_email = f"admin_{request.institution_code.lower()}@neurolearn.ai"
 
+        # Generate random temporary password dynamically
+        temp_pwd = f"Temp{random.randint(10000, 99999)}!"
+        hashed_pwd = hash_password(temp_pwd)
+
         db.execute(
             text("""
                 INSERT INTO users (
@@ -7728,9 +7759,7 @@ def approve_institution(request_id: int, current_user: dict = Depends(require_ro
             {
                 "email": admin_email,
                 "iid": institution.institution_id,
-
-                # temporary password hash
-                "hash": "$2b$12$QoUoIW8ECFB3IPpaWfQbR.PDPzv.I8K14Q2Zjd8XYDvtZ71aFM04W"
+                "hash": hashed_pwd
             }
         )
 
@@ -7750,7 +7779,7 @@ def approve_institution(request_id: int, current_user: dict = Depends(require_ro
             "success": True,
             "institution": request.institution_name,
             "admin_email": admin_email,
-            "temporary_password": "Admin@123"
+            "temporary_password": temp_pwd
         }
 
     finally:
@@ -8116,10 +8145,57 @@ def change_password(data: ChangePasswordInput, current_user: dict = Depends(get_
 
 @app.post("/api/v1/auth/forgot-password")
 def forgot_password(data: ForgotPasswordInput):
-    raise HTTPException(
-        status_code=501,
-        detail="Password reset not implemented"
-    )
+    db = SessionLocal()
+    try:
+        # Check if user exists
+        user = db.execute(
+            text("SELECT user_id, email FROM users WHERE email = :email"),
+            {"email": data.email}
+        ).fetchone()
+        
+        if not user:
+            raise HTTPException(
+                status_code=404,
+                detail="No account registered with this email address."
+            )
+        
+        # Generate temporary password
+        temp_pwd = f"Temp{random.randint(10000, 99999)}!"
+        password_bytes = temp_pwd.encode('utf-8')
+        salt = bcrypt.gensalt()
+        hashed = bcrypt.hashpw(password_bytes, salt).decode('utf-8')
+        
+        # Update user's password and require change on next login
+        db.execute(
+            text("UPDATE users SET password_hash = :hash, must_change_password = TRUE WHERE user_id = :uid"),
+            {"hash": hashed, "uid": user.user_id}
+        )
+        db.commit()
+        
+        # Log the security event
+        db.execute(
+            text("""
+                INSERT INTO security_events (user_id, email, event_type, details, created_at)
+                VALUES (:uid, :email, 'PASSWORD_RESET_REQUEST', 'Temporary password generated', CURRENT_TIMESTAMP)
+            """),
+            {"uid": user.user_id, "email": user.email}
+        )
+        db.commit()
+        
+        return {
+            "success": True,
+            "message": "Temporary password generated successfully.",
+            "temp_password": temp_pwd
+        }
+        
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        db.close()
+
 
 
 # --- Phase F: Student Hub Endpoints ---
@@ -11261,7 +11337,7 @@ def get_academic_predictions_history(current_user: dict = Depends(get_current_us
 
 
 # --- Learning Wellness Routes ---
-from datetime import date
+
 from backend.wellness_schemas import (
     DailyCheckInInput, DailyCheckInUpdate, WeeklyReflectionInput,
     FocusSessionStartInput, FocusSessionUpdateInput, WellnessPreferencesInput
@@ -11841,3 +11917,249 @@ def get_wellness_statistics(
     finally:
         db.close()
 
+@app.post("/api/v1/mentor/chat")
+def mentor_chat(
+    data: MentorChatInput,
+    current_user: dict = Depends(get_current_user)
+):
+    if current_user["role"] != "student":
+        raise HTTPException(status_code=400, detail="Only students can chat with the AI Mentor")
+        
+    db = SessionLocal()
+    try:
+        student_id = current_user["student_id"]
+
+        session_id = data.session_id
+        if session_id:
+            owner_id = get_chat_session_owner(db, session_id)
+            if not owner_id:
+                raise HTTPException(status_code=404, detail="Chat session not found")
+            if owner_id != student_id:
+                raise HTTPException(status_code=403, detail="Unauthorized access to this chat session")
+        else:
+            session_id = get_latest_chat_session(db, student_id)
+            if not session_id:
+                session_id = create_chat_session(db, student_id)
+
+        student_context = build_student_context(current_user)
+
+        # Retrieve history from the database for this specific session
+        db_messages = db.execute(
+            text("""
+                SELECT sender, message
+                FROM mentor_chat_messages
+                WHERE session_id = :session_id
+                ORDER BY created_at DESC
+                LIMIT 10
+            """),
+            {"session_id": session_id}
+        ).mappings().all()
+        # Reverse because query was DESC
+        history = [{"role": m["sender"], "content": m["message"]} for m in reversed(db_messages)]
+
+        messages = build_prompt(
+            user_message=data.message,
+            student_context=student_context,
+            history=history
+        )
+
+        reply = generate_response(messages)
+        save_chat_message(
+            db=db,
+            session_id=session_id,
+            sender="user",
+            message=data.message,
+            model_name="openai/gpt-oss-120b"
+        )
+
+        save_chat_message(
+            db=db,
+            session_id=session_id,
+            sender="assistant",
+            message=reply,
+            model_name="openai/gpt-oss-120b"
+        )
+
+        # Maintain short term memory cache for compatibility
+        add_message(student_id, "user", data.message)
+        add_message(student_id, "assistant", reply)
+
+        # Automatic Chat Title generation
+        # If session title == "New Chat", automatically rename after first user message
+        session_row = db.execute(
+            text("SELECT title FROM mentor_chat_sessions WHERE session_id = :session_id"),
+            {"session_id": session_id}
+        ).fetchone()
+        if session_row and session_row.title == "New Chat":
+            title_prompt = [
+                {"role": "system", "content": "You are a helpful assistant. Generate a very short title (maximum 3-4 words) for a chat session based on the user's first prompt. Do not include quotes, punctuation, or extra words. Just return the clean title."},
+                {"role": "user", "content": f"Prompt: {data.message}"}
+            ]
+            new_title = generate_response(title_prompt).strip()
+            if not new_title or len(new_title) > 50 or "sorry" in new_title.lower() or ("ai" in new_title.lower() and len(new_title) > 20):
+                words = data.message.split()
+                new_title = " ".join(words[:4])
+                if len(data.message) > len(new_title):
+                    new_title += "..."
+            
+            new_title = new_title.replace('"', '').replace("'", "").strip()
+            rename_chat_session(db, session_id, new_title)
+
+        MODEL_NAME = os.getenv("GROQ_MODEL", "openai/gpt-oss-120b")
+        return {
+            "success": True,
+            "provider": "Groq",
+            "model": MODEL_NAME,
+            "reply": reply,
+            "session_id": session_id,
+            "timestamp": datetime.utcnow().isoformat() + "Z"
+        }
+
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=str(e)
+        )
+    finally:
+        db.close()
+
+@app.get("/api/v1/mentor/chats")
+def get_chats(current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "student":
+        raise HTTPException(status_code=400, detail="Only students can access mentor chat list")
+    
+    student_id = current_user["student_id"]
+    db = SessionLocal()
+    try:
+        sessions = get_active_chat_sessions(db, student_id)
+        formatted_sessions = []
+        for s in sessions:
+            formatted_sessions.append({
+                "session_id": s["session_id"],
+                "title": s["title"],
+                "created_at": s["created_at"].isoformat() if isinstance(s["created_at"], datetime) else str(s["created_at"]),
+                "updated_at": s["updated_at"].isoformat() if isinstance(s["updated_at"], datetime) else str(s["updated_at"])
+            })
+        return formatted_sessions
+    finally:
+        db.close()
+
+@app.get("/api/v1/mentor/chat/{session_id}")
+def get_chat_conversation(session_id: int, current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "student":
+        raise HTTPException(status_code=400, detail="Only students can access mentor chat conversation")
+    
+    student_id = current_user["student_id"]
+    db = SessionLocal()
+    try:
+        owner_id = get_chat_session_owner(db, session_id)
+        if not owner_id:
+            raise HTTPException(status_code=404, detail="Chat session not found")
+        if owner_id != student_id:
+            raise HTTPException(status_code=403, detail="Unauthorized access to this chat session")
+        
+        messages = get_chat_messages(db, session_id)
+        formatted_messages = []
+        for m in messages:
+            formatted_messages.append({
+                "sender": m["sender"],
+                "message": m["message"],
+                "model_name": m["model_name"],
+                "created_at": m["created_at"].isoformat() if isinstance(m["created_at"], datetime) else str(m["created_at"])
+            })
+        return formatted_messages
+    finally:
+        db.close()
+
+@app.post("/api/v1/mentor/new-chat")
+def create_new_chat(current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "student":
+        raise HTTPException(status_code=400, detail="Only students can create mentor chat sessions")
+    
+    student_id = current_user["student_id"]
+    db = SessionLocal()
+    try:
+        session_id = create_chat_session(db, student_id, title="New Chat")
+        return {
+            "session_id": session_id,
+            "title": "New Chat"
+        }
+    finally:
+        db.close()
+
+@app.put("/api/v1/mentor/chat/{session_id}/title")
+def rename_chat(session_id: int, data: RenameChatInput, current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "student":
+        raise HTTPException(status_code=400, detail="Only students can rename mentor chat sessions")
+    
+    student_id = current_user["student_id"]
+    db = SessionLocal()
+    try:
+        owner_id = get_chat_session_owner(db, session_id)
+        if not owner_id:
+            raise HTTPException(status_code=404, detail="Chat session not found")
+        if owner_id != student_id:
+            raise HTTPException(status_code=403, detail="Unauthorized access to this chat session")
+        
+        title = data.title.strip()
+        if not title:
+            raise HTTPException(status_code=400, detail="Title cannot be empty")
+            
+        rename_chat_session(db, session_id, title)
+        return {
+            "success": True,
+            "session_id": session_id,
+            "title": title
+        }
+    finally:
+        db.close()
+
+@app.delete("/api/v1/mentor/chat/{session_id}")
+def delete_chat(session_id: int, current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "student":
+        raise HTTPException(status_code=400, detail="Only students can delete mentor chat sessions")
+    
+    student_id = current_user["student_id"]
+    db = SessionLocal()
+    try:
+        owner_id = get_chat_session_owner(db, session_id)
+        if not owner_id:
+            raise HTTPException(status_code=404, detail="Chat session not found")
+        if owner_id != student_id:
+            raise HTTPException(status_code=403, detail="Unauthorized access to this chat session")
+        
+        delete_chat_session(db, session_id)
+        return {
+            "success": True,
+            "message": "Chat session deleted successfully"
+        }
+    finally:
+        db.close()
+
+@app.delete("/api/v1/mentor/chat/history")
+def clear_chat(current_user: dict = Depends(get_current_user)):
+    student_id = current_user["student_id"]
+    db = SessionLocal()
+
+    try:
+        db.execute(
+            text("""
+                UPDATE mentor_chat_sessions
+                SET is_deleted = TRUE, updated_at = CURRENT_TIMESTAMP
+                WHERE student_id = :student_id AND is_deleted = FALSE
+            """),
+            {"student_id": student_id}
+        )
+        db.commit()
+
+        clear_memory(student_id)
+
+        return {
+            "success": True,
+            "message": "Conversation cleared."
+        }
+
+    finally:
+        db.close()

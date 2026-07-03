@@ -9,7 +9,7 @@ import bcrypt
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from backend.database import SessionLocal, engine
 from sqlalchemy import text
-
+from backend.services.ai_mentor.chat_history_schema import create_chat_history_tables
 def hash_password(password: str) -> str:
     password_bytes = password.encode('utf-8')
     salt = bcrypt.gensalt()
@@ -519,6 +519,9 @@ def run_migrations():
         db.commit()
         print("OK: domains table verified/created.")
 
+        # 32. Create AI Mentor Chat History tables
+        create_chat_history_tables(db)
+
 
     except Exception as e:
         print(f"Error during migration: {e}")
@@ -886,6 +889,9 @@ def run_seeding():
     finally:
         db.close()
 
+
+
 if __name__ == "__main__":
     run_migrations()
     run_seeding()
+

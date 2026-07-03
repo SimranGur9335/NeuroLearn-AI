@@ -89,6 +89,27 @@ export const authService = {
     }
 
     return await response.json();
+  },
+
+  /**
+   * Request password recovery / reset.
+   */
+  forgotPassword: async (email) => {
+    console.log(`[authService] POST ${API_BASE_URL}/forgot-password`);
+    const response = await fetch(`${API_BASE_URL}/forgot-password`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ email })
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.detail || "Failed to request password reset.");
+    }
+
+    return await response.json();
   }
 };
 

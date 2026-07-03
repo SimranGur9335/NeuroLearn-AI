@@ -85,7 +85,7 @@ const DomainDetail = () => {
     return (
       <div className="flex flex-col items-center justify-center min-h-[400px] text-slate-400 space-y-4">
         <div className="w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin" />
-        <span className="text-xs font-semibold">Loading track curriculum...</span>
+        <span className="text-xs font-semibold">Loading learning track...</span>
       </div>
     );
   }

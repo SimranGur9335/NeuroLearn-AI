@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  User, 
-  Mail, 
-  Phone, 
-  School, 
-  Lock, 
-  LogOut, 
+import {
+  User,
+  Mail,
+  Phone,
+  School,
+  Lock,
+  LogOut,
   Award,
   Sparkles,
   ShieldAlert,
@@ -46,7 +46,7 @@ const Profile = () => {
   const [formMobile, setFormMobile] = useState("");
   const [formBranch, setFormBranch] = useState("B.Tech Computer Science");
   const [formCollege, setFormCollege] = useState("COEP Technological University");
-  
+
   // Academic Form States
   const [rollNo, setRollNo] = useState("");
   const [semester, setSemester] = useState(5);
@@ -344,15 +344,15 @@ const Profile = () => {
             ) : (
               <span>{user?.avatar || "🚀"}</span>
             )}
-            
+
             <label className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-[9px] cursor-pointer text-indigo-200">
               <Upload size={14} className="mb-0.5" />
               Upload
-              <input 
-                type="file" 
-                accept="image/*" 
-                onChange={handleImageUpload} 
-                className="hidden" 
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleImageUpload}
+                className="hidden"
               />
             </label>
           </div>
@@ -369,11 +369,11 @@ const Profile = () => {
         {/* Completion Telemetry Card */}
         <div className="bg-black/20 p-4 border border-white/10 rounded-2xl flex justify-between items-center text-xs">
           <div>
-            <h4 className="font-bold text-[10px] text-slate-200 uppercase tracking-wider">Completion Index</h4>
+            <h4 className="font-bold dark:text-white text-[10px] uppercase tracking-wider">Completion Index</h4>
             <div className="w-28 bg-white/10 h-1.5 rounded-full mt-2 overflow-hidden">
               <div className={`h-full ${theme.accent} transition-all duration-500`} style={{ width: `${completionPercent}%` }} />
             </div>
-            <span className="text-[9px] text-slate-300 mt-1 block">Log all elements to unlock T1 guidance.</span>
+            <span className="text-[9px] dark:text-slate-300 mt-1 block">Log all elements to unlock T1 guidance.</span>
           </div>
           <div className="text-right">
             <span className="text-3xl font-black text-white">{completionPercent}%</span>
@@ -406,7 +406,7 @@ const Profile = () => {
           </motion.div>
         )}
       </AnimatePresence>      {/* Tabs list navigation */}
-      <div className="flex flex-wrap bg-white dark:bg-slate-955 border border-slate-200 dark:border-slate-850 p-1.5 rounded-2xl shadow-sm gap-2">
+      <div className="flex flex-wrap bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-850 p-1.5 rounded-2xl shadow-sm gap-2">
         {[
           { id: "details", label: "Personal Details" },
           { id: "academic", label: "Academic Profile" },
@@ -417,11 +417,10 @@ const Profile = () => {
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer min-w-[120px] border ${
-              activeTab === tab.id
+            className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer min-w-[120px] border ${activeTab === tab.id
                 ? `${theme.bg} ${theme.text} ${theme.border} shadow-sm`
                 : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-900/40 bg-transparent'
-            }`}
+              }`}
           >
             {tab.label}
           </button>
@@ -442,14 +441,14 @@ const Profile = () => {
               <h3 className="font-extrabold text-slate-800 dark:text-white text-sm border-b border-slate-100 dark:border-slate-800/80 pb-2">
                 Personal Identification details
               </h3>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div className="space-y-1.5">
                   <label className="text-[10px] text-slate-450 uppercase font-bold tracking-wider block">Full Name</label>
                   <div className="flex items-center bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 rounded-xl px-3.5 py-3">
                     <User size={15} className="text-slate-450 mr-2 shrink-0" />
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       value={formName}
                       onChange={(e) => setFormName(e.target.value)}
                       className="bg-transparent border-none text-slate-800 dark:text-slate-200 focus:outline-none w-full text-xs"
@@ -462,8 +461,8 @@ const Profile = () => {
                   <label className="text-[10px] text-slate-450 uppercase font-bold tracking-wider block">Mobile Number</label>
                   <div className="flex items-center bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 rounded-xl px-3.5 py-3">
                     <Phone size={15} className="text-slate-450 mr-2 shrink-0" />
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       value={formMobile}
                       onChange={(e) => setFormMobile(e.target.value)}
                       className="bg-transparent border-none text-slate-800 dark:text-slate-200 focus:outline-none w-full text-xs"
@@ -476,8 +475,8 @@ const Profile = () => {
                   <label className="text-[10px] text-slate-450 uppercase font-bold tracking-wider block">Email Address (Locked)</label>
                   <div className="flex items-center bg-slate-100 dark:bg-slate-950/40 border border-slate-200/50 dark:border-slate-850/50 rounded-xl px-3.5 py-3 opacity-60">
                     <Mail size={15} className="text-slate-450 mr-2 shrink-0" />
-                    <input 
-                      type="email" 
+                    <input
+                      type="email"
                       value={user?.email || ""}
                       className="bg-transparent border-none text-slate-500 cursor-not-allowed focus:outline-none w-full text-xs font-mono"
                       disabled
@@ -489,8 +488,8 @@ const Profile = () => {
                   <label className="text-[10px] text-slate-450 uppercase font-bold tracking-wider block">College Campus (Locked)</label>
                   <div className="flex items-center bg-slate-100 dark:bg-slate-950/40 border border-slate-200/50 dark:border-slate-850/50 rounded-xl px-3.5 py-3 opacity-60">
                     <School size={15} className="text-slate-450 mr-2 shrink-0" />
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       value={formCollege}
                       className="bg-transparent border-none text-slate-500 cursor-not-allowed focus:outline-none w-full text-xs"
                       disabled
@@ -519,11 +518,10 @@ const Profile = () => {
                           setErrorMsg("Failed to update avatar.");
                         }
                       }}
-                      className={`w-9 h-9 rounded-xl border flex items-center justify-center cursor-pointer transition-all ${
-                        user?.avatar === emoji 
-                          ? 'border-indigo-500 bg-indigo-500/10 scale-105 shadow' 
-                          : 'border-slate-200 dark:border-slate-850 hover:bg-slate-50 dark:hover:bg-slate-905 bg-transparent'
-                      }`}
+                      className={`w-9 h-9 rounded-xl border flex items-center justify-center cursor-pointer transition-all ${user?.avatar === emoji
+                          ? 'border-indigo-500 bg-indigo-500/10 scale-100 shadow'
+                          : 'border-slate-200 dark:border-slate-850 hover:bg-slate-50 dark:hover:bg-slate-900 bg-transparent'
+                        }`}
                     >
                       {emoji}
                     </button>
@@ -549,8 +547,8 @@ const Profile = () => {
                   <label className="text-[10px] text-slate-450 uppercase font-bold tracking-wider block">University Roll Number</label>
                   <div className="flex items-center bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 rounded-xl px-3.5 py-3">
                     <GraduationCap size={15} className="text-slate-450 mr-2 shrink-0" />
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       value={rollNo}
                       onChange={(e) => setRollNo(e.target.value)}
                       placeholder="e.g. 2023CS8094"
@@ -563,8 +561,8 @@ const Profile = () => {
                   <label className="text-[10px] text-slate-450 uppercase font-bold tracking-wider block">Branch / Discipline</label>
                   <div className="flex items-center bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 rounded-xl px-3.5 py-3">
                     <Layers size={15} className="text-slate-450 mr-2 shrink-0" />
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       value={formBranch}
                       onChange={(e) => setFormBranch(e.target.value)}
                       className="bg-transparent border-none text-slate-800 dark:text-slate-200 focus:outline-none w-full text-xs"
@@ -590,8 +588,8 @@ const Profile = () => {
                 <div className="space-y-1.5">
                   <label className="text-[10px] text-slate-450 uppercase font-bold tracking-wider block">Academic Division / Batch</label>
                   <div className="flex items-center bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 rounded-xl px-3.5 py-3">
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       value={division}
                       onChange={(e) => setDivision(e.target.value)}
                       placeholder="e.g. A"
@@ -618,7 +616,7 @@ const Profile = () => {
                   </h3>
                   <span className="text-[10px] text-slate-450 font-semibold">{skills.length} skills listed</span>
                 </div>
-                
+
                 <div className="flex gap-2">
                   <input
                     type="text"
@@ -669,15 +667,15 @@ const Profile = () => {
                     </h3>
                     <p className="text-[10px] text-slate-450 mt-0.5">Import raw text from certificates or resumes to feed AI Guidance models.</p>
                   </div>
-                  
+
                   <label className="flex items-center gap-1.5 px-4 py-2 border border-slate-200 dark:border-slate-850 hover:bg-slate-50 dark:hover:bg-slate-950 rounded-xl text-[10px] font-bold transition-all text-slate-400 cursor-pointer bg-transparent">
                     <FileText size={13} />
                     Import Text File
-                    <input 
-                      type="file" 
-                      accept=".txt,.md" 
-                      onChange={handleResumeFileImport} 
-                      className="hidden" 
+                    <input
+                      type="file"
+                      accept=".txt,.md"
+                      onChange={handleResumeFileImport}
+                      className="hidden"
                     />
                   </label>
                 </div>
@@ -757,10 +755,10 @@ const Profile = () => {
                           <h4 className="font-extrabold text-xs text-slate-800 dark:text-white truncate">{cert.name}</h4>
                           <p className="text-[10px] text-slate-450">{cert.issuer} • {cert.date}</p>
                           {cert.url && (
-                            <a 
-                              href={cert.url} 
-                              target="_blank" 
-                              rel="noopener noreferrer" 
+                            <a
+                              href={cert.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
                               className="text-[9px] text-indigo-400 hover:text-indigo-300 font-bold flex items-center gap-0.5 mt-1"
                             >
                               <ExternalLink size={10} /> Verify Credential
@@ -865,7 +863,7 @@ const Profile = () => {
                   <label className="text-[10px] text-slate-450 uppercase font-bold tracking-wider block">Current Password</label>
                   <div className="flex items-center bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 rounded-xl px-3.5 py-3">
                     <Lock size={15} className="text-slate-455 mr-2 shrink-0" />
-                    <input 
+                    <input
                       type={showPassword ? "text" : "password"}
                       value={oldPassword}
                       onChange={(e) => setOldPassword(e.target.value)}
@@ -878,7 +876,7 @@ const Profile = () => {
                   <label className="text-[10px] text-slate-455 uppercase font-bold tracking-wider block">New Password</label>
                   <div className="flex items-center bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 rounded-xl px-3.5 py-3">
                     <Lock size={15} className="text-slate-455 mr-2 shrink-0" />
-                    <input 
+                    <input
                       type={showPassword ? "text" : "password"}
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
@@ -891,13 +889,13 @@ const Profile = () => {
                   <label className="text-[10px] text-slate-455 uppercase font-bold tracking-wider block">Confirm New Password</label>
                   <div className="flex items-center bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 rounded-xl px-3.5 py-3">
                     <Lock size={15} className="text-slate-455 mr-2 shrink-0" />
-                    <input 
+                    <input
                       type={showPassword ? "text" : "password"}
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
                       className="bg-transparent border-none text-slate-700 dark:text-slate-200 focus:outline-none w-full text-xs font-mono"
                     />
-                    <button 
+                    <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
                       className="text-slate-450 hover:text-white cursor-pointer select-none shrink-0"
@@ -925,7 +923,7 @@ const Profile = () => {
                 type="button"
                 onClick={handleSaveProfile}
                 disabled={saveLoading}
-                className={`px-6 py-3 ${theme.accent} hover:opacity-90 disabled:opacity-50 text-white font-extrabold rounded-xl transition-all shadow-md cursor-pointer text-xs flex items-center justify-center gap-2`}
+                className={`px-6 py-3 ${theme.accent} hover:opacity-90 disabled:opacity-50  font-extrabold rounded-xl transition-all shadow-md cursor-pointer text-xs flex items-center justify-center gap-2`}
               >
                 {saveLoading ? (
                   <>
