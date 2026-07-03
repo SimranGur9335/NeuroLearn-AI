@@ -33,3 +33,13 @@ __pycache__/
 *.pyc
 node_modules/
 dist/
+
+
+.venv/
+*.db
+*.pkl
+datasets/
+notebooks/
+backup_stash.patch
+*.cjs (temp files)
+endpoints_audit_raw.txt

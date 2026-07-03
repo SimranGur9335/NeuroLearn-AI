@@ -141,7 +141,7 @@ const CollegeNotes = () => {
               <h1 className="text-2xl md:text-3xl font-black mt-3 flex items-center gap-2">
                 <BookMarked size={28} className={theme.text} /> College Notes Hub
               </h1>
-              <p className="text-slate-300 text-sm mt-1 max-w-xl leading-relaxed">
+              <p className="text-white/80 text-sm max-w-2xl leading-relaxed">
                 Access structured syllabus maps, lecture summaries, and solved practice notebooks uploaded by teachers and administrators.
               </p>
             </div>

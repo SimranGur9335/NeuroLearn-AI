@@ -180,9 +180,9 @@ const CareerDashboard = () => {
       ];
 
   return (
-    <div className="space-y-8 text-slate-800 dark:text-slate-100 font-sans pb-10 max-w-6xl mx-auto">
+    <div className="space-y-6 md:space-y-8 text-slate-800 dark:text-slate-100 font-sans pb-10 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
       {/* Premium Hero Banner */}
-      <div className={`bg-gradient-to-r ${theme.gradient} border ${theme.border} p-8 md:p-10 rounded-3xl relative overflow-hidden shadow-xl text-white`}>
+      <div className={`bg-gradient-to-r ${theme.gradient} border ${theme.border} p-6 md:p-10 rounded-3xl relative overflow-hidden shadow-xl text-white`}>
         <div className="absolute right-0 top-0 w-96 h-96 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.12)_0%,transparent_70%)] pointer-events-none" />
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
           <div>
@@ -253,7 +253,7 @@ const CareerDashboard = () => {
         <div className="space-y-6">
           
           {/* Quick Actions */}
-          <div className="bg-white dark:bg-slate-900 border border-slate-205 dark:border-slate-800 p-5 rounded-2xl shadow-premium space-y-4">
+          <div className="bg-white dark:bg-slate-900 border border-slate-205 dark:border-slate-800 p-6 rounded-2xl shadow-premium space-y-4">
             <h3 className="font-extrabold text-sm uppercase tracking-wider text-indigo-650 dark:text-indigo-400 flex items-center gap-2 border-b border-slate-100 dark:border-slate-850 pb-3">
               <Sparkles size={16} />
               Quick Actions
@@ -280,7 +280,7 @@ const CareerDashboard = () => {
           />
 
           {/* Bookmarks */}
-          <div className="bg-white dark:bg-slate-900 border border-slate-205 dark:border-slate-800 p-5 rounded-2xl shadow-premium space-y-4">
+          <div className="bg-white dark:bg-slate-900 border border-slate-205 dark:border-slate-800 p-6 rounded-2xl shadow-premium space-y-4">
             <h3 className="font-extrabold text-sm uppercase tracking-wider text-indigo-650 dark:text-indigo-400 flex items-center gap-2 border-b border-slate-100 dark:border-slate-850 pb-3">
               <Bookmark size={16} />
               Saved Bookmarks
@@ -306,7 +306,7 @@ const CareerDashboard = () => {
           </div>
 
           {/* Recently Viewed History */}
-          <div className="bg-white dark:bg-slate-900 border border-slate-205 dark:border-slate-800 p-5 rounded-2xl shadow-premium space-y-4">
+          <div className="bg-white dark:bg-slate-900 border border-slate-205 dark:border-slate-800 p-6 rounded-2xl shadow-premium space-y-4">
             <h3 className="font-extrabold text-sm uppercase tracking-wider text-indigo-650 dark:text-indigo-400 flex items-center gap-2 border-b border-slate-100 dark:border-slate-850 pb-3">
               <History size={16} />
               Recently Viewed

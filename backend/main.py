@@ -2,10 +2,12 @@
 import re
 import joblib
 from pathlib import Path
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 import jwt
+import json
 import bcrypt
 import random
+import asyncio
 from fastapi import FastAPI, HTTPException, Depends, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -13,6 +15,46 @@ from pydantic import BaseModel
 from sqlalchemy import text
 from backend.database import SessionLocal, engine
 from typing import Optional, List, Dict, Union
+from backend.services.ai_mentor.prompt_builder import build_prompt
+from backend.services.ai_mentor.groq_service import generate_response
+from backend.services.ai_mentor.context_builder import build_student_context
+from backend.services.ai_mentor.memory_service import (
+    get_memory,
+    add_message,
+    clear_memory
+)
+from backend.services.ai_mentor.chat_service import (
+    create_chat_session,
+    get_latest_chat_session,
+    save_chat_message,
+    get_active_chat_sessions,
+    get_chat_messages,
+    get_chat_session_owner,
+    rename_chat_session,
+    delete_chat_session
+)
+import logging
+
+# Configure production logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    handlers=[
+        logging.StreamHandler()
+    ]
+)
+logger = logging.getLogger("neurolearn_api")
+
+def handle_exception_securely(db, e: Exception):
+    db.rollback()
+    if isinstance(e, HTTPException):
+        raise e
+    logger.exception("Database error occurred during endpoint execution")
+    raise HTTPException(
+        status_code=500,
+        detail="An internal database error occurred. Please contact support."
+    )
+
 
 app = FastAPI()
 
@@ -193,9 +235,11 @@ def run_migrations():
             );
         """))
         
-        # Ensure new columns on learning_wellness_logs exist
-        db.execute(text("ALTER TABLE learning_wellness_logs ADD COLUMN IF NOT EXISTS learning_habits TEXT DEFAULT '[]';"))
-        db.execute(text("ALTER TABLE learning_wellness_logs ADD COLUMN IF NOT EXISTS recommendations TEXT DEFAULT '[]';"))
+        # Check and add columns to wellness_mood_logs table
+        db.execute(text("ALTER TABLE wellness_mood_logs ADD COLUMN IF NOT EXISTS sleep_hours NUMERIC(5, 2) DEFAULT 8.00;"))
+        db.execute(text("ALTER TABLE wellness_mood_logs ADD COLUMN IF NOT EXISTS study_hours NUMERIC(5, 2) DEFAULT 0.00;"))
+        db.execute(text("ALTER TABLE wellness_mood_logs ADD COLUMN IF NOT EXISTS learning_habits TEXT DEFAULT '[]';"))
+        db.execute(text("ALTER TABLE wellness_mood_logs ADD COLUMN IF NOT EXISTS recommendations TEXT DEFAULT '[]';"))
         
         # Check and add columns for extended profile features
         db.execute(text("ALTER TABLE students ADD COLUMN IF NOT EXISTS mobile VARCHAR(20) DEFAULT NULL;"))
@@ -225,9 +269,7 @@ def run_migrations():
                 log_date DATE NOT NULL DEFAULT CURRENT_DATE,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                is_deleted BOOLEAN DEFAULT FALSE,
-                learning_habits TEXT DEFAULT '[]',
-                recommendations TEXT DEFAULT '[]'
+                is_deleted BOOLEAN DEFAULT FALSE
             );
         """))
         db.execute(text("CREATE INDEX IF NOT EXISTS idx_lw_logs_student_date ON learning_wellness_logs(student_id, log_date);"))
@@ -244,8 +286,7 @@ def run_migrations():
                 completed_at TIMESTAMP NULL,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                is_deleted BOOLEAN DEFAULT FALSE,
-                interruptions_count INTEGER DEFAULT 0
+                is_deleted BOOLEAN DEFAULT FALSE
             );
         """))
         db.execute(text("CREATE INDEX IF NOT EXISTS idx_focus_sessions_student ON focus_sessions(student_id);"))
@@ -272,9 +313,6 @@ def run_migrations():
                 pomodoro_preset INTEGER DEFAULT 25,
                 daily_study_goal NUMERIC(5, 2) DEFAULT 4.00,
                 daily_sleep_goal NUMERIC(5, 2) DEFAULT 8.00,
-                preferred_focus_duration INTEGER DEFAULT 25,
-                reminder_time VARCHAR(10) DEFAULT '09:00',
-                notification_preference BOOLEAN DEFAULT TRUE,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 is_deleted BOOLEAN DEFAULT FALSE
@@ -289,13 +327,11 @@ def run_migrations():
                 student_id INTEGER NOT NULL REFERENCES students(student_id) ON DELETE CASCADE UNIQUE,
                 focus_score NUMERIC(5, 2) DEFAULT 0.00,
                 weekly_study_hours NUMERIC(5, 2) DEFAULT 0.00,
-                monthly_study_hours NUMERIC(5, 2) DEFAULT 0.00,
                 focus_sessions_count INTEGER DEFAULT 0,
                 current_streak INTEGER DEFAULT 0,
                 longest_streak INTEGER DEFAULT 0,
                 average_sleep NUMERIC(5, 2) DEFAULT 0.00,
                 average_focus NUMERIC(5, 2) DEFAULT 0.00,
-                average_stress NUMERIC(5, 2) DEFAULT 0.00,
                 average_study_hours NUMERIC(5, 2) DEFAULT 0.00,
                 completed_sessions INTEGER DEFAULT 0,
                 interrupted_sessions INTEGER DEFAULT 0,
@@ -312,16 +348,7 @@ def run_migrations():
         """))
         db.execute(text("CREATE INDEX IF NOT EXISTS idx_wellness_stats_student ON wellness_statistics(student_id);"))
         
-        # Explicitly run ALTER migration statements for existing tables to ensure they have the new columns
-        db.execute(text("ALTER TABLE focus_sessions ADD COLUMN IF NOT EXISTS interruptions_count INTEGER DEFAULT 0;"))
-        db.execute(text("ALTER TABLE wellness_preferences ADD COLUMN IF NOT EXISTS preferred_focus_duration INTEGER DEFAULT 25;"))
-        db.execute(text("ALTER TABLE wellness_preferences ADD COLUMN IF NOT EXISTS reminder_time VARCHAR(10) DEFAULT '09:00';"))
-        db.execute(text("ALTER TABLE wellness_preferences ADD COLUMN IF NOT EXISTS notification_preference BOOLEAN DEFAULT TRUE;"))
-        db.execute(text("ALTER TABLE wellness_statistics ADD COLUMN IF NOT EXISTS average_stress NUMERIC(5, 2) DEFAULT 0.00;"))
-        db.execute(text("ALTER TABLE wellness_statistics ADD COLUMN IF NOT EXISTS monthly_study_hours NUMERIC(5, 2) DEFAULT 0.00;"))
-        
         db.commit()
-        print("Migrations executed successfully!")
         try:
             from backend.create_indexes import create_database_indexes
             create_database_indexes()
@@ -331,7 +358,6 @@ def run_migrations():
 
     except Exception as e:
         db.rollback()
-        print(f"Error executing migrations: {e}")
     finally:
         db.close()
 
@@ -343,11 +369,7 @@ load_dotenv()
 
 # Gemini API Key startup check
 gemini_key = os.getenv("GEMINI_API_KEY")
-if not gemini_key:
-    print("\n" + "!"*70)
-    print(" WARNING: GEMINI_API_KEY is not set in the environment!")
-    print(" AI Mentor Chat and Career Guidance features will use static mock fallbacks.")
-    print("!"*70 + "\n")
+
 
 # --- JWT Config & Helpers ---
 JWT_SECRET = os.getenv("JWT_SECRET")
@@ -355,8 +377,29 @@ if not JWT_SECRET:
     raise RuntimeError("JWT_SECRET environment variable is not set!")
 
 JWT_ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 120
-REFRESH_TOKEN_EXPIRE_DAYS = 7
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "15"))
+REFRESH_TOKEN_EXPIRE_DAYS = int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", "7"))
+DEFAULT_ACADEMIC_YEAR = os.getenv("DEFAULT_ACADEMIC_YEAR", "2026-2027")
+RISK_MODEL_VERSION = os.getenv("RISK_MODEL_VERSION", "Rule-Based V1.0")
+
+def get_current_academic_year(db, institution_id: Optional[int] = None) -> str:
+    try:
+        iid = institution_id if institution_id is not None else 1
+        row = db.execute(
+            text("""
+                SELECT academic_year 
+                FROM academic_terms 
+                WHERE institution_id = :iid 
+                ORDER BY academic_year DESC 
+                LIMIT 1
+            """),
+            {"iid": iid}
+        ).fetchone()
+        if row and row.academic_year:
+            return row.academic_year
+    except Exception as e:
+        print(f"Error fetching current academic year from DB: {e}")
+    return DEFAULT_ACADEMIC_YEAR
 
 security = HTTPBearer()
 
@@ -463,7 +506,9 @@ def verify_student_access(current_user: dict, student_id: int):
             text("SELECT institution_id FROM students WHERE student_id = :sid"),
             {"sid": student_id}
         ).fetchone()
-        if not student or student.institution_id != current_user["institution_id"]:
+        if not student:
+            raise HTTPException(status_code=404, detail="Student not found.")
+        if student.institution_id != current_user["institution_id"]:
             raise HTTPException(status_code=403, detail="Access denied: Student belongs to another institution.")
         
         if current_user["role"] == "admin":
@@ -681,6 +726,15 @@ class QuizSubmitInput(BaseModel):
     total_questions: int
     xp_earned: int
 
+class MentorChatInput(BaseModel):
+    message: str
+    session_id: Optional[int] = None
+
+
+class RenameChatInput(BaseModel):
+    title: str
+
+
 
 # --- Audit Logging Helper ---
 
@@ -820,18 +874,25 @@ def login_route(data: LoginInput, response: Response):
         roll_number = None
         branch = None
         designation = None
-        college = "COEP Technological University"
+        college = "NeuroLearn AI"
         inst_color = "indigo"
         inst_logo = "/assets/logo.png"
-        if user.institution_id:
+        
+        # Query user's institution, falling back to default/first active institution if unassigned
+        iid = user.institution_id or 1
+        inst = db.execute(
+            text("SELECT institution_name, theme_color, logo_url FROM institutions WHERE institution_id = :iid"),
+            {"iid": iid}
+        ).fetchone()
+        if not inst and not user.institution_id:
             inst = db.execute(
-                text("SELECT institution_name, theme_color, logo_url FROM institutions WHERE institution_id = :iid"),
-                {"iid": user.institution_id}
+                text("SELECT institution_name, theme_color, logo_url FROM institutions WHERE status = 'active' LIMIT 1")
             ).fetchone()
-            if inst:
-                college = inst.institution_name
-                inst_color = inst.theme_color
-                inst_logo = inst.logo_url
+            
+        if inst:
+            college = inst.institution_name
+            inst_color = inst.theme_color
+            inst_logo = inst.logo_url
 
         if user.role == "student" and user.student_id:
             student = db.execute(
@@ -970,25 +1031,29 @@ def refresh_token_route(data: RefreshInput, response: Response, request: Request
         roll_number = None
         branch = None
         designation = None
-        college = "COEP Technological University"
+        college = "NeuroLearn AI"
+        inst_color = "indigo"
+        inst_logo = "/assets/logo.png"
 
-        inst_color = None
-        inst_logo = None
-
-        if user.institution_id:
+        # Query user's institution, falling back to default/first active institution if unassigned
+        iid = user.institution_id or 1
+        inst = db.execute(
+            text("""
+                SELECT institution_name, theme_color, logo_url
+                FROM institutions
+                WHERE institution_id = :iid
+            """),
+            {"iid": iid}
+        ).fetchone()
+        if not inst and not user.institution_id:
             inst = db.execute(
-                text("""
-                    SELECT institution_name, theme_color, logo_url
-                    FROM institutions
-                    WHERE institution_id = :iid
-                """),
-                {"iid": user.institution_id}
+                text("SELECT institution_name, theme_color, logo_url FROM institutions WHERE status = 'active' LIMIT 1")
             ).fetchone()
 
-            if inst:
-                college = inst.institution_name
-                inst_color = inst.theme_color
-                inst_logo = inst.logo_url
+        if inst:
+            college = inst.institution_name
+            inst_color = inst.theme_color
+            inst_logo = inst.logo_url
 
         if user.role == "super_admin":
             name = "Platform Owner"
@@ -1125,10 +1190,11 @@ def register_route(data: RegisterInput):
         valid_domain = inst.domain_name.lower()
         email_domain = email.split("@")[-1]
         
+        short_name_clean = "".join(c for c in inst.short_name.lower() if c.isalnum())
         is_valid_domain = (
             email_domain == valid_domain or 
             email_domain == "neurolearn.ai" or
-            (inst.domain_name == "coeptech.ac.in" and email_domain in ["coep.smail.in", "coep.ac.in", "coeptech.ac.in"])
+            short_name_clean in email_domain
         )
 
         if not is_valid_domain:
@@ -1207,9 +1273,9 @@ def register_route(data: RegisterInput):
                 db.execute(
                     text("""
                         INSERT INTO faculty_assignments (faculty_id, class_id, subject_id, role, academic_year, created_at)
-                        VALUES (:fid, 1, 1, 'Theory', '2026-2027', CURRENT_TIMESTAMP)
+                        VALUES (:fid, 1, 1, 'Theory', :ay, CURRENT_TIMESTAMP)
                     """),
-                    {"fid": faculty_id}
+                    {"fid": faculty_id, "ay": get_current_academic_year(db, data.institution_id)}
                 )
 
         # Create user account
@@ -1318,24 +1384,36 @@ def clear_security_events(current_user: dict = Depends(require_role(["admin"])))
         db.commit()
         return {"message": "Security logs cleared successfully"}
     except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        handle_exception_securely(db, e)
     finally:
         db.close()
 
 
-@app.get("/model-status")
-def model_status():
-    return {"student_performance": "loaded" if student_model is not None else "failed"}
 
-@app.get("/predict-test")
-def predict_test():
-    return {"predicted_grade": 14.8}
 
 @app.post("/api/predict/student-performance")
 def predict_student_performance(data: StudentPerformanceInput, current_user: dict = Depends(get_current_user)):
     if not student_model:
-        return {"predicted_grade": 0.0, "error": "Model not loaded"}
+        db = SessionLocal()
+        try:
+            if data.G1 > 0 or data.G2 > 0:
+                predicted_grade = round((float(data.G1) + float(data.G2)) / 2.0, 2)
+            else:
+                student_id = current_user.get("student_id") if current_user["role"] == "student" else None
+                avg_marks = None
+                if student_id:
+                    avg_marks = db.execute(
+                        text("SELECT AVG(total_marks) FROM student_marks WHERE student_id = :sid"),
+                        {"sid": student_id}
+                    ).scalar()
+                if avg_marks is not None:
+                    predicted_grade = round((float(avg_marks) / 100.0) * 20.0, 2)
+                else:
+                    predicted_grade = 14.5
+            return {"predicted_grade": predicted_grade, "warning": "Model not loaded, calculated from grade history"}
+        finally:
+            db.close()
+            
     prediction = student_model.predict([
         [
             0, 0, data.age, 0, 0, 0, 2, 2, 0, 0, 0, 0, 1,
@@ -1741,10 +1819,7 @@ def mark_attendance(
         db.commit()
         return {"message": "Attendance marked successfully"}
     except Exception as e:
-        db.rollback()
-        if isinstance(e, HTTPException):
-            raise e
-        raise HTTPException(status_code=500, detail=str(e))
+        handle_exception_securely(db, e)
     finally:
         db.close()
 
@@ -1920,8 +1995,7 @@ def create_student(data: StudentInput, current_user: dict = Depends(require_role
         log_audit(db, "CREATE", "Student", new_id, performed_by=f"Admin {current_user['user_id']}")
         return {"message": "Student created successfully", "student_id": new_id}
     except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        handle_exception_securely(db, e)
     finally:
         db.close()
 
@@ -1944,8 +2018,7 @@ def update_student(student_id: int, data: StudentInput, current_user: dict = Dep
         log_audit(db, "UPDATE", "Student", student_id, performed_by=f"Admin {current_user['user_id']}")
         return {"message": "Student updated successfully"}
     except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        handle_exception_securely(db, e)
     finally:
         db.close()
 
@@ -1978,8 +2051,7 @@ def delete_student(student_id: int, current_user: dict = Depends(require_role(["
         log_audit(db, "DELETE", "Student", student_id, performed_by=f"Admin {current_user['user_id']}")
         return {"message": "Student deleted successfully"}
     except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        handle_exception_securely(db, e)
     finally:
         db.close()
 
@@ -2018,7 +2090,9 @@ def get_faculty_profile(faculty_id: int, current_user: dict = Depends(get_curren
             text("SELECT * FROM faculty WHERE faculty_id = :id"),
             {"id": faculty_id}
         ).fetchone()
-        if not f or f.institution_id != current_user["institution_id"]:
+        if not f:
+            raise HTTPException(status_code=404, detail="Faculty not found.")
+        if f.institution_id != current_user["institution_id"]:
             raise HTTPException(status_code=403, detail="Access denied: Faculty belongs to another institution.")
             
         assignments = db.execute(
@@ -2091,8 +2165,7 @@ def create_faculty(data: FacultyInput, current_user: dict = Depends(require_role
         log_audit(db, "CREATE", "Faculty", new_id, performed_by=f"Admin {current_user['user_id']}")
         return {"message": "Faculty created successfully", "faculty_id": new_id}
     except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        handle_exception_securely(db, e)
     finally:
         db.close()
 
@@ -2105,7 +2178,9 @@ def update_faculty(faculty_id: int, data: FacultyInput, current_user: dict = Dep
             text("SELECT institution_id FROM faculty WHERE faculty_id = :fid"),
             {"fid": faculty_id}
         ).fetchone()
-        if not f or f.institution_id != current_user["institution_id"]:
+        if not f:
+            raise HTTPException(status_code=404, detail="Faculty not found.")
+        if f.institution_id != current_user["institution_id"]:
             raise HTTPException(status_code=403, detail="Access denied: Faculty belongs to another institution.")
             
         db.execute(
@@ -2121,10 +2196,7 @@ def update_faculty(faculty_id: int, data: FacultyInput, current_user: dict = Dep
         log_audit(db, "UPDATE", "Faculty", faculty_id, performed_by=f"Admin {current_user['user_id']}")
         return {"message": "Faculty updated successfully"}
     except Exception as e:
-        db.rollback()
-        if isinstance(e, HTTPException):
-            raise e
-        raise HTTPException(status_code=500, detail=str(e))
+        handle_exception_securely(db, e)
     finally:
         db.close()
 
@@ -2137,7 +2209,9 @@ def delete_faculty(faculty_id: int, current_user: dict = Depends(require_role(["
             text("SELECT institution_id FROM faculty WHERE faculty_id = :fid"),
             {"fid": faculty_id}
         ).fetchone()
-        if not f or f.institution_id != current_user["institution_id"]:
+        if not f:
+            raise HTTPException(status_code=404, detail="Faculty not found.")
+        if f.institution_id != current_user["institution_id"]:
             raise HTTPException(status_code=403, detail="Access denied: Faculty belongs to another institution.")
             
         db.execute(text("DELETE FROM faculty_assignments WHERE faculty_id = :id"), {"id": faculty_id})
@@ -2149,10 +2223,7 @@ def delete_faculty(faculty_id: int, current_user: dict = Depends(require_role(["
         log_audit(db, "DELETE", "Faculty", faculty_id, performed_by=f"Admin {current_user['user_id']}")
         return {"message": "Faculty deleted successfully"}
     except Exception as e:
-        db.rollback()
-        if isinstance(e, HTTPException):
-            raise e
-        raise HTTPException(status_code=500, detail=str(e))
+        handle_exception_securely(db, e)
     finally:
         db.close()
 # --- Faculty Mapping CRUD ---
@@ -2266,10 +2337,7 @@ def create_mapping(data: FacultyMappingInput, current_user: dict = Depends(requi
         log_audit(db, "CREATE", "FacultyAssignment", new_id, performed_by=f"Admin {current_user['user_id']}")
         return {"message": "Faculty assigned successfully", "mapping_id": new_id}
     except Exception as e:
-        db.rollback()
-        if isinstance(e, HTTPException):
-            raise e
-        raise HTTPException(status_code=500, detail=str(e))
+        handle_exception_securely(db, e)
     finally:
         db.close()
 
@@ -2331,10 +2399,7 @@ def update_mapping(mapping_id: int, data: FacultyMappingInput, current_user: dic
         log_audit(db, "UPDATE", "FacultyAssignment", mapping_id, performed_by=f"Admin {current_user['user_id']}")
         return {"message": "Mapping updated successfully"}
     except Exception as e:
-        db.rollback()
-        if isinstance(e, HTTPException):
-            raise e
-        raise HTTPException(status_code=500, detail=str(e))
+        handle_exception_securely(db, e)
     finally:
         db.close()
 
@@ -2362,10 +2427,7 @@ def delete_mapping(mapping_id: int, current_user: dict = Depends(require_role(["
         log_audit(db, "DELETE", "FacultyAssignment", mapping_id, performed_by=f"Admin {current_user['user_id']}")
         return {"message": "Mapping deleted successfully"}
     except Exception as e:
-        db.rollback()
-        if isinstance(e, HTTPException):
-            raise e
-        raise HTTPException(status_code=500, detail=str(e))
+        handle_exception_securely(db, e)
     finally:
         db.close()
 
@@ -2411,8 +2473,7 @@ def create_course(data: CourseInput, current_user: dict = Depends(require_role([
         log_audit(db, "CREATE", "Course", new_id, performed_by=f"Admin {current_user['user_id']}")
         return {"message": "Course created successfully", "course_id": new_id}
     except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        handle_exception_securely(db, e)
     finally:
         db.close()
 
@@ -2425,7 +2486,9 @@ def update_course(course_id: int, data: CourseInput, current_user: dict = Depend
             text("SELECT institution_id FROM courses WHERE course_id = :id"),
             {"id": course_id}
         ).fetchone()
-        if not course or course.institution_id != current_user["institution_id"]:
+        if not course:
+            raise HTTPException(status_code=404, detail="Course not found.")
+        if course.institution_id != current_user["institution_id"]:
             raise HTTPException(status_code=403, detail="Access denied: Course belongs to another institution.")
             
         db.execute(
@@ -2441,10 +2504,7 @@ def update_course(course_id: int, data: CourseInput, current_user: dict = Depend
         log_audit(db, "UPDATE", "Course", course_id, performed_by=f"Admin {current_user['user_id']}")
         return {"message": "Course updated successfully"}
     except Exception as e:
-        db.rollback()
-        if isinstance(e, HTTPException):
-            raise e
-        raise HTTPException(status_code=500, detail=str(e))
+        handle_exception_securely(db, e)
     finally:
         db.close()
 
@@ -2457,7 +2517,9 @@ def delete_course(course_id: int, current_user: dict = Depends(require_role(["ad
             text("SELECT institution_id FROM courses WHERE course_id = :id"),
             {"id": course_id}
         ).fetchone()
-        if not course or course.institution_id != current_user["institution_id"]:
+        if not course:
+            raise HTTPException(status_code=404, detail="Course not found.")
+        if course.institution_id != current_user["institution_id"]:
             raise HTTPException(status_code=403, detail="Access denied: Course belongs to another institution.")
 
         db.execute(text("DELETE FROM course_subject_mapping WHERE course_id = :id"), {"id": course_id})
@@ -2466,10 +2528,7 @@ def delete_course(course_id: int, current_user: dict = Depends(require_role(["ad
         log_audit(db, "DELETE", "Course", course_id, performed_by=f"Admin {current_user['user_id']}")
         return {"message": "Course deleted successfully"}
     except Exception as e:
-        db.rollback()
-        if isinstance(e, HTTPException):
-            raise e
-        raise HTTPException(status_code=500, detail=str(e))
+        handle_exception_securely(db, e)
     finally:
         db.close()
 
@@ -2514,8 +2573,7 @@ def create_subject(data: SubjectInput, current_user: dict = Depends(require_role
         log_audit(db, "CREATE", "Subject", new_id, performed_by=f"Admin {current_user['user_id']}")
         return {"message": "Subject created successfully", "subject_id": new_id}
     except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        handle_exception_securely(db, e)
     finally:
         db.close()
 
@@ -2528,7 +2586,9 @@ def update_subject(subject_id: int, data: SubjectInput, current_user: dict = Dep
             text("SELECT institution_id FROM subjects WHERE subject_id = :id"),
             {"id": subject_id}
         ).fetchone()
-        if not sub or sub.institution_id != current_user["institution_id"]:
+        if not sub:
+            raise HTTPException(status_code=404, detail="Subject not found.")
+        if sub.institution_id != current_user["institution_id"]:
             raise HTTPException(status_code=403, detail="Access denied: Subject belongs to another institution.")
             
         db.execute(
@@ -2544,10 +2604,7 @@ def update_subject(subject_id: int, data: SubjectInput, current_user: dict = Dep
         log_audit(db, "UPDATE", "Subject", subject_id, performed_by=f"Admin {current_user['user_id']}")
         return {"message": "Subject updated successfully"}
     except Exception as e:
-        db.rollback()
-        if isinstance(e, HTTPException):
-            raise e
-        raise HTTPException(status_code=500, detail=str(e))
+        handle_exception_securely(db, e)
     finally:
         db.close()
 
@@ -2560,7 +2617,9 @@ def delete_subject(subject_id: int, current_user: dict = Depends(require_role(["
             text("SELECT institution_id FROM subjects WHERE subject_id = :id"),
             {"id": subject_id}
         ).fetchone()
-        if not sub or sub.institution_id != current_user["institution_id"]:
+        if not sub:
+            raise HTTPException(status_code=404, detail="Subject not found.")
+        if sub.institution_id != current_user["institution_id"]:
             raise HTTPException(status_code=403, detail="Access denied: Subject belongs to another institution.")
 
         db.execute(text("DELETE FROM course_subject_mapping WHERE subject_id = :id"), {"id": subject_id})
@@ -2570,10 +2629,7 @@ def delete_subject(subject_id: int, current_user: dict = Depends(require_role(["
         log_audit(db, "DELETE", "Subject", subject_id, performed_by=f"Admin {current_user['user_id']}")
         return {"message": "Subject deleted successfully"}
     except Exception as e:
-        db.rollback()
-        if isinstance(e, HTTPException):
-            raise e
-        raise HTTPException(status_code=500, detail=str(e))
+        handle_exception_securely(db, e)
     finally:
         db.close()
 
@@ -2618,8 +2674,7 @@ def create_class(data: ClassInput, current_user: dict = Depends(require_role(["a
         log_audit(db, "CREATE", "Class", new_id, performed_by=f"Admin {current_user['user_id']}")
         return {"message": "Class created successfully", "class_id": new_id}
     except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        handle_exception_securely(db, e)
     finally:
         db.close()
 
@@ -2632,7 +2687,9 @@ def update_class(class_id: int, data: ClassInput, current_user: dict = Depends(r
             text("SELECT institution_id FROM classes WHERE class_id = :id"),
             {"id": class_id}
         ).fetchone()
-        if not c or c.institution_id != current_user["institution_id"]:
+        if not c:
+            raise HTTPException(status_code=404, detail="Class not found.")
+        if c.institution_id != current_user["institution_id"]:
             raise HTTPException(status_code=403, detail="Access denied: Class belongs to another institution.")
             
         db.execute(
@@ -2648,10 +2705,7 @@ def update_class(class_id: int, data: ClassInput, current_user: dict = Depends(r
         log_audit(db, "UPDATE", "Class", class_id, performed_by=f"Admin {current_user['user_id']}")
         return {"message": "Class updated successfully"}
     except Exception as e:
-        db.rollback()
-        if isinstance(e, HTTPException):
-            raise e
-        raise HTTPException(status_code=500, detail=str(e))
+        handle_exception_securely(db, e)
     finally:
         db.close()
 
@@ -2664,7 +2718,9 @@ def delete_class(class_id: int, current_user: dict = Depends(require_role(["admi
             text("SELECT institution_id FROM classes WHERE class_id = :id"),
             {"id": class_id}
         ).fetchone()
-        if not c or c.institution_id != current_user["institution_id"]:
+        if not c:
+            raise HTTPException(status_code=404, detail="Class not found.")
+        if c.institution_id != current_user["institution_id"]:
             raise HTTPException(status_code=403, detail="Access denied: Class belongs to another institution.")
 
         db.execute(text("DELETE FROM enrollments WHERE class_id = :id"), {"id": class_id})
@@ -2674,10 +2730,7 @@ def delete_class(class_id: int, current_user: dict = Depends(require_role(["admi
         log_audit(db, "DELETE", "Class", class_id, performed_by=f"Admin {current_user['user_id']}")
         return {"message": "Class deleted successfully"}
     except Exception as e:
-        db.rollback()
-        if isinstance(e, HTTPException):
-            raise e
-        raise HTTPException(status_code=500, detail=str(e))
+        handle_exception_securely(db, e)
     finally:
         db.close()
 
@@ -2719,8 +2772,7 @@ def create_department(data: DepartmentInput, current_user: dict = Depends(requir
         log_audit(db, "CREATE", "Department", new_id, performed_by=f"Admin {current_user['user_id']}")
         return {"message": "Department created successfully", "department_id": new_id}
     except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        handle_exception_securely(db, e)
     finally:
         db.close()
 
@@ -2733,7 +2785,9 @@ def update_department(dept_id: int, data: DepartmentInput, current_user: dict = 
             text("SELECT institution_id FROM departments WHERE department_id = :id"),
             {"id": dept_id}
         ).fetchone()
-        if not dept or dept.institution_id != current_user["institution_id"]:
+        if not dept:
+            raise HTTPException(status_code=404, detail="Department not found.")
+        if dept.institution_id != current_user["institution_id"]:
             raise HTTPException(status_code=403, detail="Access denied: Department belongs to another institution.")
             
         db.execute(
@@ -2748,10 +2802,7 @@ def update_department(dept_id: int, data: DepartmentInput, current_user: dict = 
         log_audit(db, "UPDATE", "Department", dept_id, performed_by=f"Admin {current_user['user_id']}")
         return {"message": "Department updated successfully"}
     except Exception as e:
-        db.rollback()
-        if isinstance(e, HTTPException):
-            raise e
-        raise HTTPException(status_code=500, detail=str(e))
+        handle_exception_securely(db, e)
     finally:
         db.close()
 
@@ -2764,7 +2815,9 @@ def delete_department(dept_id: int, current_user: dict = Depends(require_role(["
             text("SELECT institution_id FROM departments WHERE department_id = :id"),
             {"id": dept_id}
         ).fetchone()
-        if not dept or dept.institution_id != current_user["institution_id"]:
+        if not dept:
+            raise HTTPException(status_code=404, detail="Department not found.")
+        if dept.institution_id != current_user["institution_id"]:
             raise HTTPException(status_code=403, detail="Access denied: Department belongs to another institution.")
 
         db.execute(text("DELETE FROM departments WHERE department_id = :id"), {"id": dept_id})
@@ -2772,10 +2825,7 @@ def delete_department(dept_id: int, current_user: dict = Depends(require_role(["
         log_audit(db, "DELETE", "Department", dept_id, performed_by=f"Admin {current_user['user_id']}")
         return {"message": "Department deleted successfully"}
     except Exception as e:
-        db.rollback()
-        if isinstance(e, HTTPException):
-            raise e
-        raise HTTPException(status_code=500, detail=str(e))
+        handle_exception_securely(db, e)
     finally:
         db.close()
 
@@ -2944,10 +2994,7 @@ def create_enrollment(
         log_audit(db, "ENROLL", "Student", data.student_id, performed_by=f"{role.capitalize()} {current_user['user_id']}")
         return {"message": "Student enrolled successfully", "enrollment_id": new_id}
     except Exception as e:
-        db.rollback()
-        if isinstance(e, HTTPException):
-            raise e
-        raise HTTPException(status_code=500, detail=str(e))
+        handle_exception_securely(db, e)
     finally:
         db.close()
 
@@ -3016,10 +3063,7 @@ def transfer_enrollment(
         log_audit(db, "TRANSFER", "Student", enrollment.student_id, performed_by=f"{role.capitalize()} {current_user['user_id']}")
         return {"message": "Enrollment transferred successfully"}
     except Exception as e:
-        db.rollback()
-        if isinstance(e, HTTPException):
-            raise e
-        raise HTTPException(status_code=500, detail=str(e))
+        handle_exception_securely(db, e)
     finally:
         db.close()
 
@@ -3057,10 +3101,7 @@ def delete_enrollment(
         log_audit(db, "UNENROLL", "Student", enrollment.student_id, performed_by=f"{role.capitalize()} {current_user['user_id']}")
         return {"message": "Enrollment removed successfully"}
     except Exception as e:
-        db.rollback()
-        if isinstance(e, HTTPException):
-            raise e
-        raise HTTPException(status_code=500, detail=str(e))
+        handle_exception_securely(db, e)
     finally:
         db.close()
 
@@ -3182,10 +3223,7 @@ def create_course_subject_mapping(
         log_audit(db, "MAP_COURSE_SUBJECT", "Course", data.course_id, performed_by=f"Admin {current_user['user_id']}")
         return {"message": "Subject mapped successfully", "mapping_id": new_id}
     except Exception as e:
-        db.rollback()
-        if isinstance(e, HTTPException):
-            raise e
-        raise HTTPException(status_code=500, detail=str(e))
+        handle_exception_securely(db, e)
     finally:
         db.close()
 
@@ -3216,10 +3254,7 @@ def delete_course_subject_mapping(
         log_audit(db, "UNMAP_COURSE_SUBJECT", "Course", mapping.course_id, performed_by=f"Admin {current_user['user_id']}")
         return {"message": "Mapping removed successfully"}
     except Exception as e:
-        db.rollback()
-        if isinstance(e, HTTPException):
-            raise e
-        raise HTTPException(status_code=500, detail=str(e))
+        handle_exception_securely(db, e)
     finally:
         db.close()
 
@@ -3479,8 +3514,7 @@ def mark_announcement_as_read(announcement_id: int, current_user: dict = Depends
             db.commit()
         return {"success": True, "message": "Announcement marked as read"}
     except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        handle_exception_securely(db, e)
     finally:
         db.close()
 
@@ -3507,8 +3541,7 @@ def mark_all_announcements_as_read(current_user: dict = Depends(get_current_user
         db.commit()
         return {"success": True, "message": "All announcements marked as read", "count": len(unread_ids)}
     except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        handle_exception_securely(db, e)
     finally:
         db.close()
 
@@ -3524,8 +3557,7 @@ def create_announcement(data: AnnouncementInput, current_user: dict = Depends(re
             "announcement_id": new_id
         }
     except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        handle_exception_securely(db, e)
     finally:
         db.close()
 
@@ -3541,10 +3573,7 @@ def update_announcement(
         update_announcement_helper(db, announcement_id, data, current_user)
         return {"message": "Announcement updated successfully"}
     except Exception as e:
-        db.rollback()
-        if isinstance(e, HTTPException):
-            raise e
-        raise HTTPException(status_code=500, detail=str(e))
+        handle_exception_securely(db, e)
     finally:
         db.close()
 
@@ -3559,10 +3588,7 @@ def delete_announcement(
         delete_announcement_helper(db, announcement_id, current_user)
         return {"message": "Announcement deleted successfully"}
     except Exception as e:
-        db.rollback()
-        if isinstance(e, HTTPException):
-            raise e
-        raise HTTPException(status_code=500, detail=str(e))
+        handle_exception_securely(db, e)
     finally:
         db.close()
 
@@ -3915,8 +3941,7 @@ def update_institution_configuration(data: InstitutionConfigurationInput, curren
         log_audit(db, "UPDATE_BRANDING", "Institution", iid, performed_by=f"Admin {current_user['user_id']}", institution_id=iid)
         return {"message": "Institution branding updated successfully"}
     except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        handle_exception_securely(db, e)
     finally:
         db.close()
 
@@ -3978,8 +4003,7 @@ def update_admin_settings(data: SystemSettingsInput, current_user: dict = Depend
         log_audit(db, "UPDATE_SETTINGS", "SystemSettings", None, performed_by=f"Admin {current_user['user_id']}")
         return {"message": "System settings updated successfully"}
     except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        handle_exception_securely(db, e)
     finally:
         db.close()
 
@@ -4048,7 +4072,6 @@ def get_my_profile(current_user: dict = Depends(get_current_user)):
                 certs_list = []
                 achievements_list = []
                 
-                import json
                 if career_row:
                     resume_text = career_row.resume_text or ""
                     try:
@@ -4118,7 +4141,6 @@ def get_my_profile(current_user: dict = Depends(get_current_user)):
                         })
 
                 # Fetch institution name
-                institution_name = "COEP Technological University"
                 if f.institution_id:
                     inst = db.execute(
                         text("SELECT institution_name FROM institutions WHERE institution_id = :iid"),
@@ -4180,7 +4202,6 @@ def update_my_profile(data: dict, current_user: dict = Depends(get_current_user)
             )
             
             # Update student_career_profiles table
-            import json
             skills_json = json.dumps(data.get("skills", []))
             certs_json = json.dumps(data.get("certificates", []))
             ach_json = json.dumps(data.get("achievements", []))
@@ -4240,8 +4261,7 @@ def update_my_profile(data: dict, current_user: dict = Depends(get_current_user)
             create_notification(db, "faculty", fid, "Profile Updated", "Your profile details have been successfully updated.", "profile", fid)
         return {"success": True, "message": "Profile updated successfully"}
     except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        handle_exception_securely(db, e)
     finally:
         db.close()
 
@@ -4260,8 +4280,7 @@ def update_my_avatar(data: AvatarUpdateInput, current_user: dict = Depends(get_c
             create_notification(db, "faculty", current_user["faculty_id"], "Avatar Updated", "Your profile avatar has been successfully updated.", "profile", current_user["faculty_id"])
         return {"success": True, "message": "Avatar updated successfully"}
     except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        handle_exception_securely(db, e)
     finally:
         db.close()
 
@@ -4310,10 +4329,7 @@ def change_my_password(data: PasswordChangeInput, current_user: dict = Depends(g
             create_notification(db, "student", current_user["student_id"], "Security Alert: Password Changed", "Your NeuroLearn-AI account password was successfully updated.", "profile", current_user["student_id"])
         return {"success": True, "message": "Password changed successfully"}
     except Exception as e:
-        db.rollback()
-        if isinstance(e, HTTPException):
-            raise e
-        raise HTTPException(status_code=500, detail=str(e))
+        handle_exception_securely(db, e)
     finally:
         db.close()
 
@@ -4404,7 +4420,6 @@ def stream_ai_chat_message(data: AiChatInput, current_user: dict = Depends(get_c
         db.close()
 
     async def event_generator():
-        import asyncio
         db_gen = SessionLocal()
         try:
             # Fetch some brief context history (last 5 messages)
@@ -4511,7 +4526,6 @@ $$\\frac{\\partial L}{\\partial w_1} = \\frac{\\partial L}{\\partial a_d} \\time
                     await asyncio.sleep(0.08)
             
             # Extract code block if any
-            import re
             code_block = None
             code_match = re.search(r'```(?:\w*)\n(.*?)```', reply, re.DOTALL)
             if code_match:
@@ -4594,7 +4608,6 @@ def send_ai_chat_message(data: AiChatInput, current_user: dict = Depends(get_cur
                 full_response = response.text
                 
                 # Extract code block if any (markdown ``` block)
-                import re
                 code_match = re.search(r'```(?:\w*)\n(.*?)```', full_response, re.DOTALL)
                 if code_match:
                     code_block = code_match.group(1).strip()
@@ -4724,8 +4737,7 @@ spec:
             "date": datetime.now().strftime("%I:%M:%S %p")
         }
     except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        handle_exception_securely(db, e)
     finally:
         db.close()
 
@@ -4739,7 +4751,6 @@ def log_wellness_mood(data: WellnessMoodInput, current_user: dict = Depends(get_
         sid = current_user["student_id"]
         
         # Parse habits as JSON
-        import json
         habits_json = json.dumps(data.learning_habits)
         
         # 1. Generate AI-driven Wellness/Remediation recommendations
@@ -4801,74 +4812,35 @@ def log_wellness_mood(data: WellnessMoodInput, current_user: dict = Depends(get_
                 
         recs_json = json.dumps(recommendations_list)
         
-        # Map parameters to learning_wellness_logs fields for legacy compatibility
-        happy_val = int(data.happiness)
-        stress_val = int(data.stress)
-        focus_val = int(data.focus)
-        
-        mood = 'happy' if happy_val > 60 else 'stressed' if stress_val > 60 else 'focused'
-        energy_level = max(1, min(10, happy_val // 10))
-        focus_level = max(1, min(10, focus_val // 10))
-        stress_level = max(1, min(10, stress_val // 10))
-        
-        # 2. Insert or update today's log in learning_wellness_logs
-        today = datetime.now().date()
-        existing = db.execute(text("""
-            SELECT log_id FROM learning_wellness_logs 
-            WHERE student_id = :sid AND log_date = :today AND is_deleted = FALSE
-        """), {"sid": sid, "today": today}).fetchone()
-        
-        if existing:
-            db.execute(
-                text("""
-                    UPDATE learning_wellness_logs 
-                    SET mood = :mood, energy_level = :el, focus_level = :fl, stress_level = :sl,
-                        sleep_hours = :sleep, planned_study_hours = :study, learning_goal = 'Legacy AI Log (Updated)',
-                        learning_habits = :habits, recommendations = :recs, updated_at = CURRENT_TIMESTAMP
-                    WHERE log_id = :lid
-                """),
-                {
-                    "mood": mood, "el": energy_level, "fl": focus_level, "sl": stress_level,
-                    "sleep": data.sleep_hours, "study": data.study_hours, "habits": habits_json,
-                    "recs": recs_json, "lid": existing.log_id
-                }
-            )
-        else:
-            db.execute(
-                text("""
-                    INSERT INTO learning_wellness_logs (
-                        student_id, mood, energy_level, focus_level, stress_level, 
-                        sleep_hours, planned_study_hours, learning_goal, 
-                        learning_habits, recommendations, log_date, created_at, updated_at, is_deleted
-                    )
-                    VALUES (:sid, :mood, :el, :fl, :sl, :sleep, :study, 'Legacy AI Log Submission', :habits, :recs, :today, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE)
-                """),
-                {
-                    "sid": sid,
-                    "mood": mood,
-                    "el": energy_level,
-                    "fl": focus_level,
-                    "sl": stress_level,
-                    "sleep": data.sleep_hours,
-                    "study": data.study_hours,
-                    "habits": habits_json,
-                    "recs": recs_json,
-                    "today": today
-                }
-            )
+        # 2. Insert into PostgreSQL DB
+        db.execute(
+            text("""
+                INSERT INTO wellness_mood_logs (
+                    student_id, happiness, focus, frustration, stress, 
+                    sleep_hours, study_hours, learning_habits, recommendations
+                )
+                VALUES (:sid, :hap, :foc, :fru, :str, :sleep, :study, :habits, :recs)
+            """),
+            {
+                "sid": sid,
+                "hap": data.happiness,
+                "foc": data.focus,
+                "fru": data.frustration,
+                "str": data.stress,
+                "sleep": data.sleep_hours,
+                "study": data.study_hours,
+                "habits": habits_json,
+                "recs": recs_json
+            }
+        )
         db.commit()
-        # Recalculate wellness statistics to update streak
-        from backend.wellness_crud import recalculate_wellness_statistics
-        recalculate_wellness_statistics(db, sid)
-        
         return {
             "success": True, 
             "message": "Wellness metrics logged successfully",
             "recommendations": recommendations_list
         }
     except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        handle_exception_securely(db, e)
     finally:
         db.close()
 
@@ -4882,18 +4854,17 @@ def get_wellness_mood_history(current_user: dict = Depends(get_current_user)):
         sid = current_user["student_id"]
         result = db.execute(
             text("""
-                SELECT mood, energy_level, focus_level, stress_level, sleep_hours, planned_study_hours, 
-                       learning_habits, recommendations, log_date, created_at
-                FROM learning_wellness_logs 
-                WHERE student_id = :sid AND is_deleted = FALSE
-                ORDER BY log_date DESC, created_at DESC 
+                SELECT happiness, focus, frustration, stress, sleep_hours, study_hours, 
+                       learning_habits, recommendations, log_date 
+                FROM wellness_mood_logs 
+                WHERE student_id = :sid 
+                ORDER BY created_at DESC 
                 LIMIT 10
             """),
             {"sid": sid}
         ).fetchall()
         
         history_list = []
-        import json
         for r in result:
             try:
                 habs = json.loads(r.learning_habits) if r.learning_habits else []
@@ -4905,25 +4876,15 @@ def get_wellness_mood_history(current_user: dict = Depends(get_current_user)):
             except Exception:
                 recs = []
                 
-            # Map back to 100-scale for legacy compatibility
-            el = int(r.energy_level or 5)
-            fl = int(r.focus_level or 5)
-            sl = int(r.stress_level or 5)
-            
-            happiness = el * 10
-            focus = fl * 10
-            frustration = sl * 5
-            stress = sl * 10
-            
             history_list.append({
                 "day": r.log_date.strftime("%a") if r.log_date else "Today",
                 "date": str(r.log_date) if r.log_date else None,
-                "happy": happiness,
-                "focused": focus,
-                "frustrated": frustration,
-                "stressed": stress,
+                "happy": int(r.happiness),
+                "focused": int(r.focus),
+                "frustrated": int(r.frustration),
+                "stressed": int(r.stress),
                 "sleep_hours": float(r.sleep_hours) if r.sleep_hours is not None else 8.0,
-                "study_hours": float(r.planned_study_hours) if r.planned_study_hours is not None else 0.0,
+                "study_hours": float(r.study_hours) if r.study_hours is not None else 0.0,
                 "learning_habits": habs,
                 "recommendations": recs
             })
@@ -4983,8 +4944,7 @@ def complete_focus_session(current_user: dict = Depends(get_current_user)):
         db.commit()
         return {"success": True, "xp_points": updated_xp}
     except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        handle_exception_securely(db, e)
     finally:
         db.close()
 
@@ -5023,8 +4983,7 @@ def set_target_career(data: TargetCareerInput, current_user: dict = Depends(get_
         db.commit()
         return {"success": True, "message": "Target career updated successfully"}
     except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        handle_exception_securely(db, e)
     finally:
         db.close()
 
@@ -5075,7 +5034,6 @@ def get_career_profile(current_user: dict = Depends(get_current_user)):
                 {"sid": sid}
             ).fetchone()
             
-        import json
         custom_skills = []
         if profile.custom_skills:
             if isinstance(profile.custom_skills, str):
@@ -5109,7 +5067,6 @@ def save_career_profile(data: CareerProfileInput, current_user: dict = Depends(g
     db = SessionLocal()
     try:
         sid = current_user["student_id"]
-        import json
         custom_skills_json = json.dumps(data.custom_skills or [])
         
         # Check if row exists
@@ -5159,8 +5116,7 @@ def save_career_profile(data: CareerProfileInput, current_user: dict = Depends(g
         db.commit()
         return {"success": True, "message": "Career profile saved successfully"}
     except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        handle_exception_securely(db, e)
     finally:
         db.close()
 
@@ -5190,7 +5146,6 @@ def analyze_career_profile(current_user: dict = Depends(get_current_user)):
         
         resume_text = profile.resume_text if (profile and profile.resume_text) else "No resume uploaded."
         target_career = profile.target_career if (profile and profile.target_career) else "ai-engineer"
-        import json
         custom_skills_list = []
         if profile and profile.custom_skills:
             if isinstance(profile.custom_skills, str):
@@ -5396,8 +5351,7 @@ You must return ONLY a valid JSON object. Do not include markdown formatting lik
         db.commit()
         return analysis_result
     except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        handle_exception_securely(db, e)
     finally:
         db.close()
 
@@ -5428,7 +5382,6 @@ You must return ONLY a valid JSON object. Do not include markdown formatting lik
   "suggested_improvement": "string providing the correct/better way to phrase or answer the question, including any relevant code/concepts"
 }}
 """
-    import json
     eval_result = None
     if gemini_key:
         try:
@@ -5766,11 +5719,11 @@ def get_faculty_by_email(email: str, current_user: dict = Depends(get_current_us
                 db.execute(text("""
                     INSERT INTO faculty_assignments (faculty_id, class_id, subject_id, role, academic_year, created_at)
                     VALUES 
-                    (:fid, 1, 1, 'Theory', '2026-2027', NOW()),
-                    (:fid, 2, 2, 'Theory', '2026-2027', NOW()),
-                    (:fid, 3, 3, 'Project Guide', '2026-2027', NOW())
+                    (:fid, 1, 1, 'Theory', :ay, NOW()),
+                    (:fid, 2, 2, 'Theory', :ay, NOW()),
+                    (:fid, 3, 3, 'Project Guide', :ay, NOW())
                     ON CONFLICT DO NOTHING
-                """), {"fid": new_id})
+                """), {"fid": new_id, "ay": get_current_academic_year(db, 1)})
                 db.commit()
                 
                 # Fetch created
@@ -5983,8 +5936,7 @@ def save_attendance(data: AttendanceSaveInput, current_user: dict = Depends(get_
         log_audit(db, "MARK_ATTENDANCE", "Class", data.class_id, f"Faculty {faculty_id}")
         return {"message": "Attendance records saved successfully"}
     except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        handle_exception_securely(db, e)
     finally:
         db.close()
 
@@ -6192,8 +6144,7 @@ def update_student_intervention(student_id: int, input_data: StudentIntervention
         db.commit()
         return {"status": "success", "message": "Intervention logged successfully"}
     except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        handle_exception_securely(db, e)
     finally:
         db.close()
 
@@ -6480,8 +6431,7 @@ def create_assignment(data: AssignmentCreateInput, current_user: dict = Depends(
         log_audit(db, "CREATE_ASSIGNMENT", "Assignment", new_id, f"Faculty {faculty_id}")
         return {"message": "Assignment created successfully", "assignment_id": new_id}
     except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        handle_exception_securely(db, e)
     finally:
         db.close()
 
@@ -6581,8 +6531,7 @@ def update_assignment(assignment_id: int, data: AssignmentCreateInput, current_u
         log_audit(db, "UPDATE_ASSIGNMENT", "Assignment", assignment_id, f"Faculty {faculty_id}")
         return {"message": "Assignment updated successfully"}
     except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        handle_exception_securely(db, e)
     finally:
         db.close()
 
@@ -6608,8 +6557,7 @@ def delete_assignment(assignment_id: int, faculty_id: int, current_user: dict = 
         log_audit(db, "DELETE_ASSIGNMENT", "Assignment", assignment_id, f"Faculty {fid}")
         return {"message": "Assignment deleted successfully"}
     except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        handle_exception_securely(db, e)
     finally:
         db.close()
 
@@ -6652,8 +6600,7 @@ def close_assignment(assignment_id: int, data: CloseAssignmentInput, current_use
         log_audit(db, "CLOSE_ASSIGNMENT", "Assignment", assignment_id, f"Faculty {faculty_id}")
         return {"message": "Assignment closed successfully"}
     except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        handle_exception_securely(db, e)
     finally:
         db.close()
 
@@ -6696,8 +6643,7 @@ def reopen_assignment(assignment_id: int, data: CloseAssignmentInput, current_us
         log_audit(db, "REOPEN_ASSIGNMENT", "Assignment", assignment_id, f"Faculty {faculty_id}")
         return {"message": "Assignment reopened successfully"}
     except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        handle_exception_securely(db, e)
     finally:
         db.close()
 
@@ -6808,8 +6754,7 @@ def grade_submission(submission_id: int, data: GradeSubmissionInput, current_use
         log_audit(db, "GRADE_SUBMISSION", "Submission", submission_id, f"Faculty {faculty_id}")
         return {"message": "Submission graded successfully"}
     except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        handle_exception_securely(db, e)
     finally:
         db.close()
 
@@ -6900,8 +6845,7 @@ def submit_assignment(assignment_id: int, data: StudentSubmissionInput, current_
     except HTTPException:
         raise
     except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        handle_exception_securely(db, e)
 @app.get("/api/marks")
 @app.get("/marks")
 def get_student_marks(class_id: int, subject_id: int, current_user: dict = Depends(get_current_user)):
@@ -6923,7 +6867,7 @@ def get_student_marks(class_id: int, subject_id: int, current_user: dict = Depen
             WHERE c.class_id = :cid
         """), {"cid": class_id}).fetchone()
         
-        academic_year = class_info.academic_year if class_info and class_info.academic_year else "2026-2027"
+        academic_year = class_info.academic_year if class_info and class_info.academic_year else get_current_academic_year(db, current_user.get("institution_id"))
         semester = class_info.semester if class_info and class_info.semester else 5
 
         # 2. Fetch configured assessment components for academic_year, semester, and subject
@@ -7257,8 +7201,7 @@ def save_student_marks_bulk(data: BulkMarksInput, current_user: dict = Depends(g
                 )
         return {"message": "Marks entered successfully"}
     except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        handle_exception_securely(db, e)
     finally:
         db.close()
 
@@ -7341,7 +7284,7 @@ def run_risk_engine(data: RunRiskEngineInput, current_user: dict = Depends(get_c
             # Update predictions
             db.execute(text("""
                 INSERT INTO risk_predictions (student_id, class_id, risk_score, risk_level, attendance_score, quiz_score, prediction_reason, model_version, created_at)
-                VALUES (:sid, :cid, :score, :level, :att_score, :q_score, :reason, 'Rule-Based V1.0', CURRENT_TIMESTAMP)
+                VALUES (:sid, :cid, :score, :level, :att_score, :q_score, :reason, :model_ver, CURRENT_TIMESTAMP)
             """), {
                 "sid": s.student_id,
                 "cid": data.class_id,
@@ -7349,7 +7292,8 @@ def run_risk_engine(data: RunRiskEngineInput, current_user: dict = Depends(get_c
                 "level": risk_level,
                 "att_score": att_rate,
                 "q_score": avg_marks,
-                "reason": reason_str
+                "reason": reason_str,
+                "model_ver": RISK_MODEL_VERSION
             })
             
             # Update student_metrics table
@@ -7383,8 +7327,7 @@ def run_risk_engine(data: RunRiskEngineInput, current_user: dict = Depends(get_c
         log_audit(db, "RUN_RISK_ENGINE", "Class", data.class_id, f"Faculty {faculty_id}")
         return {"message": f"Risk engine successfully analyzed {risk_count} students."}
     except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        handle_exception_securely(db, e)
     finally:
         db.close()
 
@@ -7764,6 +7707,10 @@ def approve_institution(request_id: int, current_user: dict = Depends(require_ro
 
         admin_email = f"admin_{request.institution_code.lower()}@neurolearn.ai"
 
+        # Generate random temporary password dynamically
+        temp_pwd = f"Temp{random.randint(10000, 99999)}!"
+        hashed_pwd = hash_password(temp_pwd)
+
         db.execute(
             text("""
                 INSERT INTO users (
@@ -7790,9 +7737,7 @@ def approve_institution(request_id: int, current_user: dict = Depends(require_ro
             {
                 "email": admin_email,
                 "iid": institution.institution_id,
-
-                # temporary password hash
-                "hash": "$2b$12$QoUoIW8ECFB3IPpaWfQbR.PDPzv.I8K14Q2Zjd8XYDvtZ71aFM04W"
+                "hash": hashed_pwd
             }
         )
 
@@ -7812,7 +7757,7 @@ def approve_institution(request_id: int, current_user: dict = Depends(require_ro
             "success": True,
             "institution": request.institution_name,
             "admin_email": admin_email,
-            "temporary_password": "Admin@123"
+            "temporary_password": temp_pwd
         }
 
     finally:
@@ -7873,8 +7818,7 @@ def reject_institution(request_id: int, current_user: dict = Depends(require_rol
     except HTTPException as he:
         raise he
     except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        handle_exception_securely(db, e)
     finally:
         db.close()
 
@@ -8130,8 +8074,7 @@ def create_student(data: CreateStudentInput, current_user: dict = Depends(requir
     except HTTPException as he:
         raise he
     except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        handle_exception_securely(db, e)
     finally:
         db.close()
 
@@ -8170,18 +8113,63 @@ def change_password(data: ChangePasswordInput, current_user: dict = Depends(get_
     except HTTPException as he:
         raise he
     except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        handle_exception_securely(db, e)
     finally:
         db.close()
 
 
 @app.post("/api/v1/auth/forgot-password")
 def forgot_password(data: ForgotPasswordInput):
-    raise HTTPException(
-        status_code=501,
-        detail="Password reset not implemented"
-    )
+    db = SessionLocal()
+    try:
+        # Check if user exists
+        user = db.execute(
+            text("SELECT user_id, email FROM users WHERE email = :email"),
+            {"email": data.email}
+        ).fetchone()
+        
+        if not user:
+            raise HTTPException(
+                status_code=404,
+                detail="No account registered with this email address."
+            )
+        
+        # Generate temporary password
+        temp_pwd = f"Temp{random.randint(10000, 99999)}!"
+        password_bytes = temp_pwd.encode('utf-8')
+        salt = bcrypt.gensalt()
+        hashed = bcrypt.hashpw(password_bytes, salt).decode('utf-8')
+        
+        # Update user's password and require change on next login
+        db.execute(
+            text("UPDATE users SET password_hash = :hash, must_change_password = TRUE WHERE user_id = :uid"),
+            {"hash": hashed, "uid": user.user_id}
+        )
+        db.commit()
+        
+        # Log the security event
+        db.execute(
+            text("""
+                INSERT INTO security_events (user_id, email, event_type, details, created_at)
+                VALUES (:uid, :email, 'PASSWORD_RESET_REQUEST', 'Temporary password generated', CURRENT_TIMESTAMP)
+            """),
+            {"uid": user.user_id, "email": user.email}
+        )
+        db.commit()
+        
+        return {
+            "success": True,
+            "message": "Temporary password generated successfully.",
+            "temp_password": temp_pwd
+        }
+        
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        handle_exception_securely(db, e)
+    finally:
+        db.close()
+
 
 
 # --- Phase F: Student Hub Endpoints ---
@@ -8442,8 +8430,7 @@ def read_student_notification(notification_id: int, current_user: dict = Depends
         db.commit()
         return {"message": "Notification marked as read"}
     except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        handle_exception_securely(db, e)
     finally:
         db.close()
 
@@ -8461,8 +8448,7 @@ def read_all_student_notifications(current_user: dict = Depends(get_current_user
         db.commit()
         return {"message": "All notifications marked as read"}
     except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        handle_exception_securely(db, e)
     finally:
         db.close()
 
@@ -8479,8 +8465,7 @@ def delete_student_notification(notification_id: int, current_user: dict = Depen
         db.commit()
         return {"success": True, "message": "Notification deleted successfully"}
     except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        handle_exception_securely(db, e)
     finally:
         db.close()
 
@@ -8710,8 +8695,7 @@ def download_note(note_id: int, current_user: dict = Depends(get_current_user)):
         db.commit()
         return {"success": True}
     except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        handle_exception_securely(db, e)
     finally:
         db.close()
 
@@ -8785,6 +8769,14 @@ def toggle_question_complete(question_id: int, current_user: dict = Depends(get_
     student_id = current_user["student_id"]
     db = SessionLocal()
     try:
+        # Verify question exists
+        q_exists = db.execute(
+            text("SELECT 1 FROM programming_questions WHERE question_id = :qid"),
+            {"qid": question_id}
+        ).fetchone()
+        if not q_exists:
+            raise HTTPException(status_code=404, detail="Programming question not found.")
+
         # Check if progress exists
         row = db.execute(text("""
             SELECT completed FROM student_programming_progress 
@@ -8809,8 +8801,7 @@ def toggle_question_complete(question_id: int, current_user: dict = Depends(get_
         db.commit()
         return {"success": True, "completed": new_status}
     except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        handle_exception_securely(db, e)
     finally:
         db.close()
 
@@ -9108,8 +9099,7 @@ def create_remedial_session(payload: RemedialSessionCreateInput, current_user: d
             "session_id": session_id
         }
     except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        handle_exception_securely(db, e)
     finally:
         db.close()
 
@@ -9127,8 +9117,7 @@ def update_remedial_session(session_id: int, payload: RemedialSessionUpdateInput
             "success": True
         }
     except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        handle_exception_securely(db, e)
     finally:
         db.close()
 
@@ -9146,8 +9135,7 @@ def cancel_remedial_session(session_id: int, payload: CancelRemedialSessionInput
             "success": True
         }
     except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        handle_exception_securely(db, e)
     finally:
         db.close()
 
@@ -9165,8 +9153,7 @@ def start_remedial_session(session_id: int, payload: StartRemedialSessionInput, 
             "success": True
         }
     except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        handle_exception_securely(db, e)
     finally:
         db.close()
 
@@ -9184,8 +9171,7 @@ def complete_remedial_session(session_id: int, payload: CompleteRemedialSessionI
             "success": True
         }
     except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        handle_exception_securely(db, e)
     finally:
         db.close()
 
@@ -9283,7 +9269,9 @@ def update_invitation_status(
                 text("SELECT student_id FROM remedial_invitations WHERE invitation_id = :id"),
                 {"id": invitation_id}
             ).fetchone()
-            if not inv or inv.student_id != current_user["student_id"]:
+            if not inv:
+                raise HTTPException(status_code=404, detail="Invitation not found.")
+            if inv.student_id != current_user["student_id"]:
                 raise HTTPException(status_code=403, detail="Access denied: invitation mismatch")
         db.execute(
             text("""
@@ -9301,8 +9289,7 @@ def update_invitation_status(
             "success": True
         }
     except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        handle_exception_securely(db, e)
     finally:
         db.close()
 
@@ -9429,19 +9416,22 @@ def startup_gradebook():
 # Admin Endpoints for Subject Assessment Configuration
 
 @app.get("/api/v1/subjects/{subject_id}/assessments")
-def get_subject_assessments(subject_id: int, academic_year: Optional[str] = "2026-2027", current_user: dict = Depends(get_current_user)):
+def get_subject_assessments(subject_id: int, academic_year: Optional[str] = None, current_user: dict = Depends(get_current_user)):
     if current_user["role"] not in ["admin", "super_admin", "faculty"]:
         raise HTTPException(status_code=403, detail="Access denied")
     db = SessionLocal()
     try:
         subj = db.execute(text("SELECT semester FROM subjects WHERE subject_id = :sid"), {"sid": subject_id}).fetchone()
-        semester = subj.semester if subj else 5
+        if not subj:
+            raise HTTPException(status_code=404, detail="Subject not found.")
+        semester = subj.semester
         
+        ay = academic_year or get_current_academic_year(db, current_user.get("institution_id"))
         components = db.execute(text("""
             SELECT * FROM subject_assessments 
             WHERE academic_year = :ay AND semester = :sem AND subject_id = :sid 
             ORDER BY display_order, name
-        """), {"ay": academic_year, "sem": semester, "sid": subject_id}).fetchall()
+        """), {"ay": ay, "sem": semester, "sid": subject_id}).fetchall()
         
         return [
             {
@@ -9481,7 +9471,9 @@ def save_subject_assessments(subject_id: int, data: SubjectAssessmentsSaveInput,
     db = SessionLocal()
     try:
         subj = db.execute(text("SELECT semester FROM subjects WHERE subject_id = :sid"), {"sid": subject_id}).fetchone()
-        semester = subj.semester if subj else 5
+        if not subj:
+            raise HTTPException(status_code=404, detail="Subject not found.")
+        semester = subj.semester
         
         # Load existing components
         existing_comps = db.execute(text("""
@@ -9547,8 +9539,7 @@ def save_subject_assessments(subject_id: int, data: SubjectAssessmentsSaveInput,
         log_audit(db, "CONFIGURE_SUBJECT_ASSESSMENTS", "Subject", subject_id, f"Admin {current_user.get('user_id')}")
         return {"success": True, "message": "Subject assessment structure saved successfully!"}
     except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        handle_exception_securely(db, e)
     finally:
         db.close()
 
@@ -10185,7 +10176,7 @@ def get_faculty_dashboard_command_center(
         # Get components count
         components_count = db.execute(
             text("SELECT COUNT(*) FROM subject_assessments WHERE subject_id = :sid AND academic_year = :ay AND semester = :sem"),
-            {"sid": subject_id, "ay": academic_year or "2026-2027", "sem": semester or 5}
+            {"sid": subject_id, "ay": academic_year or get_current_academic_year(db, current_user.get("institution_id")), "sem": semester or 5}
         ).scalar() or 0
         
         if components_count == 0:
@@ -10515,7 +10506,6 @@ def get_domains():
         
         result = []
         for r in rows:
-            import json
             result.append({
                 "id": r.domain_key,
                 "domain_id": r.domain_id,
@@ -10558,7 +10548,6 @@ def get_domain_detail(domain_key: str):
         if not r:
             raise HTTPException(status_code=404, detail="Domain not found")
             
-        import json
         return {
             "id": r.domain_key,
             "domain_id": r.domain_id,
@@ -10611,21 +10600,28 @@ def submit_quiz_score(data: QuizSubmitInput, current_user: dict = Depends(get_cu
             "passed": passed
         })
         
-        # 2. Update student metrics (XP)
+        # 2. Calculate and update streak
+        metrics = db.execute(text("SELECT streak, last_active_date FROM student_metrics WHERE student_id = :sid"), {"sid": student_id}).fetchone()
+        current_streak = metrics.streak if metrics and metrics.streak else 0
+        last_active = metrics.last_active_date if metrics else None
+        
+        today = datetime.now().date()
+        if last_active:
+            if last_active == today:
+                pass
+            elif last_active == today - timedelta(days=1):
+                current_streak += 1
+            else:
+                current_streak = 1
+        else:
+            current_streak = 1
+            
+        # 3. Update student metrics (XP & Streak)
         db.execute(text("""
             UPDATE student_metrics 
-            SET xp_points = xp_points + :xp, updated_at = CURRENT_TIMESTAMP
+            SET xp_points = xp_points + :xp, streak = :streak, last_active_date = :today, updated_at = CURRENT_TIMESTAMP
             WHERE student_id = :sid
-        """), {"xp": data.xp_earned, "sid": student_id})
-        db.commit()
-        
-        # 3. Recalculate wellness statistics and sync streak
-        from backend.wellness_crud import recalculate_wellness_statistics
-        recalculate_wellness_statistics(db, student_id)
-        
-        # Fetch updated streak for badge unlocks check and return data
-        metrics = db.execute(text("SELECT streak FROM student_metrics WHERE student_id = :sid"), {"sid": student_id}).fetchone()
-        current_streak = metrics.streak if metrics and metrics.streak else 1
+        """), {"xp": data.xp_earned, "streak": current_streak, "today": today, "sid": student_id})
         
         # 4. Insert completion notification
         db.execute(text("""
@@ -10680,8 +10676,7 @@ def submit_quiz_score(data: QuizSubmitInput, current_user: dict = Depends(get_cu
         db.commit()
         return {"status": "success", "xp_earned": data.xp_earned, "passed": passed, "streak": current_streak, "unlocked_badges": [b[1] for b in new_badges]}
     except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        handle_exception_securely(db, e)
     finally:
         db.close()
 
@@ -11060,7 +11055,7 @@ def predict_academic_outcome(data: AcademicPredictInput, current_user: dict = De
     db = SessionLocal()
     try:
         # 1. Run grade prediction
-        predicted_grade = 14.5 # Default fallback
+        predicted_grade = None
         if student_model:
             try:
                 # Format to integers for random forest features shape
@@ -11074,6 +11069,21 @@ def predict_academic_outcome(data: AcademicPredictInput, current_user: dict = De
                 predicted_grade = round(float(prediction[0]), 2)
             except Exception as e:
                 print(f"Model inference error: {e}")
+
+        if predicted_grade is None:
+            # Dynamic fallback using database/input features instead of a hardcoded constant
+            if data.G1 > 0 or data.G2 > 0:
+                predicted_grade = round((data.G1 + data.G2) / 2.0, 2)
+            else:
+                # Fetch average marks percentage from student_marks and convert to 0-20 scale
+                avg_marks = db.execute(
+                    text("SELECT AVG(total_marks) FROM student_marks WHERE student_id = :sid"),
+                    {"sid": student_id}
+                ).scalar()
+                if avg_marks is not None:
+                    predicted_grade = round((float(avg_marks) / 100.0) * 20.0, 2)
+                else:
+                    predicted_grade = 14.5
                 
         # 2. Compute metrics
         predicted_cgpa = round(min(10.0, max(0.0, (predicted_grade / 20.0) * 10.0)), 2)
@@ -11184,7 +11194,6 @@ def predict_academic_outcome(data: AcademicPredictInput, current_user: dict = De
                 recommendations_list.append("Aim for an honors grade by target-practicing advanced problem sets and attempting certification mocks.")
         
         # 5. Insert history record
-        import json
         weak_subjects_json = json.dumps(weak_subjects_list)
         recommendations_json = json.dumps(recommendations_list)
         
@@ -11270,7 +11279,6 @@ def get_academic_predictions_history(current_user: dict = Depends(get_current_us
     student_id = current_user["student_id"]
     db = SessionLocal()
     try:
-        import json
         query = text("""
             SELECT prediction_id, age, studytime, failures, absences, g1_score, g2_score,
                    predicted_grade, predicted_cgpa, attendance_rate, backlog_risk, risk_level,
@@ -11314,10 +11322,11 @@ def get_academic_predictions_history(current_user: dict = Depends(get_current_us
     finally:
         db.close()
 
+
 # --- Learning Wellness Routes ---
-from datetime import date
+
 from backend.wellness_schemas import (
-    DailyCheckInInput, DailyCheckInUpdate, WeeklyReflectionInput, WeeklyReflectionUpdate,
+    DailyCheckInInput, DailyCheckInUpdate, WeeklyReflectionInput,
     FocusSessionStartInput, FocusSessionUpdateInput, WellnessPreferencesInput
 )
 from backend.wellness_crud import recalculate_wellness_statistics, get_preferences
@@ -11327,21 +11336,6 @@ def create_or_update_daily_checkin(data: DailyCheckInInput, current_user: dict =
     if current_user["role"] != "student":
         raise HTTPException(status_code=400, detail="Only students can check in")
     student_id = current_user["student_id"]
-    
-    # Validation constraints
-    if data.sleep_hours < 0.0 or data.sleep_hours > 24.0:
-        raise HTTPException(status_code=400, detail="Sleep hours must be between 0 and 24")
-    if data.planned_study_hours < 0.0 or data.planned_study_hours > 24.0:
-        raise HTTPException(status_code=400, detail="Planned study hours must be between 0 and 24")
-    if data.mood.lower() not in {'happy', 'focused', 'stressed', 'tired', 'bored'}:
-        raise HTTPException(status_code=400, detail="Invalid mood value. Allowed: happy, focused, stressed, tired, bored")
-    if data.energy_level < 1 or data.energy_level > 10:
-        raise HTTPException(status_code=400, detail="Energy level must be between 1 and 10")
-    if data.focus_level < 1 or data.focus_level > 10:
-        raise HTTPException(status_code=400, detail="Focus level must be between 1 and 10")
-    if data.stress_level < 1 or data.stress_level > 10:
-        raise HTTPException(status_code=400, detail="Stress level must be between 1 and 10")
-
     db = SessionLocal()
     try:
         today = date.today()
@@ -11382,120 +11376,7 @@ def create_or_update_daily_checkin(data: DailyCheckInInput, current_user: dict =
             recalculate_wellness_statistics(db, student_id)
             return {"success": True, "message": "Daily check-in created successfully", "log_id": log_id}
     except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
-    finally:
-        db.close()
-
-@app.get("/api/v1/wellness/checkin/today")
-def get_todays_checkin(current_user: dict = Depends(get_current_user)):
-    if current_user["role"] != "student":
-        raise HTTPException(status_code=400, detail="Only students can view check-ins")
-    student_id = current_user["student_id"]
-    db = SessionLocal()
-    try:
-        today = date.today()
-        row = db.execute(text("""
-            SELECT log_id, mood, energy_level, focus_level, stress_level, sleep_hours, planned_study_hours, learning_goal, log_date, created_at, updated_at
-            FROM learning_wellness_logs
-            WHERE student_id = :sid AND log_date = :today AND is_deleted = FALSE
-        """), {"sid": student_id, "today": today}).fetchone()
-        
-        if not row:
-            raise HTTPException(status_code=404, detail="No check-in found for today")
-            
-        return {
-            "log_id": row.log_id,
-            "mood": row.mood,
-            "energy_level": row.energy_level,
-            "focus_level": row.focus_level,
-            "stress_level": row.stress_level,
-            "sleep_hours": float(row.sleep_hours),
-            "planned_study_hours": float(row.planned_study_hours),
-            "learning_goal": row.learning_goal,
-            "log_date": str(row.log_date),
-            "created_at": str(row.created_at),
-            "updated_at": str(row.updated_at)
-        }
-    finally:
-        db.close()
-
-@app.put("/api/v1/wellness/checkin/today")
-def update_todays_checkin(data: DailyCheckInUpdate, current_user: dict = Depends(get_current_user)):
-    if current_user["role"] != "student":
-        raise HTTPException(status_code=400, detail="Only students can modify check-ins")
-    student_id = current_user["student_id"]
-    
-    if data.sleep_hours is not None and (data.sleep_hours < 0.0 or data.sleep_hours > 24.0):
-        raise HTTPException(status_code=400, detail="Sleep hours must be between 0 and 24")
-    if data.planned_study_hours is not None and (data.planned_study_hours < 0.0 or data.planned_study_hours > 24.0):
-        raise HTTPException(status_code=400, detail="Planned study hours must be between 0 and 24")
-    if data.mood is not None and data.mood.lower() not in {'happy', 'focused', 'stressed', 'tired', 'bored'}:
-        raise HTTPException(status_code=400, detail="Invalid mood value. Allowed: happy, focused, stressed, tired, bored")
-    if data.energy_level is not None and (data.energy_level < 1 or data.energy_level > 10):
-        raise HTTPException(status_code=400, detail="Energy level must be between 1 and 10")
-    if data.focus_level is not None and (data.focus_level < 1 or data.focus_level > 10):
-        raise HTTPException(status_code=400, detail="Focus level must be between 1 and 10")
-    if data.stress_level is not None and (data.stress_level < 1 or data.stress_level > 10):
-        raise HTTPException(status_code=400, detail="Stress level must be between 1 and 10")
-
-    db = SessionLocal()
-    try:
-        today = date.today()
-        existing = db.execute(text("""
-            SELECT log_id FROM learning_wellness_logs 
-            WHERE student_id = :sid AND log_date = :today AND is_deleted = FALSE
-        """), {"sid": student_id, "today": today}).fetchone()
-        
-        if not existing:
-            raise HTTPException(status_code=404, detail="No check-in found for today")
-            
-        update_fields = []
-        params = {"lid": existing.log_id}
-        for k, v in data.dict(exclude_unset=True).items():
-            update_fields.append(f"{k} = :{k}")
-            params[k] = v
-            
-        if update_fields:
-            query = f"UPDATE learning_wellness_logs SET {', '.join(update_fields)}, updated_at = CURRENT_TIMESTAMP WHERE log_id = :lid"
-            db.execute(text(query), params)
-            db.commit()
-            recalculate_wellness_statistics(db, student_id)
-            
-        return {"success": True, "message": "Today's check-in updated successfully"}
-    except HTTPException as he:
-        raise he
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
-    finally:
-        db.close()
-
-@app.delete("/api/v1/wellness/checkin/today")
-def delete_todays_checkin(current_user: dict = Depends(get_current_user)):
-    if current_user["role"] != "student":
-        raise HTTPException(status_code=400, detail="Only students can delete check-ins")
-    student_id = current_user["student_id"]
-    db = SessionLocal()
-    try:
-        today = date.today()
-        existing = db.execute(text("""
-            SELECT log_id FROM learning_wellness_logs 
-            WHERE student_id = :sid AND log_date = :today AND is_deleted = FALSE
-        """), {"sid": student_id, "today": today}).fetchone()
-        
-        if not existing:
-            raise HTTPException(status_code=404, detail="No check-in found for today")
-            
-        db.execute(text("UPDATE learning_wellness_logs SET is_deleted = TRUE, updated_at = CURRENT_TIMESTAMP WHERE log_id = :lid"), {"lid": existing.log_id})
-        db.commit()
-        recalculate_wellness_statistics(db, student_id)
-        return {"success": True, "message": "Today's check-in deleted successfully"}
-    except HTTPException as he:
-        raise he
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        handle_exception_securely(db, e)
     finally:
         db.close()
 
@@ -11504,21 +11385,6 @@ def update_daily_checkin(log_id: int, data: DailyCheckInUpdate, current_user: di
     if current_user["role"] != "student":
         raise HTTPException(status_code=400, detail="Only students can modify check-ins")
     student_id = current_user["student_id"]
-    
-    # Validation constraints
-    if data.sleep_hours is not None and (data.sleep_hours < 0.0 or data.sleep_hours > 24.0):
-        raise HTTPException(status_code=400, detail="Sleep hours must be between 0 and 24")
-    if data.planned_study_hours is not None and (data.planned_study_hours < 0.0 or data.planned_study_hours > 24.0):
-        raise HTTPException(status_code=400, detail="Planned study hours must be between 0 and 24")
-    if data.mood is not None and data.mood.lower() not in {'happy', 'focused', 'stressed', 'tired', 'bored'}:
-        raise HTTPException(status_code=400, detail="Invalid mood value. Allowed: happy, focused, stressed, tired, bored")
-    if data.energy_level is not None and (data.energy_level < 1 or data.energy_level > 10):
-        raise HTTPException(status_code=400, detail="Energy level must be between 1 and 10")
-    if data.focus_level is not None and (data.focus_level < 1 or data.focus_level > 10):
-        raise HTTPException(status_code=400, detail="Focus level must be between 1 and 10")
-    if data.stress_level is not None and (data.stress_level < 1 or data.stress_level > 10):
-        raise HTTPException(status_code=400, detail="Stress level must be between 1 and 10")
-
     db = SessionLocal()
     try:
         # Check ownership
@@ -11544,8 +11410,7 @@ def update_daily_checkin(log_id: int, data: DailyCheckInUpdate, current_user: di
     except HTTPException as he:
         raise he
     except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        handle_exception_securely(db, e)
     finally:
         db.close()
 
@@ -11570,8 +11435,7 @@ def delete_daily_checkin(log_id: int, current_user: dict = Depends(get_current_u
     except HTTPException as he:
         raise he
     except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        handle_exception_securely(db, e)
     finally:
         db.close()
 
@@ -11614,27 +11478,66 @@ def create_weekly_reflection(data: WeeklyReflectionInput, current_user: dict = D
     if current_user["role"] != "student":
         raise HTTPException(status_code=400, detail="Only students can log reflections")
     student_id = current_user["student_id"]
-    
-    # Validation
-    if not data.reflection_text or not data.reflection_text.strip():
-        raise HTTPException(status_code=400, detail="Reflection text is required")
-    text_len = len(data.reflection_text.strip())
-    if text_len < 3 or text_len > 1000:
-        raise HTTPException(status_code=400, detail="Reflection text must be between 3 and 1000 characters")
-
     db = SessionLocal()
     try:
         reflection_id = db.execute(text("""
             INSERT INTO weekly_reflections (student_id, reflection_text, ref_date, created_at, updated_at)
             VALUES (:sid, :text, CURRENT_DATE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
             RETURNING reflection_id
-        """), {"sid": student_id, "text": data.reflection_text.strip()}).scalar()
+        """), {"sid": student_id, "text": data.reflection_text}).scalar()
         db.commit()
-        recalculate_wellness_statistics(db, student_id)
         return {"success": True, "message": "Reflection logged successfully", "reflection_id": reflection_id}
     except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        handle_exception_securely(db, e)
+    finally:
+        db.close()
+
+@app.put("/api/v1/wellness/reflection/{reflection_id}")
+def update_weekly_reflection(reflection_id: int, data: WeeklyReflectionInput, current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "student":
+        raise HTTPException(status_code=400, detail="Only students can modify reflections")
+    student_id = current_user["student_id"]
+    db = SessionLocal()
+    try:
+        ref = db.execute(text("SELECT student_id FROM weekly_reflections WHERE reflection_id = :rid AND is_deleted = FALSE"), {"rid": reflection_id}).fetchone()
+        if not ref:
+            raise HTTPException(status_code=404, detail="Reflection not found")
+        if ref.student_id != student_id:
+            raise HTTPException(status_code=403, detail="Unauthorized")
+            
+        db.execute(text("""
+            UPDATE weekly_reflections SET reflection_text = :text, updated_at = CURRENT_TIMESTAMP
+            WHERE reflection_id = :rid
+        """), {"text": data.reflection_text, "rid": reflection_id})
+        db.commit()
+        return {"success": True, "message": "Reflection updated successfully"}
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        handle_exception_securely(db, e)
+    finally:
+        db.close()
+
+@app.delete("/api/v1/wellness/reflection/{reflection_id}")
+def delete_weekly_reflection(reflection_id: int, current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "student":
+        raise HTTPException(status_code=400, detail="Only students can delete reflections")
+    student_id = current_user["student_id"]
+    db = SessionLocal()
+    try:
+        ref = db.execute(text("SELECT student_id FROM weekly_reflections WHERE reflection_id = :rid AND is_deleted = FALSE"), {"rid": reflection_id}).fetchone()
+        if not ref:
+            raise HTTPException(status_code=404, detail="Reflection not found")
+        if ref.student_id != student_id:
+            raise HTTPException(status_code=403, detail="Unauthorized")
+            
+        db.execute(text("UPDATE weekly_reflections SET is_deleted = TRUE, updated_at = CURRENT_TIMESTAMP WHERE reflection_id = :rid"), {"rid": reflection_id})
+        db.commit()
+        return {"success": True, "message": "Reflection deleted successfully"}
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        handle_exception_securely(db, e)
     finally:
         db.close()
 
@@ -11664,95 +11567,6 @@ def get_weekly_reflection_history(current_user: dict = Depends(get_current_user)
     finally:
         db.close()
 
-@app.get("/api/v1/wellness/reflection/{reflection_id}")
-def get_weekly_reflection(reflection_id: int, current_user: dict = Depends(get_current_user)):
-    if current_user["role"] != "student":
-        raise HTTPException(status_code=400, detail="Only students can view reflections")
-    student_id = current_user["student_id"]
-    db = SessionLocal()
-    try:
-        ref = db.execute(text("""
-            SELECT reflection_id, student_id, reflection_text, ref_date, created_at, updated_at 
-            FROM weekly_reflections 
-            WHERE reflection_id = :rid AND is_deleted = FALSE
-        """), {"rid": reflection_id}).fetchone()
-        if not ref:
-            raise HTTPException(status_code=404, detail="Reflection not found")
-        if ref.student_id != student_id:
-            raise HTTPException(status_code=403, detail="Unauthorized")
-            
-        return {
-            "reflection_id": ref.reflection_id,
-            "student_id": ref.student_id,
-            "reflection_text": ref.reflection_text,
-            "ref_date": str(ref.ref_date),
-            "created_at": str(ref.created_at),
-            "updated_at": str(ref.updated_at)
-        }
-    finally:
-        db.close()
-
-@app.put("/api/v1/wellness/reflection/{reflection_id}")
-def update_weekly_reflection(reflection_id: int, data: WeeklyReflectionUpdate, current_user: dict = Depends(get_current_user)):
-    if current_user["role"] != "student":
-        raise HTTPException(status_code=400, detail="Only students can modify reflections")
-    student_id = current_user["student_id"]
-    
-    # Validation
-    if not data.reflection_text or not data.reflection_text.strip():
-        raise HTTPException(status_code=400, detail="Reflection text is required")
-    text_len = len(data.reflection_text.strip())
-    if text_len < 3 or text_len > 1000:
-        raise HTTPException(status_code=400, detail="Reflection text must be between 3 and 1000 characters")
-
-    db = SessionLocal()
-    try:
-        ref = db.execute(text("SELECT student_id FROM weekly_reflections WHERE reflection_id = :rid AND is_deleted = FALSE"), {"rid": reflection_id}).fetchone()
-        if not ref:
-            raise HTTPException(status_code=404, detail="Reflection not found")
-        if ref.student_id != student_id:
-            raise HTTPException(status_code=403, detail="Unauthorized")
-            
-        db.execute(text("""
-            UPDATE weekly_reflections SET reflection_text = :text, updated_at = CURRENT_TIMESTAMP
-            WHERE reflection_id = :rid
-        """), {"text": data.reflection_text.strip(), "rid": reflection_id})
-        db.commit()
-        recalculate_wellness_statistics(db, student_id)
-        return {"success": True, "message": "Reflection updated successfully"}
-    except HTTPException as he:
-        raise he
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
-    finally:
-        db.close()
-
-@app.delete("/api/v1/wellness/reflection/{reflection_id}")
-def delete_weekly_reflection(reflection_id: int, current_user: dict = Depends(get_current_user)):
-    if current_user["role"] != "student":
-        raise HTTPException(status_code=400, detail="Only students can delete reflections")
-    student_id = current_user["student_id"]
-    db = SessionLocal()
-    try:
-        ref = db.execute(text("SELECT student_id FROM weekly_reflections WHERE reflection_id = :rid AND is_deleted = FALSE"), {"rid": reflection_id}).fetchone()
-        if not ref:
-            raise HTTPException(status_code=404, detail="Reflection not found")
-        if ref.student_id != student_id:
-            raise HTTPException(status_code=403, detail="Unauthorized")
-            
-        db.execute(text("UPDATE weekly_reflections SET is_deleted = TRUE, updated_at = CURRENT_TIMESTAMP WHERE reflection_id = :rid"), {"rid": reflection_id})
-        db.commit()
-        recalculate_wellness_statistics(db, student_id)
-        return {"success": True, "message": "Reflection deleted successfully"}
-    except HTTPException as he:
-        raise he
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
-    finally:
-        db.close()
-
 # --- Focus Session Endpoints ---
 
 @app.post("/api/v1/wellness/focus/start")
@@ -11763,15 +11577,14 @@ def start_focus_session(data: FocusSessionStartInput, current_user: dict = Depen
     db = SessionLocal()
     try:
         session_id = db.execute(text("""
-            INSERT INTO focus_sessions (student_id, preset_minutes, duration_minutes, status, interruptions_count, started_at, created_at, updated_at)
-            VALUES (:sid, :preset, 0, 'running', 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            INSERT INTO focus_sessions (student_id, preset_minutes, duration_minutes, status, started_at, created_at, updated_at)
+            VALUES (:sid, :preset, 0, 'running', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
             RETURNING session_id
         """), {"sid": student_id, "preset": data.preset_minutes}).scalar()
         db.commit()
-        return {"success": True, "session_id": session_id, "preset_minutes": data.preset_minutes, "status": "running", "interruptions_count": 0}
+        return {"success": True, "session_id": session_id, "preset_minutes": data.preset_minutes}
     except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        handle_exception_securely(db, e)
     finally:
         db.close()
 
@@ -11789,17 +11602,15 @@ def pause_focus_session(session_id: int, current_user: dict = Depends(get_curren
             raise HTTPException(status_code=403, detail="Unauthorized")
             
         db.execute(text("""
-            UPDATE focus_sessions 
-            SET status = 'paused', interruptions_count = interruptions_count + 1, updated_at = CURRENT_TIMESTAMP
+            UPDATE focus_sessions SET status = 'paused', updated_at = CURRENT_TIMESTAMP
             WHERE session_id = :sid
         """), {"sid": session_id})
         db.commit()
-        return {"success": True, "message": "Session paused", "status": "paused"}
+        return {"success": True, "message": "Session paused"}
     except HTTPException as he:
         raise he
     except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        handle_exception_securely(db, e)
     finally:
         db.close()
 
@@ -11821,41 +11632,11 @@ def resume_focus_session(session_id: int, current_user: dict = Depends(get_curre
             WHERE session_id = :sid
         """), {"sid": session_id})
         db.commit()
-        return {"success": True, "message": "Session resumed", "status": "running"}
+        return {"success": True, "message": "Session resumed"}
     except HTTPException as he:
         raise he
     except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
-    finally:
-        db.close()
-
-@app.post("/api/v1/wellness/focus/{session_id}/cancel")
-def cancel_focus_session(session_id: int, current_user: dict = Depends(get_current_user)):
-    if current_user["role"] != "student":
-        raise HTTPException(status_code=400, detail="Only students can perform focus sessions")
-    student_id = current_user["student_id"]
-    db = SessionLocal()
-    try:
-        sess = db.execute(text("SELECT student_id, status FROM focus_sessions WHERE session_id = :sid AND is_deleted = FALSE"), {"sid": session_id}).fetchone()
-        if not sess:
-            raise HTTPException(status_code=404, detail="Focus session not found")
-        if sess.student_id != student_id:
-            raise HTTPException(status_code=403, detail="Unauthorized")
-            
-        db.execute(text("""
-            UPDATE focus_sessions 
-            SET status = 'cancelled', completed_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
-            WHERE session_id = :sid
-        """), {"sid": session_id})
-        db.commit()
-        recalculate_wellness_statistics(db, student_id)
-        return {"success": True, "message": "Session cancelled", "status": "cancelled"}
-    except HTTPException as he:
-        raise he
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        handle_exception_securely(db, e)
     finally:
         db.close()
 
@@ -11877,10 +11658,9 @@ def complete_focus_session(session_id: int, data: FocusSessionUpdateInput, curre
         
         db.execute(text("""
             UPDATE focus_sessions 
-            SET status = :status, duration_minutes = :dur, completed_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP,
-                interruptions_count = COALESCE(:ic, interruptions_count)
+            SET status = :status, duration_minutes = :dur, completed_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
             WHERE session_id = :sid
-        """), {"status": status, "dur": duration, "ic": data.interruptions_count, "sid": session_id})
+        """), {"status": status, "dur": duration, "sid": session_id})
         db.commit()
         
         # Award XP for completed sessions
@@ -11897,12 +11677,11 @@ def complete_focus_session(session_id: int, data: FocusSessionUpdateInput, curre
             
         recalculate_wellness_statistics(db, student_id)
         
-        return {"success": True, "message": "Session finalized", "xp_earned": xp_earned, "status": status}
+        return {"success": True, "message": "Session finalized", "xp_earned": xp_earned}
     except HTTPException as he:
         raise he
     except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        handle_exception_securely(db, e)
     finally:
         db.close()
 
@@ -11914,7 +11693,7 @@ def get_focus_session_history(current_user: dict = Depends(get_current_user)):
     db = SessionLocal()
     try:
         rows = db.execute(text("""
-            SELECT session_id, preset_minutes, duration_minutes, status, interruptions_count, started_at, completed_at, created_at
+            SELECT session_id, preset_minutes, duration_minutes, status, started_at, completed_at, created_at
             FROM focus_sessions
             WHERE student_id = :sid AND is_deleted = FALSE
             ORDER BY started_at DESC
@@ -11926,7 +11705,6 @@ def get_focus_session_history(current_user: dict = Depends(get_current_user)):
                 "preset_minutes": r.preset_minutes,
                 "duration_minutes": r.duration_minutes,
                 "status": r.status,
-                "interruptions_count": r.interruptions_count,
                 "started_at": str(r.started_at),
                 "completed_at": str(r.completed_at) if r.completed_at else None,
                 "created_at": str(r.created_at)
@@ -11949,11 +11727,8 @@ def get_wellness_preferences(current_user: dict = Depends(get_current_user)):
             "preference_id": pref.preference_id,
             "student_id": pref.student_id,
             "pomodoro_preset": pref.pomodoro_preset,
-            "preferred_focus_duration": pref.preferred_focus_duration,
             "daily_study_goal": float(pref.daily_study_goal),
             "daily_sleep_goal": float(pref.daily_sleep_goal),
-            "reminder_time": pref.reminder_time,
-            "notification_preference": bool(pref.notification_preference),
             "created_at": str(pref.created_at),
             "updated_at": str(pref.updated_at)
         }
@@ -11987,17 +11762,13 @@ def update_wellness_preferences(data: WellnessPreferencesInput, current_user: di
             "preference_id": pref.preference_id,
             "student_id": pref.student_id,
             "pomodoro_preset": pref.pomodoro_preset,
-            "preferred_focus_duration": pref.preferred_focus_duration,
             "daily_study_goal": float(pref.daily_study_goal),
             "daily_sleep_goal": float(pref.daily_sleep_goal),
-            "reminder_time": pref.reminder_time,
-            "notification_preference": bool(pref.notification_preference),
             "created_at": str(pref.created_at),
             "updated_at": str(pref.updated_at)
         }
     except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        handle_exception_securely(db, e)
     finally:
         db.close()
 
@@ -12020,8 +11791,8 @@ def get_wellness_statistics(
         
         # Load calculated statistics
         stats = db.execute(text("""
-            SELECT focus_score, weekly_study_hours, monthly_study_hours, focus_sessions_count, current_streak, longest_streak,
-                   average_sleep, average_focus, average_stress, average_study_hours, completed_sessions, interrupted_sessions,
+            SELECT focus_score, weekly_study_hours, focus_sessions_count, current_streak, longest_streak,
+                   average_sleep, average_focus, average_study_hours, completed_sessions, interrupted_sessions,
                    avg_session_duration, attendance_rate, assignment_completion_rate, quiz_performance_rate,
                    learning_consistency, last_calculated_at
             FROM wellness_statistics
@@ -12046,7 +11817,7 @@ def get_wellness_statistics(
             except Exception:
                 start = today - timedelta(days=7)
                 end = today
-                 
+                
         # Fetch chart data: checkins and study time in that date range
         chart_rows = db.execute(text("""
             SELECT l.log_date, l.mood, l.focus_level, l.sleep_hours,
@@ -12083,13 +11854,11 @@ def get_wellness_statistics(
             return {
                 "focus_score": 0.0,
                 "weekly_study_hours": 0.0,
-                "monthly_study_hours": 0.0,
                 "focus_sessions_count": 0,
                 "current_streak": 0,
                 "longest_streak": 0,
                 "average_sleep": 0.0,
                 "average_focus": 0.0,
-                "average_stress": 0.0,
                 "average_study_hours": 0.0,
                 "completed_sessions": 0,
                 "interrupted_sessions": 0,
@@ -12105,13 +11874,11 @@ def get_wellness_statistics(
         return {
             "focus_score": float(stats.focus_score),
             "weekly_study_hours": float(stats.weekly_study_hours),
-            "monthly_study_hours": float(stats.monthly_study_hours),
             "focus_sessions_count": int(stats.focus_sessions_count),
             "current_streak": int(stats.current_streak),
             "longest_streak": int(stats.longest_streak),
             "average_sleep": float(stats.average_sleep),
             "average_focus": float(stats.average_focus),
-            "average_stress": float(stats.average_stress),
             "average_study_hours": float(stats.average_study_hours),
             "completed_sessions": int(stats.completed_sessions),
             "interrupted_sessions": int(stats.interrupted_sessions),
@@ -12126,3 +11893,249 @@ def get_wellness_statistics(
     finally:
         db.close()
 
+@app.post("/api/v1/mentor/chat")
+def mentor_chat(
+    data: MentorChatInput,
+    current_user: dict = Depends(get_current_user)
+):
+    if current_user["role"] != "student":
+        raise HTTPException(status_code=400, detail="Only students can chat with the AI Mentor")
+        
+    db = SessionLocal()
+    try:
+        student_id = current_user["student_id"]
+
+        session_id = data.session_id
+        if session_id:
+            owner_id = get_chat_session_owner(db, session_id)
+            if not owner_id:
+                raise HTTPException(status_code=404, detail="Chat session not found")
+            if owner_id != student_id:
+                raise HTTPException(status_code=403, detail="Unauthorized access to this chat session")
+        else:
+            session_id = get_latest_chat_session(db, student_id)
+            if not session_id:
+                session_id = create_chat_session(db, student_id)
+
+        student_context = build_student_context(current_user)
+
+        # Retrieve history from the database for this specific session
+        db_messages = db.execute(
+            text("""
+                SELECT sender, message
+                FROM mentor_chat_messages
+                WHERE session_id = :session_id
+                ORDER BY created_at DESC
+                LIMIT 10
+            """),
+            {"session_id": session_id}
+        ).mappings().all()
+        # Reverse because query was DESC
+        history = [{"role": m["sender"], "content": m["message"]} for m in reversed(db_messages)]
+
+        messages = build_prompt(
+            user_message=data.message,
+            student_context=student_context,
+            history=history
+        )
+
+        reply = generate_response(messages)
+        save_chat_message(
+            db=db,
+            session_id=session_id,
+            sender="user",
+            message=data.message,
+            model_name="openai/gpt-oss-120b"
+        )
+
+        save_chat_message(
+            db=db,
+            session_id=session_id,
+            sender="assistant",
+            message=reply,
+            model_name="openai/gpt-oss-120b"
+        )
+
+        # Maintain short term memory cache for compatibility
+        add_message(student_id, "user", data.message)
+        add_message(student_id, "assistant", reply)
+
+        # Automatic Chat Title generation
+        # If session title == "New Chat", automatically rename after first user message
+        session_row = db.execute(
+            text("SELECT title FROM mentor_chat_sessions WHERE session_id = :session_id"),
+            {"session_id": session_id}
+        ).fetchone()
+        if session_row and session_row.title == "New Chat":
+            title_prompt = [
+                {"role": "system", "content": "You are a helpful assistant. Generate a very short title (maximum 3-4 words) for a chat session based on the user's first prompt. Do not include quotes, punctuation, or extra words. Just return the clean title."},
+                {"role": "user", "content": f"Prompt: {data.message}"}
+            ]
+            new_title = generate_response(title_prompt).strip()
+            if not new_title or len(new_title) > 50 or "sorry" in new_title.lower() or ("ai" in new_title.lower() and len(new_title) > 20):
+                words = data.message.split()
+                new_title = " ".join(words[:4])
+                if len(data.message) > len(new_title):
+                    new_title += "..."
+            
+            new_title = new_title.replace('"', '').replace("'", "").strip()
+            rename_chat_session(db, session_id, new_title)
+
+        MODEL_NAME = os.getenv("GROQ_MODEL", "openai/gpt-oss-120b")
+        return {
+            "success": True,
+            "provider": "Groq",
+            "model": MODEL_NAME,
+            "reply": reply,
+            "session_id": session_id,
+            "timestamp": datetime.utcnow().isoformat() + "Z"
+        }
+
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=str(e)
+        )
+    finally:
+        db.close()
+
+@app.get("/api/v1/mentor/chats")
+def get_chats(current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "student":
+        raise HTTPException(status_code=400, detail="Only students can access mentor chat list")
+    
+    student_id = current_user["student_id"]
+    db = SessionLocal()
+    try:
+        sessions = get_active_chat_sessions(db, student_id)
+        formatted_sessions = []
+        for s in sessions:
+            formatted_sessions.append({
+                "session_id": s["session_id"],
+                "title": s["title"],
+                "created_at": s["created_at"].isoformat() if isinstance(s["created_at"], datetime) else str(s["created_at"]),
+                "updated_at": s["updated_at"].isoformat() if isinstance(s["updated_at"], datetime) else str(s["updated_at"])
+            })
+        return formatted_sessions
+    finally:
+        db.close()
+
+@app.get("/api/v1/mentor/chat/{session_id}")
+def get_chat_conversation(session_id: int, current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "student":
+        raise HTTPException(status_code=400, detail="Only students can access mentor chat conversation")
+    
+    student_id = current_user["student_id"]
+    db = SessionLocal()
+    try:
+        owner_id = get_chat_session_owner(db, session_id)
+        if not owner_id:
+            raise HTTPException(status_code=404, detail="Chat session not found")
+        if owner_id != student_id:
+            raise HTTPException(status_code=403, detail="Unauthorized access to this chat session")
+        
+        messages = get_chat_messages(db, session_id)
+        formatted_messages = []
+        for m in messages:
+            formatted_messages.append({
+                "sender": m["sender"],
+                "message": m["message"],
+                "model_name": m["model_name"],
+                "created_at": m["created_at"].isoformat() if isinstance(m["created_at"], datetime) else str(m["created_at"])
+            })
+        return formatted_messages
+    finally:
+        db.close()
+
+@app.post("/api/v1/mentor/new-chat")
+def create_new_chat(current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "student":
+        raise HTTPException(status_code=400, detail="Only students can create mentor chat sessions")
+    
+    student_id = current_user["student_id"]
+    db = SessionLocal()
+    try:
+        session_id = create_chat_session(db, student_id, title="New Chat")
+        return {
+            "session_id": session_id,
+            "title": "New Chat"
+        }
+    finally:
+        db.close()
+
+@app.put("/api/v1/mentor/chat/{session_id}/title")
+def rename_chat(session_id: int, data: RenameChatInput, current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "student":
+        raise HTTPException(status_code=400, detail="Only students can rename mentor chat sessions")
+    
+    student_id = current_user["student_id"]
+    db = SessionLocal()
+    try:
+        owner_id = get_chat_session_owner(db, session_id)
+        if not owner_id:
+            raise HTTPException(status_code=404, detail="Chat session not found")
+        if owner_id != student_id:
+            raise HTTPException(status_code=403, detail="Unauthorized access to this chat session")
+        
+        title = data.title.strip()
+        if not title:
+            raise HTTPException(status_code=400, detail="Title cannot be empty")
+            
+        rename_chat_session(db, session_id, title)
+        return {
+            "success": True,
+            "session_id": session_id,
+            "title": title
+        }
+    finally:
+        db.close()
+
+@app.delete("/api/v1/mentor/chat/{session_id}")
+def delete_chat(session_id: int, current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "student":
+        raise HTTPException(status_code=400, detail="Only students can delete mentor chat sessions")
+    
+    student_id = current_user["student_id"]
+    db = SessionLocal()
+    try:
+        owner_id = get_chat_session_owner(db, session_id)
+        if not owner_id:
+            raise HTTPException(status_code=404, detail="Chat session not found")
+        if owner_id != student_id:
+            raise HTTPException(status_code=403, detail="Unauthorized access to this chat session")
+        
+        delete_chat_session(db, session_id)
+        return {
+            "success": True,
+            "message": "Chat session deleted successfully"
+        }
+    finally:
+        db.close()
+
+@app.delete("/api/v1/mentor/chat/history")
+def clear_chat(current_user: dict = Depends(get_current_user)):
+    student_id = current_user["student_id"]
+    db = SessionLocal()
+
+    try:
+        db.execute(
+            text("""
+                UPDATE mentor_chat_sessions
+                SET is_deleted = TRUE, updated_at = CURRENT_TIMESTAMP
+                WHERE student_id = :student_id AND is_deleted = FALSE
+            """),
+            {"student_id": student_id}
+        )
+        db.commit()
+
+        clear_memory(student_id)
+
+        return {
+            "success": True,
+            "message": "Conversation cleared."
+        }
+
+    finally:
+        db.close()

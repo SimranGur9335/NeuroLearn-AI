@@ -193,7 +193,7 @@ const StudentHubHome = () => {
     return (
       <div className="flex flex-col items-center justify-center min-h-[50vh] space-y-4">
         <div className={`w-10 h-10 border-4 border-slate-700 border-t-indigo-500 rounded-full animate-spin`} />
-        <span className="text-slate-400 text-sm font-semibold animate-pulse">Initializing academic database connection...</span>
+        <span className="text-slate-400 text-sm font-semibold animate-pulse">Loading Student Hub...</span>
       </div>
     );
   }
@@ -225,7 +225,7 @@ const StudentHubHome = () => {
             <h1 className="text-2xl md:text-3xl font-black mt-3">
               Academic Operations Center
             </h1>
-            <p className="text-white/90 text-sm mt-1 max-w-xl leading-relaxed">
+            <p className="text-white/80 text-sm max-w-2xl leading-relaxed">
               Welcome to your centralized student control deck. Access your course information, upload pending assignments, and review grades synced from the faculty records.
             </p>
           </div>
