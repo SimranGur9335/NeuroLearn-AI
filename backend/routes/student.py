@@ -5,14 +5,9 @@ from backend.database import SessionLocal
 
 from backend.schemas.student import *
 
-# Temporary imports from main.py (later we'll move these too)
-from backend.main import (
-    require_role,
-    get_current_user,
-    verify_student_access,
-    log_audit,
-    handle_exception_securely,
-)
+from backend.core.security import require_role, get_current_user
+from backend.core.access import verify_student_access
+from backend.core.helpers import log_audit, handle_exception_securely
 
 router = APIRouter(
     tags=["Students"]
