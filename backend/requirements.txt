@@ -11,6 +11,7 @@ python-dotenv
 python-multipart
 
 python-jose[cryptography]
+PyJWT==2.10.1
 passlib[bcrypt]
 bcrypt==5.0.0
 
