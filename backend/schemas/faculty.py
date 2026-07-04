@@ -21,3 +21,9 @@ class CreateFacultyInput(BaseModel):
     faculty_id: str
     department: str
     phone: str
+    designation: Optional[str] = "Faculty Member"
+
+class StudentInterventionUpdateInput(BaseModel):
+    faculty_notes: Optional[str] = None
+    intervention_status: Optional[str] = None
+    faculty_id: int

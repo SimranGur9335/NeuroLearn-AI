@@ -19,9 +19,8 @@ from backend.core.access import (
 from backend.core.helpers import (
     log_audit,
     handle_exception_securely,
-    log_faculty_activity,
-    create_notification,
 )
+from backend.services.notification_service import log_faculty_activity, create_notification
 
 router = APIRouter(
     tags=["Attendance"]
@@ -29,7 +28,6 @@ router = APIRouter(
 
 
 @router.get("/api/class/{class_id}/attendance")
-@router.get("/class/{class_id}/attendance")
 def get_class_attendance(
     class_id: int,
     current_user: dict = Depends(get_current_user)
@@ -93,7 +91,6 @@ def get_class_attendance(
         db.close()
 
 @router.get("/api/class/{class_id}/attendance-summary")
-@router.get("/class/{class_id}/attendance-summary")
 def get_attendance_summary(
     class_id: int,
     current_user: dict = Depends(get_current_user)
@@ -134,7 +131,6 @@ def get_attendance_summary(
     }
 
 @router.get("/api/student/{student_id}/attendance-history")
-@router.get("/student/{student_id}/attendance-history")
 def get_student_attendance_history(
     student_id: int,
     current_user: dict = Depends(get_current_user)
@@ -155,7 +151,6 @@ def get_student_attendance_history(
         db.close()
 
 @router.post("/api/attendance/mark")
-@router.post("/attendance/mark")
 def mark_attendance(
     data: AttendanceInput,
     current_user: dict = Depends(get_current_user)
@@ -211,7 +206,6 @@ def mark_attendance(
         db.close()
 
 @router.get("/api/class/{class_id}/attendance-registry")
-@router.get("/class/{class_id}/attendance-registry")
 def get_attendance_registry(
     class_id: int,
     current_user: dict = Depends(get_current_user)
@@ -261,7 +255,6 @@ def get_attendance_registry(
         db.close()
 
 @router.get("/api/class/{class_id}/today-attendance")
-@router.get("/class/{class_id}/today-attendance")
 def get_today_attendance(
     class_id: int,
     current_user: dict = Depends(get_current_user)
@@ -293,7 +286,6 @@ def get_today_attendance(
         db.close()
 
 @router.get("/api/attendance/records")
-@router.get("/attendance/records")
 def get_attendance_records(class_id: int, subject_id: int, date: str, current_user: dict = Depends(get_current_user)):
     if current_user["role"] not in ["admin", "faculty"]:
         raise HTTPException(status_code=403, detail="Access denied")
@@ -336,7 +328,6 @@ def get_attendance_records(class_id: int, subject_id: int, date: str, current_us
         db.close()
 
 @router.post("/api/attendance/save")
-@router.post("/attendance/save")
 def save_attendance(data: AttendanceSaveInput, current_user: dict = Depends(get_current_user)):
     if current_user["role"] not in ["admin", "faculty"]:
         raise HTTPException(status_code=403, detail="Access denied")
@@ -401,7 +392,6 @@ def save_attendance(data: AttendanceSaveInput, current_user: dict = Depends(get_
         db.close()
 
 @router.get("/api/attendance/history")
-@router.get("/attendance/history")
 def get_attendance_history(class_id: int, subject_id: int, current_user: dict = Depends(get_current_user)):
     if current_user["role"] not in ["admin", "faculty"]:
         raise HTTPException(status_code=403, detail="Access denied")
@@ -437,7 +427,6 @@ def get_attendance_history(class_id: int, subject_id: int, current_user: dict = 
         db.close()
 
 @router.get("/api/attendance/monthly-report")
-@router.get("/attendance/monthly-report")
 def get_monthly_attendance_report(class_id: int, subject_id: int, month: int, year: int, current_user: dict = Depends(get_current_user)):
     if current_user["role"] not in ["admin", "faculty"]:
         raise HTTPException(status_code=403, detail="Access denied")

@@ -1,7 +1,6 @@
-# backend/wellness_crud.py
+# backend/services/wellness_service.py
 from sqlalchemy import text
 from datetime import datetime, timedelta, date
-import json
 
 def recalculate_wellness_statistics(db, student_id: int):
     """

@@ -19,7 +19,6 @@ router = APIRouter(
 
 # --- Dynamic Domains Module Endpoints ---
 
-@router.get("/api/domains")
 @router.get("/api/v1/domains")
 def get_domains():
     db = SessionLocal()
@@ -60,7 +59,6 @@ def get_domains():
         db.close()
 
 
-@router.get("/api/domains/{domain_key}")
 @router.get("/api/v1/domains/{domain_key}")
 def get_domain_detail(domain_key: str):
     db = SessionLocal()

@@ -77,7 +77,7 @@ def get_report_enrollments(current_user: dict = Depends(require_role(["admin"]))
         result = db.execute(query, {"iid": iid}).fetchall()
         
         # If no yearly data exists, return baseline mock trajectory
-        if not result or all(r.CS == 0 for r in result):
+        if not result or all(r.cs == 0 for r in result):
             return [
                 { "year": "2023", "CS": 80, "IT": 60, "ECE": 75, "EEE": 50, "ME": 45 },
                 { "year": "2024", "CS": 110, "IT": 85, "ECE": 90, "EEE": 55, "ME": 52 },
@@ -88,11 +88,11 @@ def get_report_enrollments(current_user: dict = Depends(require_role(["admin"]))
         return [
             {
                 "year": str(r.year),
-                "CS": int(r.CS) if r.CS else 0,
-                "IT": int(r.IT) if r.IT else 0,
-                "ECE": int(r.ECE) if r.ECE else 0,
-                "EEE": int(r.EEE) if r.EEE else 0,
-                "ME": int(r.ME) if r.ME else 0
+                "CS": int(r.cs) if r.cs else 0,
+                "IT": int(r.it) if r.it else 0,
+                "ECE": int(r.ece) if r.ece else 0,
+                "EEE": int(r.eee) if r.eee else 0,
+                "ME": int(r.me) if r.me else 0
             } for r in result
         ]
     finally:
@@ -159,7 +159,7 @@ def create_faculty(data: CreateFacultyInput, current_user: dict = Depends(requir
         if existing_email:
             raise HTTPException(
                 status_code=400,
-                detail="Student email already exists."
+                detail="User email already exists."
             )
 
         # Generate faculty code
@@ -177,7 +177,7 @@ def create_faculty(data: CreateFacultyInput, current_user: dict = Depends(requir
         res = db.execute(
             text("""
                 INSERT INTO faculty (faculty_code, full_name, email, department, designation, institution_id, created_at)
-                VALUES (:code, :name, :email, :dept, 'Assistant Professor', :inst_id, CURRENT_TIMESTAMP)
+                VALUES (:code, :name, :email, :dept, :desg, :inst_id, CURRENT_TIMESTAMP)
                 RETURNING faculty_id
             """),
             {
@@ -185,6 +185,7 @@ def create_faculty(data: CreateFacultyInput, current_user: dict = Depends(requir
                 "name": data.full_name,
                 "email": email,
                 "dept": data.department,
+                "desg": data.designation or "Faculty Member",
                 "inst_id": current_user["institution_id"]
             }
         )
@@ -454,7 +455,6 @@ def clear_security_events(current_user: dict = Depends(require_role(["admin"])))
 
 
 @router.get("/api/audit-logs")
-@router.get("/audit-logs")
 def get_audit_logs(current_user: dict = Depends(require_role(["admin", "super_admin"]))):
     db = SessionLocal()
     try:
@@ -492,7 +492,6 @@ def get_audit_logs(current_user: dict = Depends(require_role(["admin", "super_ad
 
 
 @router.get("/api/admin/dashboard-stats")
-@router.get("/admin/dashboard-stats")
 def get_admin_dashboard_stats(current_user: dict = Depends(require_role(["admin", "super_admin"]))):
     db = SessionLocal()
     try:

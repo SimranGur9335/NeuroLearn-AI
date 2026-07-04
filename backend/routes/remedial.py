@@ -7,9 +7,8 @@ from backend.core.security import get_current_user, require_role
 from backend.core.helpers import (
     log_audit,
     handle_exception_securely,
-    log_faculty_activity,
-    create_notification,
 )
+from backend.services.notification_service import log_faculty_activity, create_notification
 from backend.schemas.remedial import *
 
 router = APIRouter(
@@ -239,7 +238,6 @@ def complete_remedial_session_helper(db, session_id: int, faculty_id: int, outco
 # --- Remedial Endpoints ---
 
 @router.post("/api/remedial/sessions")
-@router.post("/remedial/sessions")
 def create_remedial_session(payload: RemedialSessionCreateInput, current_user: dict = Depends(get_current_user)):
     if current_user["role"] not in ["faculty", "admin"]:
         raise HTTPException(status_code=403, detail="Permission denied")
@@ -258,7 +256,6 @@ def create_remedial_session(payload: RemedialSessionCreateInput, current_user: d
 
 
 @router.put("/api/remedial/sessions/{session_id}")
-@router.put("/remedial/sessions/{session_id}")
 def update_remedial_session(session_id: int, payload: RemedialSessionUpdateInput, current_user: dict = Depends(get_current_user)):
     if current_user["role"] not in ["faculty", "admin"]:
         raise HTTPException(status_code=403, detail="Permission denied")
@@ -276,7 +273,6 @@ def update_remedial_session(session_id: int, payload: RemedialSessionUpdateInput
 
 
 @router.post("/api/remedial/sessions/{session_id}/cancel")
-@router.post("/remedial/sessions/{session_id}/cancel")
 def cancel_remedial_session(session_id: int, payload: CancelRemedialSessionInput, current_user: dict = Depends(get_current_user)):
     if current_user["role"] not in ["faculty", "admin"]:
         raise HTTPException(status_code=403, detail="Permission denied")
@@ -294,7 +290,6 @@ def cancel_remedial_session(session_id: int, payload: CancelRemedialSessionInput
 
 
 @router.post("/api/remedial/sessions/{session_id}/start")
-@router.post("/remedial/sessions/{session_id}/start")
 def start_remedial_session(session_id: int, payload: StartRemedialSessionInput, current_user: dict = Depends(get_current_user)):
     if current_user["role"] not in ["faculty", "admin"]:
         raise HTTPException(status_code=403, detail="Permission denied")
@@ -312,7 +307,6 @@ def start_remedial_session(session_id: int, payload: StartRemedialSessionInput, 
 
 
 @router.post("/api/remedial/sessions/{session_id}/complete")
-@router.post("/remedial/sessions/{session_id}/complete")
 def complete_remedial_session(session_id: int, payload: CompleteRemedialSessionInput, current_user: dict = Depends(get_current_user)):
     if current_user["role"] not in ["faculty", "admin"]:
         raise HTTPException(status_code=403, detail="Permission denied")
@@ -330,7 +324,6 @@ def complete_remedial_session(session_id: int, payload: CompleteRemedialSessionI
 
 
 @router.get("/api/remedial/sessions")
-@router.get("/remedial/sessions")
 def get_remedial_sessions(faculty_id: int, current_user: dict = Depends(get_current_user)):
     if current_user["role"] not in ["faculty", "admin"]:
         raise HTTPException(status_code=403, detail="Permission denied")
@@ -379,7 +372,6 @@ def get_remedial_sessions(faculty_id: int, current_user: dict = Depends(get_curr
 
 
 @router.get("/api/remedial/sessions/{session_id}/invitations")
-@router.get("/remedial/sessions/{session_id}/invitations")
 def get_session_invitations(session_id: int, current_user: dict = Depends(get_current_user)):
     if current_user["role"] not in ["faculty", "admin"]:
         raise HTTPException(status_code=403, detail="Permission denied")
@@ -406,7 +398,6 @@ def get_session_invitations(session_id: int, current_user: dict = Depends(get_cu
 
 
 @router.post("/api/remedial/invitations/{invitation_id}/status")
-@router.post("/remedial/invitations/{invitation_id}/status")
 def update_invitation_status(
     invitation_id: int,
     payload: InvitationStatusUpdate,

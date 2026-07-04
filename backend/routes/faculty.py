@@ -26,7 +26,6 @@ router = APIRouter(
 
 
 @router.get("/api/faculty")
-@router.get("/faculty")
 def get_faculty(current_user: dict = Depends(require_role(["admin", "faculty"]))):
     db = SessionLocal()
     try:
@@ -49,7 +48,6 @@ def get_faculty(current_user: dict = Depends(require_role(["admin", "faculty"]))
         db.close()
 
 @router.get("/api/faculty/{faculty_id}")
-@router.get("/faculty/{faculty_id}")
 def get_faculty_profile(faculty_id: int, current_user: dict = Depends(get_current_user)):
     db = SessionLocal()
     try:
@@ -137,7 +135,6 @@ def create_faculty(data: FacultyInput, current_user: dict = Depends(require_role
         db.close()
 
 @router.put("/api/faculty/{faculty_id}")
-@router.put("/faculty/{faculty_id}")
 def update_faculty(faculty_id: int, data: FacultyInput, current_user: dict = Depends(require_role(["admin"]))):
     db = SessionLocal()
     try:
@@ -168,7 +165,6 @@ def update_faculty(faculty_id: int, data: FacultyInput, current_user: dict = Dep
         db.close()
 
 @router.delete("/api/faculty/{faculty_id}")
-@router.delete("/faculty/{faculty_id}")
 def delete_faculty(faculty_id: int, current_user: dict = Depends(require_role(["admin"]))):
     db = SessionLocal()
     try:

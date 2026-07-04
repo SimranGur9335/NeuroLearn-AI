@@ -19,15 +19,13 @@ from backend.core.access import (
 from backend.core.helpers import (
     log_audit,
     handle_exception_securely,
-    log_faculty_activity,
-    create_notification,
 )
+from backend.services.notification_service import log_faculty_activity, create_notification
 
 router = APIRouter(
     tags=["Assignments"]
 )
 @router.get("/api/assignments")
-@router.get("/assignments")
 def get_assignments(class_id: int, subject_id: int, current_user: dict = Depends(get_current_user)):
     db = SessionLocal()
     try:
@@ -83,7 +81,6 @@ def get_assignments(class_id: int, subject_id: int, current_user: dict = Depends
         db.close()
 
 @router.post("/api/assignments")
-@router.post("/assignments")
 def create_assignment(data: AssignmentCreateInput, current_user: dict = Depends(get_current_user)):
     if current_user["role"] not in ["admin", "faculty"]:
         raise HTTPException(status_code=403, detail="Access denied")
@@ -155,7 +152,6 @@ def create_assignment(data: AssignmentCreateInput, current_user: dict = Depends(
         db.close()
 
 @router.put("/api/assignments/{assignment_id}")
-@router.put("/assignments/{assignment_id}")
 def update_assignment(assignment_id: int, data: AssignmentCreateInput, current_user: dict = Depends(get_current_user)):
     if current_user["role"] not in ["admin", "faculty"]:
         raise HTTPException(status_code=403, detail="Access denied")
@@ -255,7 +251,6 @@ def update_assignment(assignment_id: int, data: AssignmentCreateInput, current_u
         db.close()
 
 @router.delete("/api/assignments/{assignment_id}")
-@router.delete("/assignments/{assignment_id}")
 def delete_assignment(assignment_id: int, faculty_id: int, current_user: dict = Depends(get_current_user)):
     if current_user["role"] not in ["admin", "faculty"]:
         raise HTTPException(status_code=403, detail="Access denied")
@@ -281,7 +276,6 @@ def delete_assignment(assignment_id: int, faculty_id: int, current_user: dict = 
         db.close()
 
 @router.post("/api/assignments/{assignment_id}/close")
-@router.post("/assignments/{assignment_id}/close")
 def close_assignment(assignment_id: int, data: CloseAssignmentInput, current_user: dict = Depends(get_current_user)):
     if current_user["role"] not in ["admin", "faculty"]:
         raise HTTPException(status_code=403, detail="Access denied")
@@ -324,7 +318,6 @@ def close_assignment(assignment_id: int, data: CloseAssignmentInput, current_use
         db.close()
 
 @router.post("/api/assignments/{assignment_id}/reopen")
-@router.post("/assignments/{assignment_id}/reopen")
 def reopen_assignment(assignment_id: int, data: CloseAssignmentInput, current_user: dict = Depends(get_current_user)):
     if current_user["role"] not in ["admin", "faculty"]:
         raise HTTPException(status_code=403, detail="Access denied")
@@ -367,7 +360,6 @@ def reopen_assignment(assignment_id: int, data: CloseAssignmentInput, current_us
         db.close()
 
 @router.get("/api/assignments/{assignment_id}/submissions")
-@router.get("/assignments/{assignment_id}/submissions")
 def get_assignment_submissions(assignment_id: int, current_user: dict = Depends(get_current_user)):
     if current_user["role"] not in ["admin", "faculty"]:
         raise HTTPException(status_code=403, detail="Access denied")
@@ -413,7 +405,6 @@ def get_assignment_submissions(assignment_id: int, current_user: dict = Depends(
         db.close()
 
 @router.post("/api/assignments/{assignment_id}/submit")
-@router.post("/assignments/{assignment_id}/submit")
 def submit_assignment(assignment_id: int, data: StudentSubmissionInput, current_user: dict = Depends(get_current_user)):
     if current_user["role"] not in ["admin", "student"]:
         raise HTTPException(status_code=403, detail="Access denied")
