@@ -37,9 +37,9 @@ class CourseInput(BaseModel):
 class CourseSubjectMappingInput(BaseModel):
     course_id: int
     subject_id: int
-    target_type: str
+    target_type: Optional[str] = None
     target_id: Optional[int] = None
-    priority: Optional[str] = "Normal"  # Normal, Important, Urgent
+    priority: Optional[str] = "Normal"
     attachment_url: Optional[str] = None
     attachment_name: Optional[str] = None
 
