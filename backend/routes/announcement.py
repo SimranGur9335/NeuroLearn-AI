@@ -13,12 +13,12 @@ from backend.core.security import (
 from backend.core.helpers import (
     log_audit,
     handle_exception_securely,
-    create_notification,
     fetch_announcements_helper,
     create_announcement_helper,
     update_announcement_helper,
     delete_announcement_helper,
 )
+from backend.services.notification_service import create_notification
 
 router = APIRouter(
     tags=["Announcements"]
@@ -26,8 +26,6 @@ router = APIRouter(
 
 
 @router.get("/api/announcements")
-@router.get("/announcements")
-@router.get("/faculty/announcements")
 def get_announcements(current_user: dict = Depends(get_current_user)):
     db = SessionLocal()
     try:
@@ -36,8 +34,6 @@ def get_announcements(current_user: dict = Depends(get_current_user)):
         db.close()
 
 
-@router.post("/announcements/{announcement_id}/read")
-@router.post("/faculty/announcements/{announcement_id}/read")
 @router.post("/api/announcements/{announcement_id}/read")
 def mark_announcement_as_read(announcement_id: int, current_user: dict = Depends(get_current_user)):
     db = SessionLocal()
@@ -62,8 +58,6 @@ def mark_announcement_as_read(announcement_id: int, current_user: dict = Depends
 
 
 @router.post("/api/announcements/read-all")
-@router.post("/announcements/read-all")
-@router.post("/faculty/announcements/read-all")
 def mark_all_announcements_as_read(current_user: dict = Depends(get_current_user)):
     db = SessionLocal()
     try:
@@ -90,8 +84,6 @@ def mark_all_announcements_as_read(current_user: dict = Depends(get_current_user
 
 
 @router.post("/api/announcements")
-@router.post("/announcements")
-@router.post("/faculty/announcements")
 def create_announcement(data: AnnouncementInput, current_user: dict = Depends(require_role(["admin", "faculty"]))):
     db = SessionLocal()
     try:
@@ -107,7 +99,6 @@ def create_announcement(data: AnnouncementInput, current_user: dict = Depends(re
 
 
 @router.put("/api/announcements/{announcement_id}")
-@router.put("/announcements/{announcement_id}")
 def update_announcement(
     announcement_id: int,
     data: AnnouncementInput,
@@ -124,7 +115,6 @@ def update_announcement(
 
 
 @router.delete("/api/announcements/{announcement_id}")
-@router.delete("/announcements/{announcement_id}")
 def delete_announcement(
     announcement_id: int,
     current_user: dict = Depends(require_role(["admin", "faculty"]))

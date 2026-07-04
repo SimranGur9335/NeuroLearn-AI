@@ -11,18 +11,17 @@ from backend.core.security import get_current_user, require_role
 from backend.core.helpers import (
     log_audit,
     handle_exception_securely,
-    log_faculty_activity,
-    create_notification,
     get_current_academic_year,
     ensure_default_activities,
 )
+from backend.services.notification_service import log_faculty_activity, create_notification
 from backend.core.access import verify_faculty_access
 
 # Import all needed schemas
 from backend.schemas.faculty import *
 from backend.schemas.prediction import *
 from backend.schemas.student import *
-from backend.main import StudentInterventionUpdateInput
+
 
 router = APIRouter(
     tags=["Faculty Dashboard"]
@@ -32,7 +31,6 @@ RISK_MODEL_VERSION = os.getenv("RISK_MODEL_VERSION", "Rule-Based V1.0")
 
 
 @router.get("/api/faculty/{faculty_id}/classes")
-@router.get("/faculty/{faculty_id}/classes")
 def get_faculty_classes(
     faculty_id: int,
     current_user: dict = Depends(get_current_user)
@@ -63,7 +61,6 @@ def get_faculty_classes(
     return classes
 
 @router.get("/api/class/{class_id}/students")
-@router.get("/class/{class_id}/students")
 def get_class_students(
     class_id: int,
     current_user: dict = Depends(get_current_user)
@@ -120,7 +117,6 @@ def get_class_students(
         db.close()
 
 @router.get("/api/class/{class_id}/student-metrics")
-@router.get("/class/{class_id}/student-metrics")
 def get_class_student_metrics(
     class_id: int,
     current_user: dict = Depends(get_current_user)
@@ -194,7 +190,6 @@ def get_class_student_metrics(
         db.close()
 
 @router.get("/api/class/{class_id}/dashboard-summary")
-@router.get("/class/{class_id}/dashboard-summary")
 def get_dashboard_summary(
     class_id: int,
     current_user: dict = Depends(get_current_user)
@@ -247,7 +242,6 @@ def get_dashboard_summary(
     }
 
 @router.get("/api/faculty/{faculty_id}/workload")
-@router.get("/faculty/{faculty_id}/workload")
 def get_faculty_workload(faculty_id: int, current_user: dict = Depends(get_current_user)):
     role = current_user["role"]
     if role not in ["faculty", "admin", "super_admin"]:
@@ -309,7 +303,6 @@ def get_faculty_workload(faculty_id: int, current_user: dict = Depends(get_curre
         db.close()
 
 @router.get("/api/faculty/by-email/{email}")
-@router.get("/faculty/by-email/{email}")
 def get_faculty_by_email(email: str, current_user: dict = Depends(get_current_user)):
     role = current_user["role"]
     if role not in ["faculty", "admin", "super_admin"]:
@@ -371,7 +364,6 @@ def get_faculty_by_email(email: str, current_user: dict = Depends(get_current_us
         db.close()
 
 @router.get("/api/faculty/mapping-audit")
-@router.get("/faculty/mapping-audit")
 def get_mapping_audit(current_user: dict = Depends(require_role(["admin", "super_admin"]))):
     db = SessionLocal()
     try:
@@ -458,7 +450,6 @@ def get_mapping_audit(current_user: dict = Depends(require_role(["admin", "super
         db.close()
 
 @router.get("/api/faculty/{faculty_id}/students")
-@router.get("/faculty/{faculty_id}/students")
 def get_faculty_students(faculty_id: int, current_user: dict = Depends(get_current_user)):
     if current_user["role"] not in ["faculty", "admin", "platform_admin"]:
         raise HTTPException(status_code=403, detail="Access denied")
@@ -507,7 +498,6 @@ def get_faculty_students(faculty_id: int, current_user: dict = Depends(get_curre
     finally:
         db.close()
 
-@router.post("/faculty/student/{student_id}/intervention")
 @router.post("/api/v1/faculty/student/{student_id}/intervention")
 def update_student_intervention(student_id: int, input_data: StudentInterventionUpdateInput, current_user: dict = Depends(get_current_user)):
     if current_user["role"] != "faculty":
@@ -570,7 +560,6 @@ def update_student_intervention(student_id: int, input_data: StudentIntervention
         db.close()
 
 @router.post("/api/faculty/run-risk-engine")
-@router.post("/faculty/run-risk-engine")
 def run_risk_engine(data: RunRiskEngineInput, current_user: dict = Depends(get_current_user)):
     if current_user["role"] not in ["admin", "faculty"]:
         raise HTTPException(status_code=403, detail="Access denied")
@@ -696,7 +685,6 @@ def run_risk_engine(data: RunRiskEngineInput, current_user: dict = Depends(get_c
         db.close()
 
 @router.get("/api/faculty/{faculty_id}/analytics")
-@router.get("/faculty/{faculty_id}/analytics")
 def get_faculty_analytics(
     faculty_id: int, 
     class_id: Optional[int] = None,

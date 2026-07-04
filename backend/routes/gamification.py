@@ -1,7 +1,10 @@
+from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import text
 
 from backend.database import SessionLocal
+
+from backend.schemas.assignment import QuizSubmitInput
 
 from backend.core.security import (
     get_current_user,
@@ -299,5 +302,111 @@ def get_gamification_analytics(current_user: dict = Depends(get_current_user)):
             "passing_rate": round(passed / total * 100, 1),
             "history": history
         }
+    finally:
+        db.close()
+
+
+@router.post("/api/v1/quiz/submit")
+def submit_quiz_score(data: QuizSubmitInput, current_user: dict = Depends(get_current_user)):
+    db = SessionLocal()
+    try:
+        student_id = current_user.get("student_id")
+        if not student_id:
+            raise HTTPException(status_code=400, detail="Only students can submit quiz scores")
+            
+        accuracy = (data.score / data.total_questions) if data.total_questions > 0 else 0.0
+        passed = accuracy >= 0.60
+        
+        # 1. Insert into quiz_attempts
+        db.execute(text("""
+            INSERT INTO quiz_attempts (student_id, node_id, domain_id, score, total_questions, xp_earned, passed)
+            VALUES (:sid, :nid, :did, :score, :tq, :xp, :passed)
+        """), {
+            "sid": student_id,
+            "nid": data.node_id,
+            "did": data.domain_id,
+            "score": int(data.score),
+            "tq": data.total_questions,
+            "xp": data.xp_earned,
+            "passed": passed
+        })
+        
+        # 2. Calculate and update streak
+        metrics = db.execute(text("SELECT streak, last_active_date FROM student_metrics WHERE student_id = :sid"), {"sid": student_id}).fetchone()
+        current_streak = metrics.streak if metrics and metrics.streak else 0
+        last_active = metrics.last_active_date if metrics else None
+        
+        today = datetime.now().date()
+        if last_active:
+            if last_active == today:
+                pass
+            elif last_active == today - timedelta(days=1):
+                current_streak += 1
+            else:
+                current_streak = 1
+        else:
+            current_streak = 1
+            
+        # 3. Update student metrics (XP & Streak)
+        db.execute(text("""
+            UPDATE student_metrics 
+            SET xp_points = xp_points + :xp, streak = :streak, last_active_date = :today, updated_at = CURRENT_TIMESTAMP
+            WHERE student_id = :sid
+        """), {"xp": data.xp_earned, "streak": current_streak, "today": today, "sid": student_id})
+        
+        # 4. Insert completion notification
+        db.execute(text("""
+            INSERT INTO notifications (student_id, title, message, type, created_at)
+            VALUES (:sid, 'Quiz Completed', :msg, 'general', CURRENT_TIMESTAMP)
+        """), {
+            "sid": student_id,
+            "msg": f"Congratulations! You completed the quiz for '{data.node_id}' and earned {data.xp_earned} XP."
+        })
+        
+        # 5. Badge Unlocks Check
+        unlocked_res = db.execute(text("SELECT badge_id FROM student_badges WHERE student_id = :sid"), {"sid": student_id}).fetchall()
+        unlocked_badge_ids = {r.badge_id for r in unlocked_res}
+        
+        new_badges = []
+        
+        # Check: AI Enthusiast (b12) -> 100% score on any AI/ML quiz
+        if data.domain_id == 'artificial-intelligence' and accuracy >= 1.0 and "b12" not in unlocked_badge_ids:
+            new_badges.append(("b12", "AI Enthusiast", 200))
+            
+        # Check: Consistent Learner (b5) -> 15 day streak
+        if current_streak >= 15 and "b5" not in unlocked_badge_ids:
+            new_badges.append(("b5", "Consistent Learner", 200))
+            
+        # Check: Quiz Master (b10) -> 5 quizzes completed successfully
+        quizzes_passed = db.execute(text("SELECT COUNT(*) FROM quiz_attempts WHERE student_id = :sid AND passed = TRUE"), {"sid": student_id}).scalar() or 0
+        if quizzes_passed >= 5 and "b10" not in unlocked_badge_ids:
+            new_badges.append(("b10", "Quiz Master", 300))
+            
+        # Check: Knowledge Explorer (b11) -> Quizzes attempted in 4 different domains
+        unique_domains = db.execute(text("SELECT COUNT(DISTINCT domain_id) FROM quiz_attempts WHERE student_id = :sid"), {"sid": student_id}).scalar() or 0
+        if unique_domains >= 4 and "b11" not in unlocked_badge_ids:
+            new_badges.append(("b11", "Knowledge Explorer", 150))
+            
+        # Insert new badges and trigger notifications
+        for bid, bname, reward in new_badges:
+            db.execute(text("""
+                INSERT INTO student_badges (student_id, badge_id)
+                VALUES (:sid, :bid) ON CONFLICT DO NOTHING
+            """), {"sid": student_id, "bid": bid})
+            db.execute(text("""
+                UPDATE student_metrics SET xp_points = xp_points + :reward WHERE student_id = :sid
+            """), {"reward": reward, "sid": student_id})
+            db.execute(text("""
+                INSERT INTO notifications (student_id, title, message, type, created_at)
+                VALUES (:sid, 'Badge Unlocked!', :msg, 'general', CURRENT_TIMESTAMP)
+            """), {
+                "sid": student_id,
+                "msg": f"Prestige Unlock: You earned the '{bname}' badge and +{reward} XP!"
+            })
+            
+        db.commit()
+        return {"status": "success", "xp_earned": data.xp_earned, "passed": passed, "streak": current_streak, "unlocked_badges": [b[1] for b in new_badges]}
+    except Exception as e:
+        handle_exception_securely(db, e)
     finally:
         db.close()

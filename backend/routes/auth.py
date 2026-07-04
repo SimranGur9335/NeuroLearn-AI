@@ -16,8 +16,8 @@ from backend.core.security import (
 )
 from backend.core.helpers import (
     handle_exception_securely, get_current_academic_year, log_audit,
-    log_faculty_activity, create_notification
 )
+from backend.services.notification_service import log_faculty_activity, create_notification
 
 router = APIRouter(
     tags=["Authentication & Profile"]
@@ -485,7 +485,7 @@ def register_route(data: RegisterInput):
                 faculty_id = existing_faculty.faculty_id
             else:
                 dept = data.department or "Computer Engineering"
-                desg = data.designation or "Assistant Professor"
+                desg = data.designation or "Faculty Member"
                 faculty_id = db.execute(
                     text("""
                         INSERT INTO faculty (faculty_code, full_name, email, department, designation, institution_id, created_at)

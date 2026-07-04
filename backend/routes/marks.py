@@ -1,3 +1,4 @@
+from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import text
 
@@ -9,6 +10,7 @@ from backend.schemas.student import (
     StudentAssessmentMarkEntry,
 )
 from backend.schemas.assignment import GradeSubmissionInput
+from backend.schemas.admin import SubjectAssessmentsSaveInput
 
 from backend.core.security import (
     get_current_user,
@@ -22,10 +24,9 @@ from backend.core.access import (
 from backend.core.helpers import (
     handle_exception_securely,
     log_audit,
-    log_faculty_activity,
-    create_notification,
     get_current_academic_year,
 )
+from backend.services.notification_service import log_faculty_activity, create_notification
 
 router = APIRouter(
     tags=["Marks"]
@@ -33,7 +34,6 @@ router = APIRouter(
 
 
 @router.get("/api/marks")
-@router.get("/marks")
 def get_student_marks(class_id: int, subject_id: int, current_user: dict = Depends(get_current_user)):
     db = SessionLocal()
     try:
@@ -190,7 +190,6 @@ def get_student_marks(class_id: int, subject_id: int, current_user: dict = Depen
         db.close()
 
 @router.post("/api/marks/bulk-entry")
-@router.post("/marks/bulk-entry")
 def save_student_marks_bulk(data: BulkMarksInput, current_user: dict = Depends(get_current_user)):
     if current_user["role"] not in ["admin", "faculty"]:
         raise HTTPException(status_code=403, detail="Access denied")
@@ -395,7 +394,6 @@ def save_student_marks_bulk(data: BulkMarksInput, current_user: dict = Depends(g
 
 
 @router.post("/api/submissions/{submission_id}/grade")
-@router.post("/submissions/{submission_id}/grade")
 def grade_submission(submission_id: int, data: GradeSubmissionInput, current_user: dict = Depends(get_current_user)):
     if current_user["role"] not in ["admin", "faculty"]:
         raise HTTPException(status_code=403, detail="Access denied")
@@ -454,6 +452,119 @@ def grade_submission(submission_id: int, data: GradeSubmissionInput, current_use
         db.commit()
         log_audit(db, "GRADE_SUBMISSION", "Submission", submission_id, f"Faculty {faculty_id}")
         return {"message": "Submission graded successfully"}
+    except Exception as e:
+        handle_exception_securely(db, e)
+    finally:
+        db.close()
+
+
+@router.get("/api/v1/subjects/{subject_id}/assessments")
+def get_subject_assessments(subject_id: int, academic_year: Optional[str] = None, current_user: dict = Depends(get_current_user)):
+    if current_user["role"] not in ["admin", "super_admin", "faculty"]:
+        raise HTTPException(status_code=403, detail="Access denied")
+    db = SessionLocal()
+    try:
+        subj = db.execute(text("SELECT semester FROM subjects WHERE subject_id = :sid"), {"sid": subject_id}).fetchone()
+        if not subj:
+            raise HTTPException(status_code=404, detail="Subject not found.")
+        semester = subj.semester
+        
+        ay = academic_year or get_current_academic_year(db, current_user.get("institution_id"))
+        components = db.execute(text("""
+            SELECT * FROM subject_assessments 
+            WHERE academic_year = :ay AND semester = :sem AND subject_id = :sid 
+            ORDER BY display_order, name
+        """), {"ay": ay, "sem": semester, "sid": subject_id}).fetchall()
+        
+        return [
+            {
+                "subject_assessment_id": c.subject_assessment_id,
+                "name": c.name,
+                "category": c.category,
+                "max_marks": float(c.max_marks),
+                "weightage": float(c.weightage),
+                "display_order": c.display_order,
+                "is_mandatory": bool(c.is_mandatory),
+                "visible_to_students": bool(c.visible_to_students),
+                "editable_by_faculty": bool(c.editable_by_faculty)
+            } for c in components
+        ]
+    finally:
+        db.close()
+
+
+@router.post("/api/v1/subjects/{subject_id}/assessments")
+def save_subject_assessments(subject_id: int, data: SubjectAssessmentsSaveInput, current_user: dict = Depends(require_role(["admin", "super_admin"]))):
+    db = SessionLocal()
+    try:
+        subj = db.execute(text("SELECT semester FROM subjects WHERE subject_id = :sid"), {"sid": subject_id}).fetchone()
+        if not subj:
+            raise HTTPException(status_code=404, detail="Subject not found.")
+        semester = subj.semester
+        
+        # Load existing components
+        existing_comps = db.execute(text("""
+            SELECT subject_assessment_id, name FROM subject_assessments 
+            WHERE academic_year = :ay AND semester = :sem AND subject_id = :sid
+        """), {"ay": data.academic_year, "sem": semester, "sid": subject_id}).fetchall()
+        existing_map = {ec.name: ec.subject_assessment_id for ec in existing_comps}
+        
+        new_comp_ids = []
+        
+        for c in data.components:
+            if c.name in existing_map:
+                comp_id = existing_map[c.name]
+                db.execute(text("""
+                    UPDATE subject_assessments 
+                    SET category = :category, max_marks = :max_marks, weightage = :weightage, 
+                        display_order = :display_order, is_mandatory = :is_mandatory, 
+                        visible_to_students = :visible_to_students, editable_by_faculty = :editable_by_faculty,
+                        updated_at = CURRENT_TIMESTAMP
+                    WHERE subject_assessment_id = :aid
+                """), {
+                    "category": c.category,
+                    "max_marks": c.max_marks,
+                    "weightage": c.weightage,
+                    "display_order": c.display_order,
+                    "is_mandatory": c.is_mandatory,
+                    "visible_to_students": c.visible_to_students,
+                    "editable_by_faculty": c.editable_by_faculty,
+                    "aid": comp_id
+                })
+                new_comp_ids.append(comp_id)
+            else:
+                comp_id = db.execute(text("""
+                    INSERT INTO subject_assessments (academic_year, semester, subject_id, name, category, max_marks, weightage, display_order, is_mandatory, visible_to_students, editable_by_faculty)
+                    VALUES (:ay, :sem, :sid, :name, :category, :max_marks, :weightage, :display_order, :is_mandatory, :visible_to_students, :editable_by_faculty)
+                    RETURNING subject_assessment_id
+                """), {
+                    "ay": data.academic_year,
+                    "sem": semester,
+                    "sid": subject_id,
+                    "name": c.name,
+                    "category": c.category,
+                    "max_marks": c.max_marks,
+                    "weightage": c.weightage,
+                    "display_order": c.display_order,
+                    "is_mandatory": c.is_mandatory,
+                    "visible_to_students": c.visible_to_students,
+                    "editable_by_faculty": c.editable_by_faculty
+                }).scalar()
+                new_comp_ids.append(comp_id)
+                
+        # Delete old components
+        for name, comp_id in existing_map.items():
+            if comp_id not in new_comp_ids:
+                db.execute(text("""
+                    DELETE FROM student_assessment_marks WHERE subject_assessment_id = :aid
+                """), {"aid": comp_id})
+                db.execute(text("""
+                    DELETE FROM subject_assessments WHERE subject_assessment_id = :aid
+                """), {"aid": comp_id})
+                
+        db.commit()
+        log_audit(db, "CONFIGURE_SUBJECT_ASSESSMENTS", "Subject", subject_id, f"Admin {current_user.get('user_id')}")
+        return {"success": True, "message": "Subject assessment structure saved successfully!"}
     except Exception as e:
         handle_exception_securely(db, e)
     finally:

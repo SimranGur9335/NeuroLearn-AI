@@ -8,12 +8,12 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import text
 
 from backend.database import SessionLocal
-from backend.schemas.wellness import WellnessMoodInput
-from backend.wellness_schemas import (
+from backend.schemas.wellness import (
+    WellnessMoodInput,
     DailyCheckInInput, DailyCheckInUpdate, WeeklyReflectionInput,
     FocusSessionStartInput, FocusSessionUpdateInput, WellnessPreferencesInput
 )
-from backend.wellness_crud import recalculate_wellness_statistics, get_preferences
+from backend.services.wellness_service import recalculate_wellness_statistics, get_preferences
 from backend.core.security import get_current_user
 from backend.core.helpers import handle_exception_securely
 

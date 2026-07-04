@@ -40,7 +40,6 @@ def get_students(current_user: dict = Depends(require_role(["admin", "faculty"])
         db.close()
 
 @router.get("/api/students/{student_id}")
-@router.get("/students/{student_id}")
 def get_student_profile(student_id: int, current_user: dict = Depends(get_current_user)):
     verify_student_access(current_user, student_id)
     db = SessionLocal()
@@ -108,7 +107,6 @@ def create_student(data: StudentInput, current_user: dict = Depends(require_role
         db.close()
 
 @router.put("/api/students/{student_id}")
-@router.put("/students/{student_id}")
 def update_student(student_id: int, data: StudentInput, current_user: dict = Depends(require_role(["admin"]))):
     verify_student_access(current_user, student_id)
     db = SessionLocal()
@@ -131,7 +129,6 @@ def update_student(student_id: int, data: StudentInput, current_user: dict = Dep
         db.close()
 
 @router.delete("/api/students/{student_id}")
-@router.delete("/students/{student_id}")
 def delete_student(student_id: int, current_user: dict = Depends(require_role(["admin"]))):
     verify_student_access(current_user, student_id)
     db = SessionLocal()
@@ -165,19 +162,159 @@ def delete_student(student_id: int, current_user: dict = Depends(require_role(["
 # =====================================================
 # Student Profile
 # =====================================================
+@router.get("/api/student/{student_id}/profile")
+def get_student_profile_v1(student_id: int, current_user: dict = Depends(get_current_user)):
+    verify_student_access(current_user, student_id)
+    db = SessionLocal()
+    try:
+        student = db.execute(text("SELECT * FROM students WHERE student_id = :id"), {"id": student_id}).fetchone()
+        if not student:
+            raise HTTPException(status_code=404, detail="Student not found")
+            
+        metrics = db.execute(text("SELECT * FROM student_metrics WHERE student_id = :id"), {"id": student_id}).fetchone()
+        
+        # Submissions summary
+        submissions = db.execute(text("""
+            SELECT status, COUNT(*) as count FROM assignment_submissions
+            WHERE student_id = :id GROUP BY status
+        """), {"id": student_id}).fetchall()
+        sub_stats = {s.status: s.count for s in submissions}
+        
+        # Quizzes
+        quizzes = db.execute(text("""
+            SELECT qr.score, q.total_marks, q.quiz_title
+            FROM quiz_results qr
+            JOIN quizzes q ON qr.quiz_id = q.quiz_id
+            WHERE qr.student_id = :id
+        """), {"id": student_id}).fetchall()
+        
+        # Marks
+        if current_user["role"] in ["admin", "faculty"]:
+            marks = db.execute(text("""
+                SELECT m.*, s.subject_name
+                FROM student_marks m
+                JOIN subjects s ON m.subject_id = s.subject_id
+                WHERE m.student_id = :id
+            """), {"id": student_id}).fetchall()
+        else:
+            marks = db.execute(text("""
+                SELECT m.*, s.subject_name
+                FROM student_marks m
+                JOIN subjects s ON m.subject_id = s.subject_id
+                WHERE m.student_id = :id AND (m.is_published = TRUE OR m.is_published IS NULL)
+            """), {"id": student_id}).fetchall()
+        
+        # Risk predictions history
+        risk_hist = db.execute(text("""
+            SELECT risk_level, prediction_reason, created_at FROM risk_predictions
+            WHERE student_id = :id ORDER BY created_at DESC LIMIT 5
+        """), {"id": student_id}).fetchall()
 
-# =====================================================
-# Student Hub
-# =====================================================
+        # Attendance history
+        attendance_history = db.execute(text("""
+            SELECT ar.attendance_date, ar.status, sub.subject_name
+            FROM attendance_records ar
+            JOIN subjects sub ON ar.subject_id = sub.subject_id
+            WHERE ar.student_id = :id
+            ORDER BY ar.attendance_date DESC
+            LIMIT 15
+        """), {"id": student_id}).fetchall()
 
-# =====================================================
-# Student Notifications
-# =====================================================
+        # Remedial invitations
+        remedial_history = db.execute(text("""
+            SELECT ri.status, rs.topic, rs.session_date, rs.session_time, rs.location
+            FROM remedial_invitations ri
+            JOIN remedial_sessions rs ON ri.session_id = rs.session_id
+            WHERE ri.student_id = :id
+            ORDER BY rs.session_date DESC
+            LIMIT 15
+        """), {"id": student_id}).fetchall()
 
-# =====================================================
-# Career
-# =====================================================
+        # Detailed Assignments List
+        detailed_assignments = db.execute(text("""
+            SELECT a.title, a.due_date, sub.status as submission_status, sub.submitted_at, sub.marks_obtained, a.total_marks
+            FROM assignment_submissions sub
+            JOIN assignments a ON sub.assignment_id = a.assignment_id
+            WHERE sub.student_id = :id
+            ORDER BY a.due_date DESC
+        """), {"id": student_id}).fetchall()
 
-# =====================================================
-# Student Analytics
-# =====================================================
+        return {
+            "student": {
+                "student_id": student.student_id,
+                "roll_no": student.roll_no,
+                "full_name": student.full_name,
+                "email": student.email,
+                "department": student.department,
+                "semester": student.semester,
+                "division": student.division
+            },
+            "metrics": {
+                "attendance": float(metrics.attendance) if metrics and metrics.attendance else 0.0,
+                "quiz_score": float(metrics.quiz_score) if metrics and metrics.quiz_score else 0.0,
+                "risk_level": metrics.risk_level if metrics else "Low",
+                "predicted_cgpa": float(metrics.predicted_cgpa) if metrics and metrics.predicted_cgpa else 0.0,
+                "xp_points": metrics.xp_points if metrics else 0,
+                "faculty_notes": metrics.faculty_notes if metrics and hasattr(metrics, 'faculty_notes') and metrics.faculty_notes else "",
+                "intervention_status": metrics.intervention_status if metrics and hasattr(metrics, 'intervention_status') and metrics.intervention_status else "Not Contacted"
+            },
+            "assignment_stats": {
+                "submitted": sub_stats.get("Submitted", 0),
+                "pending": sub_stats.get("Pending", 0),
+                "late": sub_stats.get("Late", 0),
+                "missing": sub_stats.get("Missing", 0)
+            },
+            "quizzes": [
+                {
+                    "title": q.quiz_title,
+                     "score": float(q.score) if q.score else 0.0,
+                    "total": q.total_marks
+                } for q in quizzes
+            ],
+            "marks": [
+                {
+                    "subject": m.subject_name,
+                    "assignments": float(m.assignment_marks),
+                    "quizzes": float(m.quiz_marks),
+                    "internal": float(m.internal_marks),
+                    "practical": float(m.practical_marks),
+                    "total": float(m.total_marks),
+                    "grade": m.grade
+                } for m in marks
+            ],
+            "risk_history": [
+                {
+                    "level": r.risk_level,
+                    "reason": r.prediction_reason,
+                    "date": str(r.created_at)
+                } for r in risk_hist
+            ],
+            "attendance_history": [
+                {
+                    "date": str(a.attendance_date),
+                    "status": a.status,
+                    "subject": a.subject_name
+                } for a in attendance_history
+            ],
+            "remedial_history": [
+                {
+                    "topic": r.topic,
+                    "date": str(r.session_date),
+                    "time": r.session_time,
+                    "location": r.location,
+                    "status": r.status
+                } for r in remedial_history
+            ],
+            "detailed_assignments": [
+                {
+                    "title": da.title,
+                    "due_date": str(da.due_date),
+                    "status": da.submission_status,
+                    "submitted_at": str(da.submitted_at) if da.submitted_at else None,
+                    "marks_obtained": da.marks_obtained,
+                    "total_marks": da.total_marks
+                } for da in detailed_assignments
+            ]
+        }
+    finally:
+        db.close()

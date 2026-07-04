@@ -140,7 +140,6 @@ def create_mapping(data: FacultyMappingInput, current_user: dict = Depends(requi
         db.close()
 
 @router.put("/api/faculty-mapping/{mapping_id}")
-@router.put("/faculty-mapping/{mapping_id}")
 def update_mapping(mapping_id: int, data: FacultyMappingInput, current_user: dict = Depends(require_role(["admin", "super_admin"]))):
     db = SessionLocal()
     try:
@@ -202,7 +201,6 @@ def update_mapping(mapping_id: int, data: FacultyMappingInput, current_user: dic
         db.close()
 
 @router.delete("/api/faculty-mapping/{mapping_id}")
-@router.delete("/faculty-mapping/{mapping_id}")
 def delete_mapping(mapping_id: int, current_user: dict = Depends(require_role(["admin", "super_admin"]))):
     db = SessionLocal()
     try:
@@ -234,7 +232,19 @@ def get_courses(current_user: dict = Depends(get_current_user)):
     db = SessionLocal()
     try:
         result = db.execute(
-            text("SELECT * FROM courses WHERE institution_id = :iid ORDER BY course_id DESC"),
+            text("""
+                SELECT c.*, 
+                       COALESCE((
+                           SELECT COUNT(DISTINCT e.student_id)
+                           FROM enrollments e
+                           JOIN faculty_assignments fa ON e.class_id = fa.class_id
+                           JOIN course_subject_mapping csm ON fa.subject_id = csm.subject_id
+                           WHERE csm.course_id = c.course_id
+                       ), 0) AS dynamic_enrollment_count
+                FROM courses c
+                WHERE c.institution_id = :iid
+                ORDER BY c.course_id DESC
+            """),
             {"iid": current_user["institution_id"]}
         )
         courses = []
@@ -246,7 +256,7 @@ def get_courses(current_user: dict = Depends(get_current_user)):
                 "department": row.department,
                 "category": row.category,
                 "duration": row.duration,
-                "enrollment_count": row.enrollment_count or 0
+                "enrollment_count": row.dynamic_enrollment_count
             })
         return courses
     finally:
@@ -273,7 +283,6 @@ def create_course(data: CourseInput, current_user: dict = Depends(require_role([
         db.close()
 
 @router.put("/api/courses/{course_id}")
-@router.put("/courses/{course_id}")
 def update_course(course_id: int, data: CourseInput, current_user: dict = Depends(require_role(["admin"]))):
     db = SessionLocal()
     try:
@@ -304,7 +313,6 @@ def update_course(course_id: int, data: CourseInput, current_user: dict = Depend
         db.close()
 
 @router.delete("/api/courses/{course_id}")
-@router.delete("/courses/{course_id}")
 def delete_course(course_id: int, current_user: dict = Depends(require_role(["admin"]))):
     db = SessionLocal()
     try:
@@ -370,7 +378,6 @@ def create_subject(data: SubjectInput, current_user: dict = Depends(require_role
         db.close()
 
 @router.put("/api/subjects/{subject_id}")
-@router.put("/subjects/{subject_id}")
 def update_subject(subject_id: int, data: SubjectInput, current_user: dict = Depends(require_role(["admin"]))):
     db = SessionLocal()
     try:
@@ -401,7 +408,6 @@ def update_subject(subject_id: int, data: SubjectInput, current_user: dict = Dep
         db.close()
 
 @router.delete("/api/subjects/{subject_id}")
-@router.delete("/subjects/{subject_id}")
 def delete_subject(subject_id: int, current_user: dict = Depends(require_role(["admin"]))):
     db = SessionLocal()
     try:
@@ -468,7 +474,6 @@ def create_class(data: ClassInput, current_user: dict = Depends(require_role(["a
         db.close()
 
 @router.put("/api/classes/{class_id}")
-@router.put("/classes/{class_id}")
 def update_class(class_id: int, data: ClassInput, current_user: dict = Depends(require_role(["admin"]))):
     db = SessionLocal()
     try:
@@ -499,7 +504,6 @@ def update_class(class_id: int, data: ClassInput, current_user: dict = Depends(r
         db.close()
 
 @router.delete("/api/classes/{class_id}")
-@router.delete("/classes/{class_id}")
 def delete_class(class_id: int, current_user: dict = Depends(require_role(["admin"]))):
     db = SessionLocal()
     try:
@@ -563,7 +567,6 @@ def create_department(data: DepartmentInput, current_user: dict = Depends(requir
         db.close()
 
 @router.put("/api/departments/{dept_id}")
-@router.put("/departments/{dept_id}")
 def update_department(dept_id: int, data: DepartmentInput, current_user: dict = Depends(require_role(["admin"]))):
     db = SessionLocal()
     try:
@@ -593,7 +596,6 @@ def update_department(dept_id: int, data: DepartmentInput, current_user: dict = 
         db.close()
 
 @router.delete("/api/departments/{dept_id}")
-@router.delete("/departments/{dept_id}")
 def delete_department(dept_id: int, current_user: dict = Depends(require_role(["admin"]))):
     db = SessionLocal()
     try:
@@ -782,7 +784,6 @@ def create_enrollment(
         db.close()
 
 @router.put("/api/enrollments/{enrollment_id}")
-@router.put("/enrollments/{enrollment_id}")
 def transfer_enrollment(
     enrollment_id: int,
     data: EnrollmentInput,
@@ -851,7 +852,6 @@ def transfer_enrollment(
         db.close()
 
 @router.delete("/api/enrollments/{enrollment_id}")
-@router.delete("/enrollments/{enrollment_id}")
 def delete_enrollment(
     enrollment_id: int,
     current_user: dict = Depends(get_current_user)
@@ -889,7 +889,6 @@ def delete_enrollment(
         db.close()
 
 @router.get("/api/enrollments/history/{student_id}")
-@router.get("/enrollments/history/{student_id}")
 def get_enrollment_history(
     student_id: int,
     current_user: dict = Depends(get_current_user)
@@ -1008,7 +1007,6 @@ def create_course_subject_mapping(
         db.close()
 
 @router.delete("/api/course-subject-mappings/{mapping_id}")
-@router.delete("/course-subject-mappings/{mapping_id}")
 def delete_course_subject_mapping(
     mapping_id: int,
     current_user: dict = Depends(require_role(["admin", "super_admin"]))
@@ -1039,7 +1037,6 @@ def delete_course_subject_mapping(
         db.close()
 
 @router.get("/api/academic-terms")
-@router.get("/academic-terms")
 def get_academic_terms(current_user: dict = Depends(get_current_user)):
     db = SessionLocal()
     try:
@@ -1064,7 +1061,6 @@ def get_academic_terms(current_user: dict = Depends(get_current_user)):
         db.close()
 
 @router.post("/api/academic-terms")
-@router.post("/academic-terms")
 def create_academic_term(data: AcademicTermInput, current_user: dict = Depends(require_role(["admin", "super_admin"]))):
     db = SessionLocal()
     try:
@@ -1097,7 +1093,6 @@ INSERT INTO academic_terms (
         db.close()
 
 @router.put("/api/academic-terms/{term_id}")
-@router.put("/academic-terms/{term_id}")
 def update_academic_term(term_id: int, data: AcademicTermInput, current_user: dict = Depends(require_role(["admin", "super_admin"]))):
     db = SessionLocal()
     try:
@@ -1117,7 +1112,6 @@ AND institution_id = :iid
         db.close()
 
 @router.delete("/api/academic-terms/{term_id}")
-@router.delete("/academic-terms/{term_id}")
 def delete_academic_term(term_id: int, current_user: dict = Depends(require_role(["admin", "super_admin"]))):
     db = SessionLocal()
     try:

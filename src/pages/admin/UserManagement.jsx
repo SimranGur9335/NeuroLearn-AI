@@ -530,7 +530,7 @@ className="p-2 bg-slate-100 border border-slate-200 rounded-lg text-red-600 hove
             className="bg-white border border-slate-850 p-6 rounded-3xl max-w-sm w-full shadow-2xl space-y-4"
           >
             <div className="flex justify-between items-center pb-2 border-b border-slate-850">
-              <h3 className="font-extrabold text-sm text-white">
+              <h3 className="font-extrabold text-sm dark:text-white">
                 Add New {activeTab === "students" ? "Student Account" : "Faculty Account"}
               </h3>
               <button onClick={() => setShowAddModal(false)} className="text-slate-400 hover:text-slate-900 cursor-pointer"><X size={18} /></button>
@@ -538,7 +538,7 @@ className="p-2 bg-slate-100 border border-slate-200 rounded-lg text-red-600 hove
 
             <div className="space-y-3.5 text-xs">
               <div>
-                <label className="text-[9px] font-bold text-slate-500 uppercase block mb-1">Full Name *</label>
+                <label className="text-[9px] font-bold dark:text-slate-500 uppercase block mb-1">Full Name *</label>
                 <input
                   type="text"
                   value={formName}
@@ -552,7 +552,7 @@ className="p-2 bg-slate-100 border border-slate-200 rounded-lg text-red-600 hove
               {activeTab === "students" ? (
                 <>
                   <div>
-                    <label className="text-[9px] font-bold text-slate-500 uppercase block mb-1">Enrollment No. *</label>
+                    <label className="text-[9px] font-bold dark:text-slate-500 uppercase block mb-1">Enrollment No. *</label>
                     <input
                       type="text"
                       value={formRoll}
@@ -564,7 +564,7 @@ className="p-2 bg-slate-100 border border-slate-200 rounded-lg text-red-600 hove
                   </div>
 
                   <div>
-                    <label className="text-[9px] font-bold text-slate-500 uppercase block mb-1">Department Branch</label>
+                    <label className="text-[9px] font-bold dark:text-slate-500 uppercase block mb-1">Department Branch</label>
                     <select
                       value={formBranch}
                       onChange={(e) => setFormBranch(e.target.value)}
@@ -579,7 +579,7 @@ className="p-2 bg-slate-100 border border-slate-200 rounded-lg text-red-600 hove
               ) : (
                 <>
                   <div>
-                    <label className="text-[9px] font-bold text-slate-500 uppercase block mb-1">
+                    <label className="text-[9px] font-bold dark:text-slate-500 uppercase block mb-1">
                       Faculty ID *
                     </label>
                     <input
@@ -592,14 +592,26 @@ className="p-2 bg-slate-100 border border-slate-200 rounded-lg text-red-600 hove
                     />
                   </div>
                   <div>
-                    <label className="text-[9px] font-bold text-slate-500 uppercase block mb-1">Department Branch</label>
+                    <label className="text-[9px] font-bold dark:text-slate-500 uppercase block mb-1">Department Branch</label>
                     <select
                       value={formBranch}
                       onChange={(e) => setFormBranch(e.target.value)}
                       className="w-full bg-slate-950/60 border border-slate-850 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-white cursor-pointer"
                     >
                       {getDeptList().map(d => (
-                        <option key={d} value={d} className="bg-white">{d}</option>
+                        <option key={d} value={d} className="bg-white text-slate-900">{d}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[9px] font-bold dark:text-slate-500 uppercase block mb-1">Designation</label>
+                    <select
+                      value={formDesignation}
+                      onChange={(e) => setFormDesignation(e.target.value)}
+                      className="w-full bg-slate-950/60 border border-slate-850 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-white cursor-pointer"
+                    >
+                      {["Assistant Professor", "Associate Professor", "Professor", "Senior Professor", "Lecturer", "Senior Lecturer", "Professor & Head", "Visiting Faculty", "Dean", "Director"].map(d => (
+                        <option key={d} value={d} className="bg-white text-slate-900">{d}</option>
                       ))}
                     </select>
                   </div>
@@ -608,7 +620,7 @@ className="p-2 bg-slate-100 border border-slate-200 rounded-lg text-red-600 hove
 
               {/* Password generation phone field */}
               <div>
-                <label className="text-[9px] font-bold text-slate-500 uppercase block mb-1">Contact Phone (Temp Password) *</label>
+                <label className="text-[9px] font-bold dark:text-slate-500 uppercase block mb-1">Contact Phone (Temp Password) *</label>
                 <div className="relative flex items-center bg-slate-950/60 border border-slate-850 rounded-xl px-3 py-2.5 focus-within:ring-2 focus-within:ring-indigo-500">
                   <Phone size={14} className="text-slate-500 mr-2" />
                   <input
@@ -651,7 +663,7 @@ className="p-2 bg-slate-100 border border-slate-200 rounded-lg text-red-600 hove
             className="bg-white border border-slate-850 p-6 rounded-3xl max-w-sm w-full shadow-2xl space-y-4"
           >
             <div className="flex justify-between items-center pb-2 border-b border-slate-850">
-              <h3 className="font-extrabold text-sm text-white">
+              <h3 className="font-extrabold text-sm ">
                 Modify User Details
               </h3>
               <button onClick={() => { setShowEditModal(false); setTargetUser(null); }} className="text-slate-400 hover:text-white cursor-pointer"><X size={18} /></button>
@@ -710,10 +722,10 @@ className="p-2 bg-slate-100 border border-slate-200 rounded-lg text-red-600 hove
                     <select
                       value={formDesignation}
                       onChange={(e) => setFormDesignation(e.target.value)}
-                      className="w-full bg-slate-950/60 border border-slate-850 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 cursor-pointer"
+                      className="w-full bg-slate-950/60 border border-slate-850 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-white cursor-pointer"
                     >
-                      {["Assistant Professor", "Associate Professor", "Professor"].map(d => (
-                        <option key={d} value={d} className="bg-white">{d}</option>
+                      {["Assistant Professor", "Associate Professor", "Professor", "Senior Professor", "Lecturer", "Senior Lecturer", "Professor & Head", "Visiting Faculty", "Dean", "Director"].map(d => (
+                        <option key={d} value={d} className="bg-white text-slate-900">{d}</option>
                       ))}
                     </select>
                   </div>

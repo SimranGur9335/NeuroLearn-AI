@@ -11,7 +11,8 @@ from sqlalchemy import text
 from backend.database import SessionLocal
 from backend.schemas.mentor import AiChatInput, RenameChatInput, MentorChatInput
 from backend.core.security import get_current_user
-from backend.core.helpers import create_notification, handle_exception_securely
+from backend.core.helpers import handle_exception_securely
+from backend.services.notification_service import create_notification
 
 from backend.services.ai_mentor.prompt_builder import build_prompt
 from backend.services.ai_mentor.groq_service import generate_response

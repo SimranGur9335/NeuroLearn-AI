@@ -9,6 +9,10 @@ load_dotenv()
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 
+# Fix legacy/standard Heroku/Render Postgres URI scheme if needed
+if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+
 if not DATABASE_URL or not (DATABASE_URL.startswith("postgresql") or DATABASE_URL.startswith("postgres")):
     raise RuntimeError(
         "DATABASE_URL environment variable is missing, empty, or not a valid PostgreSQL connection URI. "
@@ -31,4 +35,15 @@ SessionLocal = sessionmaker(
     autocommit=False,
     autoflush=False,
     bind=engine
-)
+)
+
+def get_db():
+    """
+    FastAPI dependency injection helper to yield database sessions.
+    Automatically closes sessions when the request context finishes.
+    """
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
