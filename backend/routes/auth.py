@@ -677,6 +677,16 @@ def get_my_profile(current_user: dict = Depends(get_current_user)):
                     db.execute(text("INSERT INTO student_career_profiles (student_id) VALUES (:sid) ON CONFLICT DO NOTHING"), {"sid": sid})
                     db.commit()
 
+                # Fetch institution name
+                institution_name = "COEP Technological University"
+                if s.institution_id:
+                    inst = db.execute(
+                        text("SELECT institution_name FROM institutions WHERE institution_id = :iid"),
+                        {"iid": s.institution_id}
+                    ).fetchone()
+                    if inst:
+                        institution_name = inst.institution_name
+
                 profile_data.update({
                     "name": s.full_name,
                     "rollNumber": s.roll_no,
@@ -689,7 +699,9 @@ def get_my_profile(current_user: dict = Depends(get_current_user)):
                     "resume": resume_text,
                     "skills": skills_list,
                     "certificates": certs_list,
-                    "achievements": achievements_list
+                    "achievements": achievements_list,
+                    "college": institution_name,
+                    "institution_name": institution_name
                 })
         elif role == "faculty" and current_user["faculty_id"]:
             f = db.execute(text("SELECT * FROM faculty WHERE faculty_id = :fid"), {"fid": current_user["faculty_id"]}).fetchone()

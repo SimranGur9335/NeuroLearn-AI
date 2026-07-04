@@ -14,13 +14,14 @@ const PlatformInstitutions = lazy(() => import('./pages/platform-admin/Instituti
 const PlatformUsers = lazy(() => import('./pages/platform-admin/Users'));
 const PlatformSettings = lazy(() => import('./pages/platform-admin/Settings'));
 
-// Public & Selection Pages
-const LandingPage = lazy(() => import('./pages/LandingPage'));
-const RoleSelection = lazy(() => import('./pages/RoleSelection'));
-const SelectInstitution = lazy(() => import('./pages/SelectInstitution'));
-const Login = lazy(() => import('./pages/Login'));
+// Public & Selection Pages (Statically imported for instant load)
+import LandingPage from './pages/LandingPage';
+import RoleSelection from './pages/RoleSelection';
+import SelectInstitution from './pages/SelectInstitution';
+import Login from './pages/Login';
+import ChangePassword from './pages/ChangePassword';
+
 const Register = lazy(() => import('./pages/Register'));
-const ChangePassword = lazy(() => import('./pages/ChangePassword'));
 const Profile = lazy(() => import('./pages/Profile'));
 const ApplyInstitution = lazy(() => import('./pages/ApplyInstitution'));
 

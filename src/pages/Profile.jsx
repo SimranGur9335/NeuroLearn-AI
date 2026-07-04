@@ -42,10 +42,10 @@ const Profile = () => {
   const [errorMsg, setErrorMsg] = useState("");
 
   // Tab Details Form States
-  const [formName, setFormName] = useState("");
-  const [formMobile, setFormMobile] = useState("");
-  const [formBranch, setFormBranch] = useState("B.Tech Computer Science");
-  const [formCollege, setFormCollege] = useState("COEP Technological University");
+  const [formName, setFormName] = useState(user?.name || "");
+  const [formMobile, setFormMobile] = useState(user?.mobile || "");
+  const [formBranch, setFormBranch] = useState(user?.branch || "B.Tech Computer Science");
+  const [formCollege, setFormCollege] = useState(user?.college || user?.institution_name || "COEP Technological University");
 
   // Academic Form States
   const [rollNo, setRollNo] = useState("");

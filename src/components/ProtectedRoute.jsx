@@ -1,10 +1,11 @@
 import React from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Sparkles } from 'lucide-react';
 
 const ProtectedRoute = ({ children, allowedRoles }) => {
   const { isAuthenticated, role, loading, user } = useAuth();
+  const { pathname } = useLocation();
 
   if (loading) {
     return (
@@ -25,7 +26,7 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
     return <Navigate to="/login" replace />;
   }
 
-  if (user?.mustChangePassword) {
+  if (user?.mustChangePassword && pathname !== '/change-password') {
     return <Navigate to="/change-password" replace />;
   }
 
