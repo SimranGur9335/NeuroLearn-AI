@@ -117,7 +117,19 @@ failed_logins_tracker = {}
 
 @app.on_event("startup")
 def startup_migrations():
-    from backend.migrations import run_migrations, run_gradebook_migrations, run_remedial_migrations
-    run_migrations()
-    run_gradebook_migrations()
-    run_remedial_migrations()
+    import threading
+    def run_db_migrations():
+        try:
+            logger.info("Starting database migrations in the background...")
+            from backend.migrations import run_migrations, run_gradebook_migrations, run_remedial_migrations
+            run_migrations()
+            run_gradebook_migrations()
+            run_remedial_migrations()
+            logger.info("Database migrations completed successfully in background.")
+        except Exception as e:
+            logger.error(f"Error running database migrations in background: {e}")
+
+    migration_thread = threading.Thread(target=run_db_migrations, name="MigrationThread")
+    migration_thread.daemon = True
+    migration_thread.start()
+    logger.info("FastAPI server started; database migrations pushed to background thread to prevent startup blocking.")
