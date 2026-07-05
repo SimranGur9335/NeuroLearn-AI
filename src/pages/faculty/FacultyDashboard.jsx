@@ -39,8 +39,8 @@ import {
 
 const priorityConfig = {
   Urgent: { color: "bg-rose-500/10 text-rose-500 border-rose-500/20", dot: "bg-rose-500" },
-  Important: { color: "bg-amber-500/10 text-amber-505 border-amber-500/20", dot: "bg-amber-500" },
-  Normal: { color: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20", dot: "bg-emerald-555" },
+  Important: { color: "bg-amber-500/10 text-amber-500 border-amber-500/20", dot: "bg-amber-500" },
+  Normal: { color: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20", dot: "bg-emerald-500" },
 };
 
 const fmtDate = (d) => {
@@ -330,7 +330,7 @@ const FacultyDashboard = () => {
   // Glassmorphism Loading Skeleton
   if (loading) {
     return (
-      <div className="space-y-6 font-sans text-slate-855 dark:text-slate-200 animate-pulse">
+      <div className="space-y-6 font-sans text-slate-800 dark:text-slate-200 animate-pulse">
         {/* Banner Skeleton */}
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 h-[240px] rounded-3xl p-6 flex flex-col justify-between">
           <div className="space-y-3">
@@ -399,28 +399,28 @@ const FacultyDashboard = () => {
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
               <div className="flex flex-wrap items-center gap-2">
-                <span className="text-[9px] text-emerald-400 font-extrabold uppercase tracking-wider bg-emerald-500/15 px-3 py-1 rounded-full border border-emerald-500/25 flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-450 animate-ping" />
+                <span className="text-[9px] text-emerald-450 font-extrabold uppercase tracking-wider bg-emerald-500/20 px-3 py-1 rounded-full border border-emerald-500/30 flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
                   Active Command Center
                 </span>
-                <span className="text-[9px] text-purple-350 font-extrabold uppercase tracking-wider bg-purple-500/15 px-3 py-1 rounded-full border border-purple-500/25">
+                <span className="text-[9px] text-purple-200 font-extrabold uppercase tracking-wider bg-purple-500/20 px-3 py-1 rounded-full border border-purple-500/40">
                   {commandCenterData?.workspace_summary?.academic_year || "Academic Year"}
                 </span>
-                <span className="text-[9px] text-indigo-350 font-extrabold uppercase tracking-wider bg-indigo-500/15 px-3 py-1 rounded-full border border-indigo-500/25">
+                <span className="text-[9px] text-indigo-200 font-extrabold uppercase tracking-wider bg-indigo-500/20 px-3 py-1 rounded-full border border-indigo-500/40">
                   {commandCenterData?.workspace_summary?.semester || "Active Semester"}
                 </span>
               </div>
               <h1 className="text-3xl md:text-5xl font-black mt-3 bg-clip-text text-transparent bg-gradient-to-r from-white via-slate-100 to-slate-300 tracking-tight">
                 {selectedClass.subject_name || "N/A"}
               </h1>
-              <p className="text-purple-350 mt-1 text-sm font-extrabold flex items-center gap-2">
+              <p className="text-purple-200 mt-1 text-sm font-extrabold flex items-center gap-2">
                 <Layers size={14} />
                 {selectedClass.class_name || "N/A"} • {selectedClass.role || "Theory"} Delivery
               </p>
             </div>
             <button
               onClick={() => navigate('/faculty/select-class')}
-              className="bg-gradient-to-tr from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-black px-6 py-3.5 rounded-2xl transition-all hover:scale-[1.02] active:scale-[0.98] shadow-lg shadow-purple-950/50 border border-purple-450/30 text-xs cursor-pointer shrink-0 self-start md:self-center"
+              className="bg-gradient-to-tr from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-black px-6 py-3.5 rounded-2xl transition-all hover:scale-[1.02] active:scale-[0.98] shadow-lg shadow-purple-950/50 border border-purple-500/30 text-xs cursor-pointer shrink-0 self-start md:self-center"
             >
               Switch Workspace
             </button>
@@ -431,26 +431,26 @@ const FacultyDashboard = () => {
           {/* Detailed Workspace Metadata */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
             <div className="space-y-1">
-              <span className="text-slate-400 font-bold uppercase tracking-wider text-[9px]">Lead Instructor</span>
-              <p className="font-extrabold text-slate-100 text-sm flex items-center gap-1.5">
+              <span className="text-purple-200/70 font-bold uppercase tracking-wider text-[9px]">Lead Instructor</span>
+              <p className="font-extrabold text-white text-sm flex items-center gap-1.5">
                 👨‍🏫 {commandCenterData?.workspace_summary?.faculty_name || facultyInfo?.full_name || user?.name || "N/A"}
               </p>
             </div>
             <div className="space-y-1">
-              <span className="text-slate-400 font-bold uppercase tracking-wider text-[9px]">Faculty Code & Rank</span>
-              <p className="font-extrabold text-slate-100 text-sm">
-                {commandCenterData?.workspace_summary?.faculty_code || facultyInfo?.faculty_code || "N/A"} • <span className="text-[10px] text-purple-350">{commandCenterData?.workspace_summary?.designation || facultyInfo?.designation || "N/A"}</span>
+              <span className="text-purple-200/70 font-bold uppercase tracking-wider text-[9px]">Faculty Code & Rank</span>
+              <p className="font-extrabold text-white text-sm">
+                {commandCenterData?.workspace_summary?.faculty_code || facultyInfo?.faculty_code || "N/A"} • <span className="text-[10px] text-purple-200 font-bold">{commandCenterData?.workspace_summary?.designation || facultyInfo?.designation || "N/A"}</span>
               </p>
             </div>
             <div className="space-y-1">
-              <span className="text-slate-400 font-bold uppercase tracking-wider text-[9px]">Department</span>
-              <p className="font-extrabold text-slate-100 text-sm line-clamp-1">
+              <span className="text-purple-200/70 font-bold uppercase tracking-wider text-[9px]">Department</span>
+              <p className="font-extrabold text-white text-sm line-clamp-1">
                 {commandCenterData?.workspace_summary?.department || facultyInfo?.department || "N/A"}
               </p>
             </div>
             <div className="space-y-1">
-              <span className="text-slate-400 font-bold uppercase tracking-wider text-[9px]">Institution Campus</span>
-              <p className="font-extrabold text-slate-100 text-sm line-clamp-1 flex items-center gap-1">
+              <span className="text-purple-200/70 font-bold uppercase tracking-wider text-[9px]">Institution Campus</span>
+              <p className="font-extrabold text-white text-sm line-clamp-1 flex items-center gap-1">
                 🏛️ {commandCenterData?.workspace_summary?.institution || facultyInfo?.institution_name || user?.institution_name || "N/A"}
               </p>
             </div>
@@ -477,7 +477,7 @@ const FacultyDashboard = () => {
           {/* Pending Attendance (Clickable) */}
           <div
             onClick={() => navigate('/faculty/attendance')}
-            className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-855 p-4 rounded-2xl shadow-sm hover:-translate-y-1 hover:shadow-lg transition-all duration-300 cursor-pointer h-full flex flex-col justify-between group"
+            className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 p-4 rounded-2xl shadow-sm hover:-translate-y-1 hover:shadow-lg transition-all duration-300 cursor-pointer h-full flex flex-col justify-between group"
           >
             <span className="text-[9px] text-slate-400 font-extrabold uppercase block tracking-wider group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">Attendance</span>
             <div className="flex items-baseline justify-between mt-2">
@@ -493,7 +493,7 @@ const FacultyDashboard = () => {
           {/* Pending Marks (Clickable) */}
           <div
             onClick={() => navigate('/faculty/gradebook')}
-            className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-855 p-4 rounded-2xl shadow-sm hover:-translate-y-1 hover:shadow-lg transition-all duration-300 cursor-pointer h-full flex flex-col justify-between group"
+            className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 p-4 rounded-2xl shadow-sm hover:-translate-y-1 hover:shadow-lg transition-all duration-300 cursor-pointer h-full flex flex-col justify-between group"
           >
             <span className="text-[9px] text-slate-400 font-extrabold uppercase block tracking-wider group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">Draft Marks</span>
             <div className="flex items-baseline justify-between mt-2">
@@ -507,7 +507,7 @@ const FacultyDashboard = () => {
           {/* Pending Assignments (Clickable) */}
           <div
             onClick={() => navigate('/faculty/assignments')}
-            className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-855 p-4 rounded-2xl shadow-sm hover:-translate-y-1 hover:shadow-lg transition-all duration-300 cursor-pointer h-full flex flex-col justify-between group"
+            className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 p-4 rounded-2xl shadow-sm hover:-translate-y-1 hover:shadow-lg transition-all duration-300 cursor-pointer h-full flex flex-col justify-between group"
           >
             <span className="text-[9px] text-slate-400 font-extrabold uppercase block tracking-wider group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">Ungraded</span>
             <div className="flex items-baseline justify-between mt-2">
@@ -521,7 +521,7 @@ const FacultyDashboard = () => {
           {/* High Risk Students (Clickable) */}
           <div
             onClick={() => navigate('/faculty/performance')}
-            className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-855 p-4 rounded-2xl shadow-sm hover:-translate-y-1 hover:shadow-lg transition-all duration-300 cursor-pointer h-full flex flex-col justify-between group"
+            className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 p-4 rounded-2xl shadow-sm hover:-translate-y-1 hover:shadow-lg transition-all duration-300 cursor-pointer h-full flex flex-col justify-between group"
           >
             <span className="text-[9px] text-slate-400 font-extrabold uppercase block tracking-wider group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">High Risk</span>
             <div className="flex items-baseline justify-between mt-2">
@@ -537,7 +537,7 @@ const FacultyDashboard = () => {
           {/* Upcoming Remedials (Clickable) */}
           <div
             onClick={() => navigate('/faculty/remedial')}
-            className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-855 p-4 rounded-2xl shadow-sm hover:-translate-y-1 hover:shadow-lg transition-all duration-300 cursor-pointer h-full flex flex-col justify-between group"
+            className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 p-4 rounded-2xl shadow-sm hover:-translate-y-1 hover:shadow-lg transition-all duration-300 cursor-pointer h-full flex flex-col justify-between group"
           >
             <span className="text-[9px] text-slate-400 font-extrabold uppercase block tracking-wider group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">Remedials</span>
             <div className="flex items-baseline justify-between mt-2">
@@ -558,7 +558,7 @@ const FacultyDashboard = () => {
           {/* Unread Announcements (Clickable) */}
           <div
             onClick={() => navigate('/faculty/announcements')}
-            className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-855 p-4 rounded-2xl shadow-sm hover:-translate-y-1 hover:shadow-lg transition-all duration-300 cursor-pointer h-full flex flex-col justify-between group"
+            className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 p-4 rounded-2xl shadow-sm hover:-translate-y-1 hover:shadow-lg transition-all duration-300 cursor-pointer h-full flex flex-col justify-between group"
           >
             <span className="text-[9px] text-slate-400 font-extrabold uppercase block tracking-wider group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">Broadcasts</span>
             <div className="flex items-baseline justify-between mt-2">
@@ -584,8 +584,8 @@ const FacultyDashboard = () => {
             <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-3xl shadow-sm hover:shadow-md transition-all duration-300 space-y-4">
               <div className="flex justify-between items-start">
                 <div>
-                  <h3 className="font-extrabold text-slate-855 dark:text-white text-base flex items-center gap-2">
-                    <ClipboardCheck size={20} className="text-purple-600" />
+                  <h3 className="font-extrabold text-slate-800 dark:text-white text-base flex items-center gap-2">
+                    <ClipboardCheck size={20} className="text-purple-650" />
                     My Action Items
                   </h3>
                   <p className="text-[10px] text-slate-400 font-bold uppercase mt-0.5">Dynamic workflow checklist</p>
@@ -595,7 +595,7 @@ const FacultyDashboard = () => {
                 </span>
               </div>
 
-              <div className="divide-y divide-slate-100 dark:divide-slate-850/60 max-h-[360px] overflow-y-auto pr-1">
+              <div className="divide-y divide-slate-100 dark:divide-slate-800/60 max-h-[360px] overflow-y-auto pr-1">
                 {commandCenterData?.my_tasks && commandCenterData.my_tasks.length > 0 ? (
                   commandCenterData.my_tasks.map((task) => {
                     const isHigh = task.priority === 'High';
@@ -606,7 +606,7 @@ const FacultyDashboard = () => {
                     else if (isMedium) priorityBadge = "text-amber-600 bg-amber-500/10 border-amber-500/20";
 
                     return (
-                      <div key={task.id} className="py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 first:pt-0 last:pb-0 hover:bg-slate-50/50 dark:hover:bg-slate-850/20 px-2 rounded-xl transition-colors">
+                      <div key={task.id} className="py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 first:pt-0 last:pb-0 hover:bg-slate-50/50 dark:hover:bg-slate-800/20 px-2 rounded-xl transition-colors">
                         <div className="space-y-1 flex-1">
                           <div className="flex flex-wrap items-center gap-2">
                             <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-full border ${priorityBadge}`}>
@@ -616,17 +616,17 @@ const FacultyDashboard = () => {
                               {task.status}
                             </span>
                           </div>
-                          <h4 className="font-bold text-xs sm:text-sm text-slate-855 dark:text-slate-100">
+                          <h4 className="font-bold text-xs sm:text-sm text-slate-800 dark:text-slate-100">
                             {task.title}
                           </h4>
-                          <p className="text-xs text-slate-500 dark:text-slate-405 text-left">
+                          <p className="text-xs text-slate-500 dark:text-slate-400 text-left">
                             {task.description}
                           </p>
                         </div>
 
                         <button
                           onClick={() => navigate(task.route)}
-                          className="self-start sm:self-center px-4.5 py-2.5 bg-slate-950 hover:bg-purple-650 dark:bg-slate-800 dark:hover:bg-purple-650 text-white font-extrabold rounded-xl text-xs transition-all flex items-center gap-1.5 cursor-pointer shadow-sm group shrink-0 hover:scale-[1.02] duration-200"
+                          className="self-start sm:self-center px-5 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-extrabold rounded-xl text-xs transition-all flex items-center gap-1.5 cursor-pointer shadow-md hover:shadow-lg shadow-purple-500/20 group shrink-0 hover:scale-[1.03] active:scale-[0.97] duration-200"
                         >
                           {task.action_label}
                           <ArrowRight size={12} className="group-hover:translate-x-1 transition-transform" />
@@ -638,7 +638,7 @@ const FacultyDashboard = () => {
                   <div className="text-center py-12 space-y-3">
                     <div className="text-3xl">🎉</div>
                     <h4 className="font-bold text-slate-800 dark:text-white text-sm">All Tasks Caught Up!</h4>
-                    <p className="text-xs text-slate-450 max-w-xs mx-auto">
+                    <p className="text-xs text-slate-400 max-w-xs mx-auto">
                       Excellent work! There are no pending attendance records, drafts, or ungraded submissions for this workspace.
                     </p>
                   </div>
@@ -649,13 +649,13 @@ const FacultyDashboard = () => {
             {/* Lecture Attendance Trend (Small Card, p-5) */}
             <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 rounded-3xl shadow-sm hover:shadow-md transition-shadow duration-300 space-y-4">
               <div className="flex justify-between items-baseline">
-                <h3 className="font-extrabold text-slate-855 dark:text-white text-sm flex items-center gap-1.5">
+                <h3 className="font-extrabold text-slate-800 dark:text-white text-sm flex items-center gap-1.5">
                   <TrendingUp size={18} className="text-purple-600" />
                   Lecture Attendance Trend
                 </h3>
                 <div className="text-right">
-                  <span className="text-xs font-bold text-purple-600 dark:text-purple-450 block">Average Attendance: {avgAttendance}%</span>
-                  <span className="text-[10px] text-slate-450 dark:text-slate-500 block font-medium">Last 6 Lectures</span>
+                  <span className="text-xs font-bold text-purple-600 dark:text-purple-400 block">Average Attendance: {avgAttendance}%</span>
+                  <span className="text-[10px] text-slate-400 dark:text-slate-500 block font-medium">Last 6 Lectures</span>
                 </div>
               </div>
 
@@ -691,7 +691,7 @@ const FacultyDashboard = () => {
             {/* Students At Academic Risk (Small Card, p-5) */}
             <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 rounded-3xl shadow-sm hover:shadow-md transition-shadow duration-300 space-y-4">
               <div>
-                <h3 className="font-extrabold text-slate-855 dark:text-white text-base flex items-center gap-2">
+                <h3 className="font-extrabold text-slate-800 dark:text-white text-base flex items-center gap-2">
                   <AlertTriangle size={18} className="text-red-500" />
                   Students At Academic Risk
                 </h3>
@@ -721,7 +721,7 @@ const FacultyDashboard = () => {
                       }`}>
                         {student.risk_level} RISK
                       </span>
-                      <span className="text-[10px] font-black text-purple-600 dark:text-purple-450 flex items-center gap-0.5">
+                      <span className="text-[10px] font-black text-purple-600 dark:text-purple-400 flex items-center gap-0.5">
                         Monitor →
                       </span>
                     </div>
@@ -746,13 +746,13 @@ const FacultyDashboard = () => {
               <div className="flex justify-between items-start">
                 <div>
                   <h3 className="font-extrabold text-slate-850 dark:text-white text-sm flex items-center gap-2">
-                    <Bell size={18} className="text-purple-650" />
+                    <Bell size={18} className="text-purple-600" />
                     Faculty Hub Notices
                   </h3>
                   <p className="text-[10px] text-slate-400 font-bold uppercase mt-0.5">Important broadcasts & updates</p>
                 </div>
                 {commandCenterData?.today_overview?.unread_announcements > 0 && (
-                  <span className="text-[9px] font-black text-white bg-purple-655 px-2.5 py-0.5 rounded-full">
+                  <span className="text-[9px] font-black text-white bg-purple-600 px-2.5 py-0.5 rounded-full">
                     {commandCenterData.today_overview.unread_announcements} New
                   </span>
                 )}
@@ -768,11 +768,11 @@ const FacultyDashboard = () => {
                         onClick={() => navigate("/faculty/announcements")}
                         className={`p-3.5 rounded-xl border transition-all cursor-pointer ${!ann.is_read
                           ? "border-purple-500/25 bg-purple-50/15 dark:bg-purple-950/10"
-                          : "border-slate-100 dark:border-slate-855 bg-slate-50/20 dark:bg-slate-900/10"
+                          : "border-slate-100 dark:border-slate-800 bg-slate-50/20 dark:bg-slate-900/10"
                           }`}
                       >
                         <div className="flex justify-between items-start gap-2">
-                          <h4 className="font-bold text-xs text-slate-855 dark:text-slate-202 line-clamp-1">
+                          <h4 className="font-bold text-xs text-slate-800 dark:text-slate-200 line-clamp-1">
                             {ann.title}
                           </h4>
                           <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-full border ${pr.color} shrink-0`}>
@@ -782,7 +782,7 @@ const FacultyDashboard = () => {
                         <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1.5 line-clamp-2 leading-relaxed text-left">
                           {ann.description}
                         </p>
-                        <div className="flex justify-between items-center mt-2.5 pt-2 border-t border-slate-100 dark:border-slate-855/50 text-[9px] text-slate-400">
+                        <div className="flex justify-between items-center mt-2.5 pt-2 border-t border-slate-100 dark:border-slate-800/50 text-[9px] text-slate-400 font-semibold">
                           <span className="font-semibold">By {ann.sender_name || "Admin"}</span>
                           <span>{fmtDate(ann.created_at)}</span>
                         </div>
@@ -801,7 +801,7 @@ const FacultyDashboard = () => {
 
               <button
                 onClick={() => navigate("/faculty/announcements")}
-                className="w-full py-3 bg-slate-50 hover:bg-slate-100 dark:bg-slate-950 dark:hover:bg-slate-850 border border-slate-200 dark:border-slate-800 text-purple-655 dark:text-purple-450 font-black rounded-xl text-xs transition-all cursor-pointer flex items-center justify-center gap-1.5 group/btn hover:scale-[1.02] duration-200"
+                className="w-full py-3 bg-slate-50 hover:bg-slate-100 dark:bg-slate-950 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 text-purple-600 dark:text-purple-400 font-black rounded-xl text-xs transition-all cursor-pointer flex items-center justify-center gap-1.5 group/btn hover:scale-[1.02] duration-200"
               >
                 <span>View All Notices</span>
                 <ArrowRight size={13} className="group-hover/btn:translate-x-0.5 transition-transform" />
@@ -811,8 +811,8 @@ const FacultyDashboard = () => {
             {/* Upcoming Remedial Sessions (Small Card, p-5) */}
             <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 rounded-3xl shadow-sm hover:shadow-md transition-all duration-300 space-y-4">
               <div>
-                <h3 className="font-extrabold text-slate-850 dark:text-white text-sm flex items-center gap-2">
-                  <GraduationCap size={18} className="text-purple-655" />
+                <h3 className="font-extrabold text-slate-800 dark:text-white text-sm flex items-center gap-2">
+                  <GraduationCap size={18} className="text-purple-600" />
                   Upcoming Remedial Sessions
                 </h3>
                 <p className="text-[10px] text-slate-400 font-bold uppercase mt-0.5">Next 3 support targets</p>
@@ -824,10 +824,10 @@ const FacultyDashboard = () => {
                     <div
                       key={session.session_id}
                       onClick={() => navigate("/faculty/remedial")}
-                      className="p-3.5 rounded-xl border border-slate-150 dark:border-slate-855 bg-slate-50/40 dark:bg-slate-950/20 hover:border-purple-500/25 transition-all cursor-pointer"
+                      className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/40 dark:bg-slate-950/20 hover:border-purple-500/25 transition-all cursor-pointer"
                     >
                       <div className="flex justify-between items-start gap-2">
-                        <h4 className="font-bold text-xs text-slate-850 dark:text-slate-200 line-clamp-1">
+                        <h4 className="font-bold text-xs text-slate-800 dark:text-slate-200 line-clamp-1">
                           {session.topic}
                         </h4>
                         <span className="text-[8px] font-black text-purple-600 bg-purple-500/10 px-2 py-0.5 rounded shrink-0">
@@ -864,7 +864,7 @@ const FacultyDashboard = () => {
 
               <button
                 onClick={() => navigate("/faculty/remedial")}
-                className="w-full py-3 bg-slate-50 hover:bg-slate-100 dark:bg-slate-950 dark:hover:bg-slate-850 border border-slate-200 dark:border-slate-800 text-purple-655 dark:text-purple-450 font-black rounded-xl text-xs transition-all cursor-pointer flex items-center justify-center gap-1.5 group/btn hover:scale-[1.02] duration-200"
+                className="w-full py-3 bg-slate-50 hover:bg-slate-100 dark:bg-slate-950 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 text-purple-600 dark:text-purple-400 font-black rounded-xl text-xs transition-all cursor-pointer flex items-center justify-center gap-1.5 group/btn hover:scale-[1.02] duration-200"
               >
                 <span>View All Sessions</span>
                 <ArrowRight size={13} className="group-hover/btn:translate-x-0.5 transition-transform" />
@@ -987,8 +987,8 @@ const FacultyDashboard = () => {
           {/* Recent Assignments Widget (Large Card, p-6) */}
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-3xl shadow-sm hover:shadow-md transition-shadow duration-300 space-y-4">
             <div>
-              <h3 className="font-extrabold text-slate-855 dark:text-white text-sm flex items-center gap-2">
-                <ClipboardCheck size={18} className="text-purple-655" />
+              <h3 className="font-extrabold text-slate-800 dark:text-white text-sm flex items-center gap-2">
+                <ClipboardCheck size={18} className="text-purple-600" />
                 Recent Assignments
               </h3>
               <p className="text-[10px] text-slate-400 font-bold uppercase mt-0.5">Submission tracking & status</p>
@@ -1003,8 +1003,8 @@ const FacultyDashboard = () => {
                   const pct = total > 0 ? Math.round((submitted / total) * 100) : 0;
 
                   let statusBadge = "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20";
-                  if (a.status === "Draft") statusBadge = "bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/20";
-                  else if (a.status === "Closed") statusBadge = "bg-rose-500/10 text-rose-605 dark:text-rose-400 border-rose-500/20";
+                  if (a.status === "Draft") statusBadge = "bg-slate-500/10 text-slate-650 dark:text-slate-400 border-slate-500/20";
+                  else if (a.status === "Closed") statusBadge = "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20";
 
                   return (
                     <div
@@ -1013,7 +1013,7 @@ const FacultyDashboard = () => {
                       className="p-3.5 rounded-2xl border border-slate-100 dark:border-slate-850 hover:border-purple-500/35 transition-all cursor-pointer space-y-2.5 bg-slate-50/20 dark:bg-slate-950/10 group"
                     >
                       <div className="flex justify-between items-start gap-2">
-                        <span className="font-bold text-xs text-slate-855 dark:text-slate-200 line-clamp-1 group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">{a.title}</span>
+                        <span className="font-bold text-xs text-slate-800 dark:text-slate-200 line-clamp-1 group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">{a.title}</span>
                         <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded border ${statusBadge} shrink-0`}>
                           {a.status || "Published"}
                         </span>
@@ -1023,10 +1023,10 @@ const FacultyDashboard = () => {
                         <div className="space-y-1.5">
                           <div className="flex justify-between text-[9px] text-slate-400 font-extrabold">
                             <span>{submitted} / {total} Submitted</span>
-                            <span className="text-amber-600 dark:text-amber-450">{pending} Pending</span>
-                            <span className="text-purple-650 dark:text-purple-400">{pct}%</span>
+                            <span className="text-amber-600 dark:text-amber-500">{pending} Pending</span>
+                            <span className="text-purple-600 dark:text-purple-400">{pct}%</span>
                           </div>
-                          <div className="w-full h-1.5 bg-slate-100 dark:bg-slate-855 rounded-full overflow-hidden">
+                          <div className="w-full h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
                             <div
                               className="h-full bg-gradient-to-r from-purple-500 to-indigo-600 rounded-full transition-all duration-500"
                               style={{ width: `${pct}%` }}
@@ -1035,9 +1035,9 @@ const FacultyDashboard = () => {
                         </div>
                       )}
 
-                      <div className="flex justify-between items-center text-[9px] text-slate-400 pt-1 border-t border-slate-100/50 dark:border-slate-850/50">
+                      <div className="flex justify-between items-center text-[9px] text-slate-400 pt-1 border-t border-slate-100/50 dark:border-slate-800/50">
                         <span>Due: {a.due_date}</span>
-                        <span className="font-black text-purple-605 hover:text-purple-500 flex items-center gap-0.5 group-hover:translate-x-0.5 transition-all">
+                        <span className="font-black text-purple-600 hover:text-purple-500 flex items-center gap-0.5 group-hover:translate-x-0.5 transition-all">
                           Manage →
                         </span>
                       </div>
@@ -1047,7 +1047,7 @@ const FacultyDashboard = () => {
               ) : (
                 <div className="flex flex-col items-center justify-center text-center p-6 bg-slate-50/40 dark:bg-slate-950/10 border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl space-y-1.5">
                   <span className="text-2xl">📚</span>
-                  <p className="text-xs text-slate-550 dark:text-slate-450 font-semibold">
+                  <p className="text-xs text-slate-500 dark:text-slate-400 font-semibold">
                     No assignments created yet.
                   </p>
                 </div>
@@ -1060,7 +1060,7 @@ const FacultyDashboard = () => {
             <div className="space-y-4">
               <div className="flex justify-between items-start">
                 <div>
-                  <h3 className="font-extrabold text-slate-855 dark:text-white text-sm flex items-center gap-1.5">
+                  <h3 className="font-extrabold text-slate-800 dark:text-white text-sm flex items-center gap-1.5">
                     <Activity size={18} className="text-purple-600" />
                     Recent Activity
                   </h3>
