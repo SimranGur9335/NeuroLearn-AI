@@ -678,11 +678,12 @@ def get_my_profile(current_user: dict = Depends(get_current_user)):
                     db.commit()
 
                 # Fetch institution name
-                institution_name = "COEP Technological University"
-                if s.institution_id:
+                institution_name = "NeuroLearn AI"
+                iid = s.institution_id or current_user.get("institution_id")
+                if iid:
                     inst = db.execute(
                         text("SELECT institution_name FROM institutions WHERE institution_id = :iid"),
-                        {"iid": s.institution_id}
+                        {"iid": iid}
                     ).fetchone()
                     if inst:
                         institution_name = inst.institution_name
@@ -741,10 +742,11 @@ def get_my_profile(current_user: dict = Depends(get_current_user)):
 
                 # Fetch institution name
                 institution_name = "NeuroLearn AI"
-                if f.institution_id:
+                iid = f.institution_id or current_user.get("institution_id")
+                if iid:
                     inst = db.execute(
                         text("SELECT institution_name FROM institutions WHERE institution_id = :iid"),
-                        {"iid": f.institution_id}
+                        {"iid": iid}
                     ).fetchone()
                     if inst:
                         institution_name = inst.institution_name

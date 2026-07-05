@@ -281,7 +281,7 @@ const Header = () => {
     if (path.includes('analytics')) return 'Personal Performance Dashboard';
     if (path.includes('career')) return 'Career Tracks & Certifications';
     if (path.includes('leaderboard')) return 'Campus Leaderboard';
-    return branding.institutionName || 'COEP Technological University';
+    return branding.institutionName || 'NeuroLearn AI';
   };
 
   const menuItems = [
@@ -307,7 +307,7 @@ const Header = () => {
           <Menu size={18} />
         </button>
         <div>
-          {getPageTitle() === (branding.institutionName || 'COEP Technological University') ? (
+          {getPageTitle() === (branding.institutionName || 'NeuroLearn AI') ? (
             <div className="flex items-center gap-2">
               <img
                 src={branding.logoUrl || defaultLogo}
@@ -316,7 +316,7 @@ const Header = () => {
                 className="w-6 h-6 object-contain rounded-md bg-white p-0.5 shrink-0 shadow-sm"
               />
               <h2 className="text-base md:text-lg font-bold text-slate-800 dark:text-white tracking-tight">
-                {branding.institutionName || 'COEP Technological University'}
+                {branding.institutionName || 'NeuroLearn AI'}
               </h2>
             </div>
           ) : (
@@ -356,7 +356,7 @@ const Header = () => {
           <>
             {/* Academic Year Badge */}
             <div className="hidden lg:flex items-center gap-1.5 bg-slate-50 dark:bg-brand-card text-slate-500 dark:text-brand-muted px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-brand-border text-[10px] font-mono font-medium tracking-wider uppercase">
-              <span>AY 2026-27 · Term I</span>
+              <span>AY {branding?.academicYear || "2026-2027"} · Term I</span>
             </div>
             {/* Department Badge */}
             <div className="hidden sm:flex items-center gap-1.5 bg-slate-50 dark:bg-brand-card text-slate-500 dark:text-brand-muted px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-brand-border text-[10px] font-mono font-medium tracking-wider uppercase">

@@ -28,7 +28,7 @@ const THEME_PREVIEW_MAP = {
 
 const AdminSettings = () => {
   const { setProfile } = useStudent();
-  const { fetchBranding } = useBranding();
+  const { branding, fetchBranding } = useBranding();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   
@@ -397,7 +397,7 @@ const AdminSettings = () => {
                     {settings.institution_name || "Institution Name"}
                   </p>
                   <p className="text-[10px] text-slate-400 dark:text-slate-500 font-mono">
-                    AY {settings.academic_year || "2026-27"}
+                    AY {settings.academic_year || branding?.academicYear || "2026-27"}
                   </p>
                 </div>
               </div>

@@ -4,8 +4,10 @@ import { BookOpen, Users, GraduationCap, ArrowRight, LogOut, Sparkles, Layers, B
 import { motion } from 'framer-motion';
 import { useAuth } from '../../context/AuthContext';
 import { apiFetch } from '../../services/api';
+import { useBranding } from '../../context/BrandingContext';
 
 const ClassSelection = () => {
+    const { branding } = useBranding() || {};
     const [classes, setClasses] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -135,7 +137,7 @@ const ClassSelection = () => {
                         animate={{ opacity: 1, y: 0 }}
                         className="text-purple-600 dark:text-purple-400 font-extrabold uppercase tracking-wider text-xs bg-purple-500/10 px-3.5 py-1.5 rounded-full inline-block mb-3 border border-purple-500/20"
                     >
-                        Academic Year 2026-2027
+                        Academic Year {branding?.academicYear || "2026-2027"}
                     </motion.p>
 
                     <motion.h1

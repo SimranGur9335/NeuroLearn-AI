@@ -26,11 +26,13 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useStudent } from '../context/StudentContext';
+import { useBranding } from '../context/BrandingContext';
 import { THEME_COLOR_MAP } from '../components/StudentHubTheme';
 
 const Profile = () => {
   const { user, updateProfile, changePassword, updateAvatar, logout } = useAuth();
   const { profile, setProfile } = useStudent();
+  const { branding } = useBranding() || {};
   const themeColor = profile?.theme_color || 'indigo';
   const theme = THEME_COLOR_MAP[themeColor] || THEME_COLOR_MAP.indigo;
   const [activeTab, setActiveTab] = useState("details"); // 'details' | 'academic' | 'skills' | 'credentials' | 'security'
@@ -45,7 +47,7 @@ const Profile = () => {
   const [formName, setFormName] = useState(user?.name || "");
   const [formMobile, setFormMobile] = useState(user?.mobile || "");
   const [formBranch, setFormBranch] = useState(user?.branch || "B.Tech Computer Science");
-  const [formCollege, setFormCollege] = useState(user?.college || user?.institution_name || "COEP Technological University");
+  const [formCollege, setFormCollege] = useState(user?.college || user?.institution_name || branding?.institutionName || "NeuroLearn AI");
 
   // Academic Form States
   const [rollNo, setRollNo] = useState("");
@@ -86,7 +88,7 @@ const Profile = () => {
         setFormName(data.name || "");
         setFormMobile(data.mobile || "");
         setFormBranch(data.branch || "B.Tech Computer Science");
-        setFormCollege(data.college || data.institution_name || "COEP Technological University");
+        setFormCollege(data.college || data.institution_name || branding?.institutionName || "NeuroLearn AI");
         setRollNo(data.rollNumber || "");
         setSemester(data.semester || 5);
         setDivision(data.division || "A");

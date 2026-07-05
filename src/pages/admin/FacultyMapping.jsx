@@ -13,6 +13,7 @@ import {
   AlertTriangle
 } from 'lucide-react';
 import { apiFetch } from '../../services/api';
+import { useBranding } from '../../context/BrandingContext';
 
 const FacultyMapping = () => {
   const [faculty, setFaculty] = useState([]);
@@ -27,11 +28,19 @@ const FacultyMapping = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [targetMapping, setTargetMapping] = useState(null);
 
+  const { branding } = useBranding() || {};
+
   // Form states
   const [facultyId, setFacultyId] = useState("");
   const [subjectId, setSubjectId] = useState("");
   const [classId, setClassId] = useState("");
   const [academicYear, setAcademicYear] = useState("2026-27");
+
+  useEffect(() => {
+    if (branding?.academicYear) {
+      setAcademicYear(branding.academicYear);
+    }
+  }, [branding?.academicYear]);
 
   useEffect(() => {
     setIsLoading(true);
@@ -90,7 +99,7 @@ const FacultyMapping = () => {
     if (faculty.length > 0) setFacultyId(faculty[0].faculty_id.toString());
     if (subjects.length > 0) setSubjectId(subjects[0].subject_id.toString());
     if (classes.length > 0) setClassId(classes[0].class_id.toString());
-    setAcademicYear("2026-27");
+    setAcademicYear(branding?.academicYear || "2026-27");
     setShowAddModal(true);
   };
 

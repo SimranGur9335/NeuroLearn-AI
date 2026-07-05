@@ -12,6 +12,7 @@ import {
     AlertTriangle
 } from 'lucide-react';
 import { apiFetch } from '../../services/api';
+import { useBranding } from '../../context/BrandingContext';
 
 const SubjectManagement = () => {
     const [subjects, setSubjects] = useState([]);
@@ -42,17 +43,26 @@ const SubjectManagement = () => {
     const [formSemester, setFormSemester] = useState(5);
     const [formDept, setFormDept] = useState("CS");
 
+    const { branding } = useBranding() || {};
+
     // Assessment template & structure states
     const [showAssessmentsModal, setShowAssessmentsModal] = useState(false);
     const [selectedSubjectForAssessments, setSelectedSubjectForAssessments] = useState(null);
     const [academicYear, setAcademicYear] = useState("2026-2027");
     const [assessmentComponents, setAssessmentComponents] = useState([]);
 
+    useEffect(() => {
+        if (branding?.academicYear) {
+            setAcademicYear(branding.academicYear);
+        }
+    }, [branding?.academicYear]);
+
     const handleOpenAssessments = async (subject) => {
         setSelectedSubjectForAssessments(subject);
-        setAcademicYear("2026-2027");
+        const activeYear = branding?.academicYear || "2026-2027";
+        setAcademicYear(activeYear);
         try {
-            const res = await apiFetch(`/api/v1/subjects/${subject.subject_id}/assessments?academic_year=2026-2027`);
+            const res = await apiFetch(`/api/v1/subjects/${subject.subject_id}/assessments?academic_year=${activeYear}`);
             if (res.ok) {
                 const data = await res.json();
                 setAssessmentComponents(data.length > 0 ? data : [
@@ -556,9 +566,9 @@ const SubjectManagement = () => {
                                     onChange={(e) => handleAcademicYearChange(e.target.value)}
                                     className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-700 dark:text-slate-200 rounded-xl px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                                 >
-                                    <option value="2026-2027">2026-2027</option>
-                                    <option value="2025-2026">2025-2026</option>
-                                    <option value="2024-2025">2024-2025</option>
+                                    {Array.from(new Set([branding?.academicYear, "2026-2027", "2025-2026", "2024-2025"].filter(Boolean))).map(yr => (
+                                        <option key={yr} value={yr}>{yr}</option>
+                                    ))}
                                 </select>
                             </div>
                             <span className="text-[11px] text-slate-600 font-medium">

@@ -970,6 +970,66 @@ def run_seeding():
         except Exception as seed_err:
             print(f"Error seeding domains helper: {seed_err}")
 
+        # Seed users for other institutions
+        other_insts = [
+            {"id": 2, "name": "MIT World Peace University", "domain": "mitwpu.edu.in", "prefix": "mitwpu"},
+            {"id": 3, "name": "Vishwakarma Institute of Technology", "domain": "vit.ac.in", "prefix": "vit"},
+            {"id": 4, "name": "Pune Institute of Computer Technology", "domain": "pict.edu", "prefix": "pict"}
+        ]
+        for inst_info in other_insts:
+            iid = inst_info["id"]
+            domain = inst_info["domain"]
+            
+            # Check if student user exists
+            stud_email = f"student@{domain}"
+            existing_stud = db.execute(text("SELECT user_id FROM users WHERE email = :email"), {"email": stud_email}).fetchone()
+            if not existing_stud:
+                # Insert student record
+                student_id = db.execute(text("""
+                    INSERT INTO students (roll_no, full_name, email, department, semester, division, institution_id, created_at)
+                    VALUES (:roll, :name, :email, 'Computer Engineering', 5, 'A', :iid, CURRENT_TIMESTAMP)
+                    RETURNING student_id
+                """), {"roll": f"2023{inst_info['prefix'].upper()}8094", "name": f"Student {inst_info['prefix'].capitalize()}", "email": stud_email, "iid": iid}).scalar()
+                
+                # Insert metrics
+                db.execute(text("""
+                    INSERT INTO student_metrics (student_id, attendance, quiz_score, risk_level, predicted_cgpa, xp_points, updated_at)
+                    VALUES (:student_id, 85.0, 80.0, 'Low', 8.5, 600, CURRENT_TIMESTAMP)
+                """), {"student_id": student_id})
+                
+                # Insert user credential
+                db.execute(text("""
+                    INSERT INTO users (email, password_hash, role, student_id, institution_id, created_at, updated_at)
+                    VALUES (:email, :hash, 'student', :sid, :iid, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                """), {"email": stud_email, "hash": hash_password("Password123"), "sid": student_id, "iid": iid})
+                
+            # Check if teacher user exists
+            teach_email = f"teacher@{domain}"
+            existing_teach = db.execute(text("SELECT user_id FROM users WHERE email = :email"), {"email": teach_email}).fetchone()
+            if not existing_teach:
+                # Insert faculty record
+                faculty_id = db.execute(text("""
+                    INSERT INTO faculty (faculty_code, full_name, email, department, designation, institution_id, created_at)
+                    VALUES (:code, :name, :email, 'Computer Engineering', 'Professor & Head', :iid, CURRENT_TIMESTAMP)
+                    RETURNING faculty_id
+                """), {"code": f"FAC_{inst_info['prefix'].upper()}", "name": f"Dr. Faculty {inst_info['prefix'].capitalize()}", "email": teach_email, "iid": iid}).scalar()
+                
+                # Insert user credential
+                db.execute(text("""
+                    INSERT INTO users (email, password_hash, role, faculty_id, institution_id, created_at, updated_at)
+                    VALUES (:email, :hash, 'teacher', :fid, :iid, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                """), {"email": teach_email, "hash": hash_password("Password123"), "fid": faculty_id, "iid": iid})
+                
+            # Check if admin user exists
+            adm_email = f"admin@{domain}"
+            existing_adm = db.execute(text("SELECT user_id FROM users WHERE email = :email"), {"email": adm_email}).fetchone()
+            if not existing_adm:
+                db.execute(text("""
+                    INSERT INTO users (email, password_hash, role, institution_id, created_at, updated_at)
+                    VALUES (:email, :hash, 'admin', :iid, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                """), {"email": adm_email, "hash": hash_password("Password123"), "iid": iid})
+        db.commit()
+
         # Double check/ensure all tables have default institution_id = 1 assigned
         for table in ['users', 'students', 'faculty', 'classes', 'subjects', 'courses', 'announcements', 'departments']:
             db.execute(text(f"UPDATE {table} SET institution_id = 1 WHERE institution_id IS NULL;"))
