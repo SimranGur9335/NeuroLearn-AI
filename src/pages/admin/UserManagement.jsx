@@ -34,6 +34,8 @@ const UserManagement = () => {
   const [formEmail, setFormEmail] = useState("");
   const [formDesignation, setFormDesignation] = useState("Assistant Professor");
   const [formPhone, setFormPhone] = useState("");
+  const [formSemester, setFormSemester] = useState(1);
+  const [formDivision, setFormDivision] = useState("A");
 
   // Credentials dialog state
   const [createdCredentials, setCreatedCredentials] = useState(null);
@@ -95,6 +97,8 @@ const UserManagement = () => {
     setFormEmail("");
     setFormPhone("");
     setFormDesignation("Assistant Professor");
+    setFormSemester(1);
+    setFormDivision("A");
     setCreatedCredentials(null);
     setShowAddModal(true);
   };
@@ -106,6 +110,8 @@ const UserManagement = () => {
     setFormBranch(user.department || "CS");
     setFormEmail(user.email || "");
     setFormDesignation(user.designation || "Assistant Professor");
+    setFormSemester(user.semester || 1);
+    setFormDivision(user.division || "A");
     setShowEditModal(true);
   };
 
@@ -133,8 +139,8 @@ const UserManagement = () => {
             full_name: formName.trim(),
             roll_no: formRoll.trim(),
             department: formBranch,
-            semester: 1,
-            division: "A",
+            semester: formSemester,
+            division: formDivision,
             phone: formPhone.trim()
           })
         });
@@ -184,8 +190,8 @@ const UserManagement = () => {
             full_name: formName,
             email: targetUser.email,
             department: formBranch,
-            semester: targetUser.semester,
-            division: targetUser.division
+            semester: formSemester,
+            division: formDivision
           })
         });
         if (res.ok) {
@@ -575,6 +581,32 @@ className="p-2 bg-slate-100 border border-slate-200 rounded-lg text-red-600 hove
                       ))}
                     </select>
                   </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-[9px] font-bold dark:text-slate-500 uppercase block mb-1">Semester *</label>
+                      <select
+                        value={formSemester}
+                        onChange={(e) => setFormSemester(Number(e.target.value))}
+                        className="w-full bg-slate-950/60 border border-slate-850 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-white cursor-pointer"
+                      >
+                        {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(s => (
+                          <option key={s} value={s} className="bg-white text-slate-900">Sem {s}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-[9px] font-bold dark:text-slate-500 uppercase block mb-1">Division *</label>
+                      <input
+                        type="text"
+                        value={formDivision}
+                        onChange={(e) => setFormDivision(e.target.value)}
+                        placeholder="e.g. A, 1, TY-AIA-2"
+                        className="w-full bg-slate-950/60 border border-slate-850 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-white font-semibold"
+                        required
+                      />
+                    </div>
+                  </div>
                 </>
               ) : (
                 <>
@@ -703,6 +735,32 @@ className="p-2 bg-slate-100 border border-slate-200 rounded-lg text-red-600 hove
                         <option key={d} value={d} className="bg-white">{d}</option>
                       ))}
                     </select>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-[9px] font-bold text-slate-500 uppercase block mb-1">Semester</label>
+                      <select
+                        value={formSemester}
+                        onChange={(e) => setFormSemester(Number(e.target.value))}
+                        className="w-full bg-slate-950/60 border border-slate-850 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-white cursor-pointer"
+                      >
+                        {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(s => (
+                          <option key={s} value={s} className="bg-white text-slate-900">Sem {s}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-[9px] font-bold text-slate-500 uppercase block mb-1">Division</label>
+                      <input
+                        type="text"
+                        value={formDivision}
+                        onChange={(e) => setFormDivision(e.target.value)}
+                        placeholder="e.g. A, 1, TY-AIA-2"
+                        className="w-full bg-slate-950/60 border border-slate-850 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-white font-semibold"
+                        required
+                      />
+                    </div>
                   </div>
                 </>
               ) : (
