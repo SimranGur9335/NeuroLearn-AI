@@ -17,10 +17,16 @@ router = APIRouter(
 )
 
 
+_domains_cache = None
+
 # --- Dynamic Domains Module Endpoints ---
 
 @router.get("/api/v1/domains")
 def get_domains():
+    global _domains_cache
+    if _domains_cache is not None:
+        return _domains_cache
+
     db = SessionLocal()
     try:
         rows = db.execute(text("""
@@ -54,7 +60,8 @@ def get_domains():
                 "learning_resources": json.loads(r.learning_resources) if isinstance(r.learning_resources, str) else r.learning_resources,
                 "interview_prep": json.loads(r.interview_prep) if isinstance(r.interview_prep, str) else r.interview_prep
             })
-        return result
+        _domains_cache = result
+        return _domains_cache
     finally:
         db.close()
 

@@ -1,7 +1,32 @@
 from sqlalchemy import text, inspect
 from backend.database import SessionLocal, engine
 
+def check_migrations_already_run() -> bool:
+    try:
+        inspector = inspect(engine)
+        tables = inspector.get_table_names()
+        
+        required_tables = ["wellness_statistics", "student_assessment_marks", "subject_assessments"]
+        for table in required_tables:
+            if table not in tables:
+                return False
+                
+        remedial_cols = [c['name'] for c in inspector.get_columns('remedial_sessions')]
+        if 'cancellation_reason' not in remedial_cols or 'completed_at' not in remedial_cols:
+            return False
+            
+        mood_cols = [c['name'] for c in inspector.get_columns('wellness_mood_logs')]
+        if 'sleep_hours' not in mood_cols or 'study_hours' not in mood_cols:
+            return False
+            
+        return True
+    except Exception:
+        return False
+
 def run_migrations():
+    if check_migrations_already_run():
+        print("Database schema is up-to-date. Skipping core migrations.")
+        return
     db = SessionLocal()
     try:
         # Check and add columns to assignments table
@@ -299,6 +324,8 @@ def run_migrations():
         db.close()
 
 def run_gradebook_migrations():
+    if check_migrations_already_run():
+        return
     db = SessionLocal()
     try:
         # 1. Create subject_assessments table
@@ -348,6 +375,8 @@ def run_gradebook_migrations():
         db.close()
 
 def run_remedial_migrations():
+    if check_migrations_already_run():
+        return
     db = SessionLocal()
     try:
         inspector = inspect(engine)

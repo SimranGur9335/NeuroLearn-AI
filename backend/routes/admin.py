@@ -12,6 +12,7 @@ from backend.core.helpers import handle_exception_securely, log_audit
 from backend.schemas.admin import SystemSettingsInput
 from backend.schemas.faculty import CreateFacultyInput
 from backend.schemas.student import CreateStudentInput
+from backend.routes.institution import clear_institutions_cache
 
 router = APIRouter(
     tags=["Admin"]
@@ -399,6 +400,7 @@ def update_admin_settings(data: SystemSettingsInput, current_user: dict = Depend
             }
         )
         db.commit()
+        clear_institutions_cache()
         log_audit(db, "UPDATE_SETTINGS", "SystemSettings", None, performed_by=f"Admin {current_user['user_id']}")
         return {"message": "System settings updated successfully"}
     except Exception as e:

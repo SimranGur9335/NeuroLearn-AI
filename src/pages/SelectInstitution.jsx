@@ -47,11 +47,51 @@ const SelectInstitution = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-white flex flex-col items-center justify-center text-slate-500">
-        <Sparkles size={40} className="text-indigo-650 animate-spin" />
-        <p className="text-[10px] uppercase font-black tracking-widest text-slate-450 mt-6 animate-pulse">
-          Loading Campus Registry...
-        </p>
+      <div className="bg-white text-slate-800 min-h-screen flex items-center justify-center relative font-sans p-6 overflow-y-auto">
+        {/* Subtle Grid Overlay Graphic */}
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#f1f5f9_1px,transparent_1px),linear-gradient(to_bottom,#f1f5f9_1px,transparent_1px)] bg-[size:4rem_4rem] opacity-40 [mask-image:radial-gradient(ellipse_60%_50%_at_50%_50%,#000_60%,transparent_100%)] pointer-events-none" />
+
+        <div className="max-w-4xl w-full relative z-10 space-y-8 py-8">
+          
+          {/* Header Branding Skeleton */}
+          <div className="text-center space-y-3">
+            <div className="flex items-center justify-center gap-3">
+              <div className="w-10 h-10 bg-slate-100 rounded-xl animate-pulse border border-slate-200" />
+              <div className="h-6 w-32 bg-slate-100 rounded-lg animate-pulse" />
+            </div>
+            <div className="h-10 w-64 bg-slate-100 rounded-xl animate-pulse mx-auto pt-2" />
+            <div className="h-4 w-48 bg-slate-50 rounded-lg animate-pulse mx-auto" />
+          </div>
+
+          {/* Search Bar Skeleton */}
+          <div className="relative max-w-md mx-auto">
+            <div className="w-full bg-slate-50 border border-slate-200 rounded-2xl h-[48px] animate-pulse" />
+          </div>
+
+          {/* Campus Cards Grid Container Skeleton */}
+          <div className="bg-slate-50/50 border border-slate-200/80 p-6 rounded-3xl space-y-6 backdrop-blur-md">
+            <div className="flex justify-between items-center px-1">
+              <div className="h-4 w-28 bg-slate-100 rounded animate-pulse" />
+              <div className="h-4 w-32 bg-slate-100 rounded animate-pulse" />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+              {[1, 2, 3].map((n) => (
+                <div key={n} className="p-6 rounded-2xl bg-white border border-slate-200/80 flex flex-col justify-between min-h-[175px] shadow-sm animate-pulse">
+                  <div className="flex justify-between items-start gap-4">
+                    <div className="bg-slate-100 w-12 h-12 rounded-xl" />
+                    <div className="bg-slate-100 w-12 h-5 rounded" />
+                  </div>
+                  <div className="mt-5 space-y-3">
+                    <div className="bg-slate-100 h-4 w-3/4 rounded" />
+                    <div className="bg-slate-100 h-3 w-1/2 rounded" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+        </div>
       </div>
     );
   }

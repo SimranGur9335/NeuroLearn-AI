@@ -12,8 +12,18 @@ router = APIRouter(
     tags=["Institution"]
 )
 
+_institutions_cache = None
+
+def clear_institutions_cache():
+    global _institutions_cache
+    _institutions_cache = None
+
 @router.get("/api/v1/institutions")
 def get_institutions_list():
+    global _institutions_cache
+    if _institutions_cache is not None:
+        return _institutions_cache
+
     db = SessionLocal()
     try:
         result = db.execute(
@@ -25,7 +35,7 @@ def get_institutions_list():
             """)
         ).fetchall()
         
-        return [
+        _institutions_cache = [
             {
                 "institution_id": row.institution_id,
                 "institution_name": row.institution_name,
@@ -41,6 +51,7 @@ def get_institutions_list():
                 "academic_year": row.academic_year
             } for row in result
         ]
+        return _institutions_cache
     finally:
         db.close()
 
@@ -113,6 +124,7 @@ def update_institution_configuration(data: InstitutionConfigurationInput, curren
             }
         )
         db.commit()
+        clear_institutions_cache()
         log_audit(db, "UPDATE_BRANDING", "Institution", iid, performed_by=f"Admin {current_user['user_id']}", institution_id=iid)
         return {"message": "Institution branding updated successfully"}
     except Exception as e:
@@ -298,6 +310,7 @@ def update_institution_configuration(data: InstitutionConfigurationInput, curren
             }
         )
         db.commit()
+        clear_institutions_cache()
         log_audit(db, "UPDATE_BRANDING", "Institution", iid, performed_by=f"Admin {current_user['user_id']}", institution_id=iid)
         return {"message": "Institution branding updated successfully"}
     except Exception as e:
